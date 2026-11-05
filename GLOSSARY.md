@@ -23,3 +23,15 @@ _Avoid_: Entry, note
 **Link**:
 A typed connection between two records, or between a record and a source item (its evidence). Links carry their own evidence and history.
 _Avoid_: Relation, reference
+
+**Person**:
+Someone who owns, requests or is mentioned in work, including the person using the Librarian. Known by one or more aliases.
+_Avoid_: User, contact
+
+**Alias**:
+A name or id a source uses for a person, such as a Slack user id or a first name in a transcript. One alias belongs to one person.
+_Avoid_: Nickname, handle
+
+**Suggested link**:
+A link the importer is unsure about. It waits in the review list and never counts as confirmed until the person accepts it.
+_Avoid_: Pending match, guess
