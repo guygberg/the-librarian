@@ -60,7 +60,7 @@ def _entry(conn: sqlite3.Connection, workspace: str, entry_id: int) -> tuple[int
     return row
 
 
-def _settle(conn: sqlite3.Connection, entry_id: int, resolution: str) -> None:
+def settle(conn: sqlite3.Connection, entry_id: int, resolution: str) -> None:
     conn.execute(
         "UPDATE review_entries SET resolved_at = ?, resolution = ? WHERE id = ?",
         (datetime.now(UTC).isoformat(), resolution, entry_id),
@@ -88,7 +88,7 @@ def accept(conn: sqlite3.Connection, workspace: str, entry_id: int, person_id: i
             " VALUES (?, ?, 'record', ?, 'person', ?, ?)",
             (workspace, link_type, record_id, person_id, datetime.now(UTC).isoformat()),
         )
-    _settle(conn, entry_id, "accepted")
+    settle(conn, entry_id, "accepted")
     detail = {"alias": raw_name, "entry": entry_id}
     events.append(conn, workspace, record_id, "accept_suggestion", {**detail, "person_id": person_id} if link_type == "owner" else detail)
     return record_id
@@ -96,7 +96,7 @@ def accept(conn: sqlite3.Connection, workspace: str, entry_id: int, person_id: i
 
 def reject(conn: sqlite3.Connection, workspace: str, entry_id: int) -> int:
     record_id, _, _, raw_name = _entry(conn, workspace, entry_id)
-    _settle(conn, entry_id, "rejected")
+    settle(conn, entry_id, "rejected")
     events.append(conn, workspace, record_id, "reject_suggestion", {"alias": raw_name, "entry": entry_id})
     return record_id
 

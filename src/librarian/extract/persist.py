@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from librarian import locator
-from librarian.link import people, project_actions, projects, review
+from librarian.link import people, project_actions, projects, review, speaker
 
 
 def _now() -> str:
@@ -86,7 +86,14 @@ def _update_record(conn: sqlite3.Connection, workspace: str, record_id: int, rec
 
 def _owner(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]) -> tuple[int | None, str | None]:
     owner = rec.get("owner")
-    return people.resolve(conn, workspace, owner, _from_recording(rec)) if owner else (None, None)
+    return _resolve(conn, workspace, owner, rec) if owner else (None, None)
+
+
+def _resolve(conn: sqlite3.Connection, workspace: str, end: dict[str, Any], rec: dict[str, Any]) -> tuple[int | None, str | None]:
+    """A first-person line of a recording is the speaker a person set for its segment, else "unknown speaker"."""
+    if "speaker" in end and (person_id := speaker.known(conn, workspace, rec["evidence"])) is not None:
+        return person_id, None
+    return people.resolve(conn, workspace, end, _from_recording(rec))
 
 
 def _insert_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]) -> int:
@@ -122,7 +129,7 @@ def _link_and_cite(conn: sqlite3.Connection, workspace: str, ids: dict[str, int]
                 continue  # a person moved it: extraction does not move it back
         else:
             to_type = "person"
-            to_id, review_kind = people.resolve(conn, workspace, end, _from_recording(rec))
+            to_id, review_kind = _resolve(conn, workspace, end, rec)
             if review_kind:
                 review.add(conn, workspace, review_kind, record_id, link["type"], end.get("name"))
                 continue

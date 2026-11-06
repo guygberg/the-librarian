@@ -2,7 +2,7 @@
 
 `detail` keys the current view understands (see `librarian.query.core`):
 - `lifecycle` (+ optional `waiting_on`, `suspended_by`, `reason`): status_change, resolve_disagreement
-- `person_id`: owner_change, move_alias, split, accept_suggestion (an owner suggestion); `project_id`: project_move
+- `person_id`: owner_change, move_alias, split, accept_suggestion (an owner suggestion), set_speaker; `project_id`: project_move
 - `with` (the other Record): resolve_disagreement; it hides that Record from "Sources disagree"
 Every other event is history only until the action that needs it lands.
 """
