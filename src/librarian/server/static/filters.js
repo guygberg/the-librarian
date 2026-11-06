@@ -10,7 +10,7 @@ export function current() {
   return {
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
-    source: q.get('source'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
+    source: q.get('source'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
   };
 }
 

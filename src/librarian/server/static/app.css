@@ -78,3 +78,7 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 .node.hop-3, .edge.hop-3 { opacity: .3; }
 .node.hop-2 rect, .node.hop-3 rect { stroke-dasharray: 4 4; }
 .legend { color: var(--mut); }
+#search input { width: 100%; box-sizing: border-box; background: var(--panel); color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: var(--s2) var(--s3); font-size: 14px; }
+.results { margin: var(--s3) 0; border: 1px solid var(--line); border-radius: 10px; padding: var(--s2) var(--s4); }
+.res { padding: var(--s2) 0; display: flex; gap: var(--s3); align-items: baseline; }
+.res a { color: inherit; text-decoration: none; }
