@@ -79,7 +79,7 @@ def test_import_stores_records_each_with_located_evidence(home, base):
     assert code == 0, out
     project, decision, action = show(home, 1), show(home, 2), show(home, 3)
     assert (project["kind"], project["title"], project["lifecycle"], project["basis"]) == (
-        "project", "Atlas", "open", "stated")
+        "project", "Atlas", "open", "inferred")  # a project Claude creates waits for the person to confirm it
     assert decision["projects"] == [{"id": 1, "title": "Atlas"}]
     assert decision["reasoning"] == "one file per workspace"
     assert (action["commitment"], action["owner"], action["stated_deadline"]) == ("request", "Priya Shah", "2026-12-01")

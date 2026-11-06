@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from librarian import locator
-from librarian.link import people, review
+from librarian.link import people, projects, review
 
 
 def _now() -> str:
@@ -17,9 +17,11 @@ def persist(
 ) -> None:
     conn.execute("BEGIN")
     try:
-        ids = {rec["ref"]: _insert_record(conn, workspace, rec) for rec in records}
+        near: dict[str, tuple[int, ...]] = {}  # ref of a new project -> existing projects with a near name
+        ids = {rec["ref"]: _store_record(conn, workspace, rec, near) for rec in records}
         for rec in records:
             _link_and_cite(conn, workspace, ids, rec)
+            _suggest_projects(conn, workspace, ids[rec["ref"]], rec, near)
         conn.execute(
             "INSERT OR REPLACE INTO extracted_units (workspace, unit_key, text_hash, extracted_at) VALUES (?, ?, ?, ?)",
             (workspace, unit_key, text_hash, _now()),
@@ -30,10 +32,62 @@ def persist(
         raise
 
 
+def _store_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any], near: dict[str, tuple[int, ...]]) -> int:
+    """The Record's id: the one Claude matched (same, updated), the one project with this exact name, or a new one."""
+    decision = rec["match"]["decision"]
+    if decision != "new":
+        if decision == "updated":
+            _update_record(conn, workspace, rec["match"]["id"], rec)
+        return rec["match"]["id"]
+    if rec["kind"] != "project":
+        return _insert_record(conn, workspace, rec)
+    found = projects.match(conn, workspace, rec["title"])
+    if found.exact is not None:
+        return found.exact
+    # Never merged here: a second project is stored, inferred, and any near name is only suggested.
+    record_id = _insert_record(conn, workspace, {**rec, "basis": "inferred"})
+    review.add(conn, workspace, review.INFERRED_PROJECT, record_id, "project", rec["title"])
+    if found.near:
+        near[rec["ref"]] = found.near
+        for other in found.near:
+            review.add(conn, workspace, review.MERGE_PROJECT, record_id, "project", rec["title"], other)
+    return record_id
+
+
+def _suggest_projects(
+    conn: sqlite3.Connection, workspace: str, record_id: int, rec: dict[str, Any], near: dict[str, tuple[int, ...]]
+) -> None:
+    """A Record of a new project with a near name might belong to the existing one: suggested, not linked."""
+    for link in rec.get("links", []):
+        for other in near.get(link["to"].get("ref"), ()) if link["type"] == "belongs_to" else ():
+            title = conn.execute("SELECT title FROM records WHERE id = ?", (other,)).fetchone()[0]
+            review.add(conn, workspace, review.SUGGESTED_PROJECT, record_id, "belongs_to", title, other)
+
+
+def _update_record(conn: sqlite3.Connection, workspace: str, record_id: int, rec: dict[str, Any]) -> None:
+    person_id, review_kind = _owner(conn, workspace, rec)
+    conn.execute(
+        "UPDATE records SET title = ?, body = ?, lifecycle = ?, basis = CASE WHEN basis = 'confirmed' THEN basis ELSE ? END,"
+        " commitment = ?, owner_person_id = COALESCE(?, owner_person_id), stated_deadline = ?, reasoning = ?,"
+        " updated_at = ? WHERE id = ?",
+        (
+            rec["title"], rec.get("body", ""), rec["lifecycle"], rec["basis"], rec.get("commitment"), person_id,
+            rec.get("stated_deadline"), rec.get("reasoning"), _now(), record_id,
+        ),
+    )
+    if review_kind:
+        review.add(conn, workspace, review_kind, record_id, "owner", rec["owner"].get("name"))
+
+
+def _owner(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]) -> tuple[int | None, str | None]:
+    owner = rec.get("owner")
+    return people.resolve(conn, workspace, owner, _from_recording(rec)) if owner else (None, None)
+
+
 def _insert_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]) -> int:
     now = _now()
     owner = rec.get("owner")
-    person_id, review_kind = people.resolve(conn, workspace, owner, _from_recording(rec)) if owner else (None, None)
+    person_id, review_kind = _owner(conn, workspace, rec)
     record_id = conn.execute(
         "INSERT INTO records (workspace, kind, title, body, lifecycle, basis, commitment, owner_person_id,"
         " stated_deadline, reasoning, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -77,6 +131,10 @@ def _link_and_cite(conn: sqlite3.Connection, workspace: str, ids: dict[str, int]
             " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ? ORDER BY r.revision DESC LIMIT 1",
             (workspace, loc.source, loc.stable_id),
         ).fetchone()[0]
+        if conn.execute(
+            "SELECT 1 FROM evidence WHERE record_id = ? AND locator = ? AND quote = ?", (record_id, ev["locator"], ev["quote"])
+        ).fetchone():
+            continue  # a re-extraction cites the same span again
         conn.execute(
             "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role, retrieved_at, gloss)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

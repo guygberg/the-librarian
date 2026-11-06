@@ -8,9 +8,10 @@ pending, anything else is done.
 
 import hashlib
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
-from librarian.extract import persist, runs, units
+from librarian import config
+from librarian.extract import candidates, persist, runs, units
 from librarian.importer.stages import Deferred, Stage
 from librarian.ports import Extractor
 
@@ -36,12 +37,25 @@ def stage(workspace: str, extractor: Extractor, max_calls: int | None = None) ->
         by_item = units.build(conn, workspace)
         stale = stale_units(conn, workspace)
         limit = len(stale) if max_calls is None else max(0, max_calls)
-        for unit, source in _sources(extractor, stale[:limit]):
+        stale_days = config.load()["import_staleness_days"]
+        pick = lambda unit: candidates.pick(conn, workspace, unit, stale_days)  # noqa: E731
+        for unit, source, sent in _sources(extractor, stale[:limit], pick):
             made += 1
             try:
                 result = runs.extract_and_record(
-                    conn, workspace, source, extractor.meta, unit.key, unit.text, [], unit.locators
+                    conn, workspace, source, extractor.meta, unit.key, unit.text, sent, unit.locators
                 )
+                unsent = candidates.unsent_projects(result.records, sent)
+                if unsent:
+                    # Claude linked to a project whose Records it was not shown: ask once more, as one more call.
+                    if max_calls is not None and made >= limit:
+                        deferred.add(unit.key)
+                        continue
+                    made += 1
+                    sent = candidates.add_projects(conn, workspace, sent, unsent, stale_days)
+                    result = runs.extract_and_record(
+                        conn, workspace, extractor, extractor.meta, unit.key, unit.text, sent, unit.locators
+                    )
                 persist.persist(conn, workspace, unit.key, _hash(unit), result.records)
             except Exception as exc:
                 failed[unit.key] = exc
@@ -75,17 +89,21 @@ class _Replay:
         return self._outcome
 
 
-def _sources(extractor: Extractor, todo: list[units.Unit]) -> Iterator[tuple[units.Unit, Extractor]]:
-    """Each unit with what to call for it. A concurrent engine yields in completion order, so a unit is
-    stored as soon as it is done and an interrupted run keeps everything finished."""
+def _sources(
+    extractor: Extractor, todo: list[units.Unit], pick: Callable[[units.Unit], list[dict]]
+) -> Iterator[tuple[units.Unit, Extractor, list[dict]]]:
+    """Each unit with what to call for it and the candidates sent. A concurrent engine yields in completion
+    order, so a unit is stored as soon as it is done and an interrupted run keeps everything finished; its
+    candidates are picked up front, and the exact-name project match at storing time keeps them from duplicating."""
     stream = getattr(extractor, "extract_stream", None)
     if stream is None:
         for unit in todo:
-            yield unit, extractor
+            yield unit, extractor, pick(unit)  # picked now, so it sees what the units before it stored
         return
-    by_key = {u.key: u for u in todo}
-    for key, outcome in stream((u.key, u.text) for u in todo):
-        yield by_key[key], _Replay(outcome)
+    by_key = {u.key: (u, pick(u)) for u in todo}
+    for key, outcome in stream((u.key, u.text, by_key[u.key][1]) for u in todo):
+        unit, sent = by_key[key]
+        yield unit, _Replay(outcome), sent
 
 
 def _hash(unit: units.Unit) -> str:

@@ -107,14 +107,16 @@ class ClaudeExtractor:
                 time.sleep(self._backoff * 2**attempt)
         raise AssertionError("unreachable")
 
-    def extract_stream(self, items: Iterable[tuple[str, str]]) -> Iterator[tuple[str, str | Exception]]:
+    def extract_stream(
+        self, items: Iterable[tuple[str, str, list[dict[str, Any]]]]
+    ) -> Iterator[tuple[str, str | Exception]]:
         """Run units on up to `workers` threads; yield each outcome as it finishes so the caller can store it at once."""
         pending = iter(items)
         with ThreadPoolExecutor(self._workers) as pool:
             running = {}
             while True:
-                for key, text in pending:
-                    running[pool.submit(self.extract, key, text, [])] = key
+                for key, text, candidates in pending:
+                    running[pool.submit(self.extract, key, text, candidates)] = key
                     if len(running) >= self._workers:
                         break
                 if not running:

@@ -158,11 +158,11 @@ def test_concurrency_reaches_the_configured_workers_and_never_exceeds_them(monke
 
     monkeypatch.setattr(ClaudeExtractor, "_call", call)
     monkeypatch.setattr(ClaudeExtractor, "_claude_version", lambda self: "1")
-    items = [(f"u{i}", f"text {i}") for i in range(6)]
+    items = [(f"u{i}", f"text {i}", []) for i in range(6)]
 
     got = dict(extractor(claude_workers=workers).extract_stream(items))
 
-    assert got == dict(items)
+    assert got == {key: text for key, text, _ in items}
     assert peak[0] == workers
 
 
