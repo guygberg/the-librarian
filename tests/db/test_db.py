@@ -27,14 +27,14 @@ def digest(path):
 
 def test_migrate_creates_db_idempotently_and_status_is_read_only(home):
     out = run_librarian(["migrate", "--status"], home)
-    assert out.stdout.strip() == "version 0, 1 pending"
+    assert out.stdout.strip() == "version 0, 2 pending"
     assert not (home / "workspaces" / "work" / "librarian.db").exists()
 
     first = run_librarian(["migrate"], home)
     again = run_librarian(["migrate"], home)
     assert first.returncode == again.returncode == 0
-    assert first.stdout.strip() == again.stdout.strip() == "version 1"
-    assert run_librarian(["migrate", "--status"], home).stdout.strip() == "version 1, 0 pending"
+    assert first.stdout.strip() == again.stdout.strip() == "version 2"
+    assert run_librarian(["migrate", "--status"], home).stdout.strip() == "version 2, 0 pending"
     assert not list((home / "workspaces" / "work").glob("backups/*"))
 
 

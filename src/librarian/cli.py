@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", metavar="<command>")
     for info in pkgutil.iter_modules(commands.__path__):
         module = importlib.import_module(f"{commands.__name__}.{info.name}")
-        cmd = sub.add_parser(info.name.replace("_", "-"), help=module.help)
+        cmd = sub.add_parser(info.name.rstrip("_").replace("_", "-"), help=module.help)
         module.add_arguments(cmd)
         cmd.set_defaults(run=module.run)
     return parser
