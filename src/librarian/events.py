@@ -2,7 +2,7 @@
 
 `detail` keys the current view understands (see `librarian.query.core`):
 - `lifecycle` (+ optional `waiting_on`, `suspended_by`, `reason`): status_change, resolve_disagreement
-- `person_id`: owner_change; `project_id`: project_move
+- `person_id`: owner_change, move_alias, split, accept_suggestion (an owner suggestion); `project_id`: project_move
 - `with` (the other Record): resolve_disagreement; it hides that Record from "Sources disagree"
 Every other event is history only until the action that needs it lands.
 """
@@ -14,7 +14,7 @@ from typing import Any
 
 TYPES = (
     "status_change", "owner_change", "project_move", "accept_suggestion", "reject_suggestion",
-    "merge", "split", "dismiss", "set_speaker", "resolve_disagreement",
+    "merge", "split", "move_alias", "dismiss", "set_speaker", "resolve_disagreement",
 )
 
 

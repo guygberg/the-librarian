@@ -14,16 +14,16 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _key(name: str) -> str:
+def key(name: str) -> str:
     """Case and spacing differences are not a different name; anything further apart is."""
     return " ".join(name.casefold().split())
 
 
-def _add_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: str) -> None:
+def add_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: str) -> None:
     conn.execute("INSERT OR IGNORE INTO aliases (workspace, person_id, alias) VALUES (?, ?, ?)", (workspace, person_id, alias))
 
 
-def _new_person(conn: sqlite3.Connection, workspace: str, name: str, is_me: bool = False) -> int:
+def new_person(conn: sqlite3.Connection, workspace: str, name: str, is_me: bool = False) -> int:
     return conn.execute(
         "INSERT INTO persons (workspace, name, created_at, is_me) VALUES (?, ?, ?, ?)", (workspace, name, _now(), is_me)
     ).lastrowid
@@ -42,10 +42,10 @@ def save_slack_users(conn: sqlite3.Connection, workspace: str, users: list[dict[
         person_id = _by_slack_id(conn, workspace, user["id"])
         if person_id is None:
             name = user.get("real_name") or user.get("name") or user["id"]
-            person_id = _new_person(conn, workspace, name)
+            person_id = new_person(conn, workspace, name)
             for alias in (SLACK + user["id"], user.get("real_name"), user.get("name")):
                 if alias:
-                    _add_alias(conn, workspace, person_id, alias)
+                    add_alias(conn, workspace, person_id, alias)
         if user["id"] == login_id:
             _become_me(conn, workspace, person_id)
 
@@ -67,19 +67,19 @@ def _become_me(conn: sqlite3.Connection, workspace: str, person_id: int) -> None
 def me(conn: sqlite3.Connection, workspace: str) -> int:
     """The Me Person, with the names listed at setup as its Aliases."""
     row = conn.execute("SELECT id FROM persons WHERE workspace = ? AND is_me = 1", (workspace,)).fetchone()
-    person_id = row[0] if row else _new_person(conn, workspace, "Me", is_me=True)
+    person_id = row[0] if row else new_person(conn, workspace, "Me", is_me=True)
     for name in config.load().get("me_names", []):
-        _add_alias(conn, workspace, person_id, name)
+        add_alias(conn, workspace, person_id, name)
     return person_id
 
 
 def _by_name(conn: sqlite3.Connection, workspace: str, name: str) -> int | None:
     """The one Person whose Alias is this name, or None when no Person or several have it."""
-    wanted = _key(name)
+    wanted = key(name)
     found = {
         person_id
         for person_id, alias in conn.execute("SELECT person_id, alias FROM aliases WHERE workspace = ?", (workspace,))
-        if not alias.startswith(SLACK) and _key(alias) == wanted
+        if not alias.startswith(SLACK) and key(alias) == wanted
     }
     return found.pop() if len(found) == 1 else None
 
@@ -91,8 +91,8 @@ def resolve(conn: sqlite3.Connection, workspace: str, end: dict[str, str], recor
     if kind == "slack_user":
         person_id = _by_slack_id(conn, workspace, value)
         if person_id is None:  # not in the users list: still a stable Person, keyed by its id
-            person_id = _new_person(conn, workspace, value)
-            _add_alias(conn, workspace, person_id, SLACK + value)
+            person_id = new_person(conn, workspace, value)
+            add_alias(conn, workspace, person_id, SLACK + value)
         return person_id, None
     if kind == "speaker":
         return (None, review.UNKNOWN_SPEAKER) if recording else (me(conn, workspace), None)

@@ -22,10 +22,10 @@ def add(
     conn: sqlite3.Connection, workspace: str, kind: str, record_id: int, link_type: str, raw_name: str | None,
     other_record_id: int | None = None,
 ) -> None:
-    """Idempotent: a re-extraction that reaches the same doubt does not list it twice."""
+    """Idempotent: a re-extraction that reaches the same doubt does not list it twice, or again once rejected."""
     same = conn.execute(
         "SELECT 1 FROM review_entries WHERE workspace = ? AND kind = ? AND record_id = ? AND link_type = ?"
-        " AND raw_name IS ? AND other_record_id IS ? AND resolved_at IS NULL",
+        " AND raw_name IS ? AND other_record_id IS ? AND (resolved_at IS NULL OR resolution = 'rejected')",
         (workspace, kind, record_id, link_type, raw_name, other_record_id),
     ).fetchone()
     if same:
