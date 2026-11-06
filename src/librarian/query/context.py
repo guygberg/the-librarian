@@ -30,7 +30,16 @@ def _latest(conn: sqlite3.Connection, workspace: str, source: str, like: str) ->
         " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions WHERE source_item_id = i.id)",
         (workspace, source, like),
     )
-    return [(stable_id, json.loads(raw), raw) for stable_id, raw in rows]
+    return [(stable_id, _parse(raw), raw) for stable_id, raw in rows]
+
+
+def _parse(raw: str) -> dict[str, Any]:
+    """Content that is not a JSON object (a hand-stored item) has no fields to show; it must not break `show`."""
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _like_prefix(prefix: str) -> str:

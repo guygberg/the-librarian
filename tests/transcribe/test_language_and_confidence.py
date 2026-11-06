@@ -67,7 +67,9 @@ def test_low_confidence_flag_follows_configured_threshold(tmp_path, home, settin
     # the mumble has avg_logprob -1.4: below -1.0, not below -1.4 or -1.5 (a boundary is not "below")
     item = show(home, "מממ")
     assert (item.get("confidence", {}).get("label") == "low confidence") is flagged
-    assert "low confidence" not in json.dumps(show(home, "Thursday"))
+    # `show` also returns the neighbouring segments, so check the evidence segment itself
+    [evidence] = [i for i in show(home, "Thursday")["context"]["items"] if i["evidence"]]
+    assert "low confidence" not in json.dumps(evidence)
 
 
 def test_uncertain_word_has_character_span_and_follows_threshold(tmp_path, home):
