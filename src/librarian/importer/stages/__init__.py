@@ -30,6 +30,22 @@ def load_stages(workspace: str, older: str | None = None) -> list[Stage]:
     if override:
         return importlib.import_module(override).STAGES
     from librarian import engines  # imported here: both modules import Stage from this one
-    from librarian.importer import slack_fetch
+    from librarian.importer import sessions, slack_fetch
 
-    return [slack_fetch.stage(workspace, engines.get_engines(workspace).slack, older), *STAGES[1:]]
+    slack = slack_fetch.stage(workspace, engines.get_engines(workspace).slack, older)
+    if older is not None:
+        return [slack, *STAGES[1:]]
+    return [_fetch({slack_fetch.SOURCE: slack, sessions.SOURCE: sessions.stage(workspace)}), *STAGES[1:]]
+
+
+def _fetch(by_source: dict[str, Stage]) -> Stage:
+    """One fetch stage over several sources: only the first stage may introduce items."""
+
+    def discover(conn: sqlite3.Connection) -> Iterable[tuple[str, str]]:
+        for stage in by_source.values():
+            yield from stage.discover(conn)
+
+    def process(conn: sqlite3.Connection, source: str, item: str) -> None:
+        by_source[source].process(conn, source, item)
+
+    return Stage("fetch", process, discover, "fetched")
