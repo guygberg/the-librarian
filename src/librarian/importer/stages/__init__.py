@@ -30,12 +30,21 @@ def load_stages(workspace: str, older: str | None = None) -> list[Stage]:
     if override:
         return importlib.import_module(override).STAGES
     from librarian import engines  # imported here: both modules import Stage from this one
-    from librarian.importer import sessions, slack_fetch
+    from librarian.importer import recordings, sessions, slack_fetch
 
-    slack = slack_fetch.stage(workspace, engines.get_engines(workspace).slack, older)
+    got = engines.get_engines(workspace)
+    slack = slack_fetch.stage(workspace, got.slack, older)
+    transcribe = recordings.transcribe_stage(workspace, got.transcriber)
     if older is not None:
-        return [slack, *STAGES[1:]]
-    return [_fetch({slack_fetch.SOURCE: slack, sessions.SOURCE: sessions.stage(workspace)}), *STAGES[1:]]
+        return [slack, transcribe, *STAGES[2:]]
+    fetch = _fetch(
+        {
+            slack_fetch.SOURCE: slack,
+            sessions.SOURCE: sessions.stage(workspace),
+            recordings.SOURCE: recordings.fetch_stage(workspace),
+        }
+    )
+    return [fetch, transcribe, *STAGES[2:]]
 
 
 def _fetch(by_source: dict[str, Stage]) -> Stage:
