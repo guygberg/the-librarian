@@ -3,6 +3,7 @@
 import itertools
 import json
 import re
+from collections.abc import Callable
 
 _NIQQUD_AND_TAAMIM = re.compile("[֑-ֽֿ-ׇ]")  # U+05BE (maqaf) is handled separately
 _MAQAF_AND_HYPHENS = re.compile("[־‐-―-]")
@@ -47,10 +48,22 @@ def _variants(token: str) -> list[str]:
     return sorted({form for stem in _stems(token) for form in (stem, *(p + stem for p in _PREFIXES))})
 
 
+def _query_groups(query: str) -> list[list[str]]:
+    return [_variants(token) for token in _TOKEN.findall(normalise(query))]
+
+
 def match_expression(query: str) -> str | None:
     """FTS5 MATCH expression: every query word must appear, each in any of its prefixed forms."""
-    groups = [
-        "(" + " OR ".join(f'"{v}"' for v in _variants(token)) + ")"
-        for token in _TOKEN.findall(normalise(query))
-    ]
+    groups = ["(" + " OR ".join(f'"{v}"' for v in group) + ")" for group in _query_groups(query)]
     return " AND ".join(groups) or None
+
+
+def matcher(query: str) -> Callable[[str], bool]:
+    """The same matching as `match_expression`, for text held outside the full-text index. An empty query matches nothing."""
+    groups = [set(group) for group in _query_groups(query)]
+
+    def matches(text: str) -> bool:
+        tokens = set(_TOKEN.findall(normalise(text)))
+        return bool(groups) and all(group & tokens for group in groups)
+
+    return matches

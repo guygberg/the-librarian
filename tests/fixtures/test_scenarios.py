@@ -69,7 +69,7 @@ def test_payments_cutover_has_both_dates_contradicting_with_evidence_and_rejects
 
 def test_payments_recording_line_is_at_00_41_10(world, home):
     env = world("payments-cutover", payments.NOW)
-    [hit] = search(home, "Nov 25 to be safe")
+    [hit] = [e for e in search(home, "Nov 25 to be safe") if e["record_id"] is None]
     assert segment_start(show(home, env, hit["locator"])) == 2470.0
 
 
