@@ -91,18 +91,19 @@ function title(found) {
 /** The bottom sheet for `?source=<locator>`: the passage around one Evidence line, which is marked. Closing is a
  * link back to the same page without `source`, so the stream underneath is never re-rendered. */
 export async function render(host) {
-  const { open, tab, source } = filters.current();
+  const { open, tab, source, quote } = filters.current();
   if (!source) return host.replaceChildren();
   const { context: found } = await api.get(`/api/context?locator=${encodeURIComponent(source)}`);
   const people = found.source === 'drive' ? (await api.get('/api/open-items?scope=all')).people : null;
   const raw = h('pre', { class: 'raw', 'data-part': 'raw-passage', hidden: true },
     found.items.map((i) => i.raw).filter(Boolean).join('\n'));
   const close = filters.href({ open, tab: tab === 'relations' ? tab : null });
+  const gloss = found.glosses.find((g) => g.quote === quote) ?? found.glosses[0];
   host.replaceChildren(h('div', { class: 'sheet', 'data-part': 'source-sheet' },
     h('div', { class: 'wrap' },
       h('a', { href: close, class: 'chip', 'data-link': true, 'data-part': 'close-sheet' }, 'Close'),
       title(found),
-      h('div', { class: 'passage' }, found.items.map((i) => line(i, found.glosses[0], people))),
+      h('div', { class: 'passage' }, found.items.map((i) => line(i, gloss, people))),
       original(found, raw),
       raw)));
 }

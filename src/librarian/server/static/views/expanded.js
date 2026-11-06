@@ -17,7 +17,7 @@ export function evidenceLine(e, withRole = false, open = null) {
   const tab = open && filters.current().tab === 'relations' ? 'relations' : null;
   return h('div', { class: 'evb', 'data-part': 'evidence' },
     h('small', {}, withRole ? `${e.locator} · ${e.role}` : e.locator),
-    h('a', { href: filters.href({ open, tab, source: e.locator }), 'data-link': true, 'data-part': 'evidence-quote' }, e.quote),
+    h('a', { href: filters.href({ open, tab, source: e.locator, quote: e.quote }), 'data-link': true, 'data-part': 'evidence-quote' }, e.quote),
     e.gone_from_source ? h('span', { class: 'tag', 'data-part': 'gone-from-source' }, 'gone from Slack') : null);
 }
 

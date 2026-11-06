@@ -20,6 +20,7 @@ function where() {
   const q = new URLSearchParams(location.search);
   const source = q.get('source');
   q.delete('source');
+  q.delete('quote');
   return { page: `${location.pathname}?${q}`, source };
 }
 

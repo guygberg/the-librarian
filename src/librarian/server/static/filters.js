@@ -10,17 +10,18 @@ export function current() {
   return {
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
-    source: q.get('source'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
+    source: q.get('source'), quote: q.get('quote'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
   };
 }
 
 /** The URL for the current filters with `change` applied; a null value clears that filter. The expanded item and
  * its tab are not carried over: changing a filter collapses it. The source sheet (`source`, an Evidence locator)
- * is only ever the one asked for. */
-export function href({ open = null, tab = null, source = null, ...change }) {
+ * is only ever the one asked for, with the `quote` clicked: a locator names a Source item, not which of its
+ * Evidence quotes was meant. */
+export function href({ open = null, tab = null, source = null, quote = null, ...change }) {
   const q = new URLSearchParams();
   const graphKeys = ['center', 'hops', 'kinds']; // the Relations graph's state, kept only while that tab is shown
-  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source })) {
+  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source, quote })) {
     if (graphKeys.includes(key) && !(open && tab === 'relations')) continue;
     if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
   }

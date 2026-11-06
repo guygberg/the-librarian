@@ -74,6 +74,24 @@ def test_hebrew_quote_is_rtl_with_a_labelled_gloss_naming_the_uncertain_word(pag
     expect(gloss.locator("[data-part=gloss-label]")).to_have_text("machine translation")
 
 
+def test_gloss_is_the_one_of_the_clicked_quote_when_two_quotes_share_a_segment(page, ui):
+    ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
+    open_thursday(page, ui)
+    ui.sql(
+        "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role,"
+        " retrieved_at, gloss)"
+        " SELECT workspace, record_id, revision_id, locator, 'second quote', role,"
+        " retrieved_at, 'Second gloss' FROM evidence WHERE gloss = 'Meet on Thursday morning'"
+    )
+    page.locator("[data-part=close-sheet]").click()
+    page.reload()
+    page.locator("[data-part=item-expanded] [data-part=evidence-quote]", has_text="second quote").click()
+
+    gloss = page.locator(f"{SHEET} [data-part=evidence-line] [data-part=gloss]")
+    expect(gloss).to_contain_text("Second gloss")
+    expect(gloss).not_to_contain_text("Meet on Thursday morning")
+
+
 def test_low_confidence_segment_says_so_in_plain_words_and_clear_ones_do_not(page, ui):
     ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
     open_thursday(page, ui)
