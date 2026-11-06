@@ -1,0 +1,25 @@
+{
+  "models": [
+    {
+      "name": "ivrit-ggml-model.bin",
+      "what": "Hebrew Whisper model",
+      "config_key": "hebrew_model_path",
+      "url": "https://huggingface.co/ivrit-ai/whisper-large-v3-turbo-ggml/resolve/main/ggml-model.bin",
+      "sha256": ""
+    },
+    {
+      "name": "ggml-large-v3-turbo.bin",
+      "what": "English Whisper model",
+      "config_key": "english_model_path",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
+      "sha256": ""
+    },
+    {
+      "name": "ggml-silero-vad.bin",
+      "what": "voice-activity (Silero ggml) model",
+      "config_key": "vad_model_path",
+      "url": "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin",
+      "sha256": ""
+    }
+  ]
+}
