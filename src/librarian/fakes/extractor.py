@@ -7,6 +7,7 @@ bad JSON / bad ids / invented quotes), or {"error": "<message>"} (raised).
 import json
 from pathlib import Path
 
+from librarian.extract.runs import RunMeta
 from librarian.fakes.calllog import CallLog
 
 
@@ -15,6 +16,8 @@ class ExtractionError(RuntimeError):
 
 
 class FakeExtractor:
+    meta = RunMeta(model="fake-model", claude_code_version="0.0.0-fake", prompt="fake prompt")
+
     def __init__(self, fixtures: Path, log: CallLog):
         self._dir = fixtures / "extraction"
         self._log = log
