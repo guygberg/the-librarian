@@ -15,7 +15,7 @@ librarian = "librarian.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-librarian = ["migrations/*.sql"]
+librarian = ["migrations/*.sql", "server/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
