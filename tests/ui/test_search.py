@@ -1,10 +1,10 @@
 from urllib.parse import quote
 
 from playwright.sync_api import expect
+from test_expanded import expand
 
 from fixtures.scenarios import payments_cutover as payments
 from support.ui_stream import open_stream, record
-from test_expanded import expand
 
 BOX = "[data-part=search] input"
 RESULTS = "[data-part=search-results]"
@@ -17,7 +17,7 @@ def press_slash_focuses(page):
     assert page.locator(BOX).input_value() == ""
 
 
-def test_slash_focuses_search_on_the_stream_a_project_view_the_expanded_item_and_the_source_sheet(page, ui):
+def test_slash_focuses_search_on_every_view(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     open_stream(page, ui)
     press_slash_focuses(page)
@@ -42,7 +42,7 @@ def test_slash_is_ignored_while_typing_in_a_field(page, ui):
     assert page.locator(BOX).input_value() == "a/"
 
 
-def test_hebrew_prefixed_form_finds_the_record_which_comes_before_passages_and_opens_in_place(page, ui):
+def test_hebrew_prefixed_form_finds_the_record_and_opens_it_in_place(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     meeting = record(ui, "סיכום הפגישה", kind="decision", lifecycle="open")
     open_stream(page, ui)
