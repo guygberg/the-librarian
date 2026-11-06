@@ -41,7 +41,7 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
 
     expect(panel.locator("[data-part=tab-evidence]")).to_have_class("chip on")
     panel.locator("[data-part=tab-relations]").click()
-    expect(panel.locator("[data-part=relations-placeholder]")).to_be_visible()
+    expect(panel.locator("[data-part=relations-graph]")).to_be_visible()
     assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=relations")
     expect(evidence).to_have_count(0)
 

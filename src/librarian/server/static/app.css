@@ -68,3 +68,13 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .settle { animation: none; } }
 .empty.small { font-size: 14px; font-weight: 400; color: var(--mut); }
 .empty { font-size: 25px; font-weight: 600; margin: var(--s5) 0; }
+[data-part=relations] svg { display: block; max-width: 100%; height: auto; margin: var(--s2) 0; }
+.node rect { fill: var(--panel); stroke: var(--line); }
+.node.center rect { fill: var(--hl); stroke: var(--acc); stroke-width: 2; }
+.node { cursor: pointer; }
+.node.center text:first-of-type { font-weight: 700; }
+[data-part=hop-control] { align-items: center; }
+.node.hop-2, .edge.hop-2 { opacity: .55; }
+.node.hop-3, .edge.hop-3 { opacity: .3; }
+.node.hop-2 rect, .node.hop-3 rect { stroke-dasharray: 4 4; }
+.legend { color: var(--mut); }

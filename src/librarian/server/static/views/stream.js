@@ -5,6 +5,7 @@ import { lastImport } from '../freshness.js';
 import { dateLine, shortDate } from '../format.js';
 import { justActed } from '../actions.js';
 import { evidenceLine, panel } from './expanded.js';
+import * as relations from './graph.js';
 
 /** What the last action changed (see actions.js), so the matching parts settle on this one render. */
 let acted = null;
@@ -123,8 +124,12 @@ export async function stream() {
   const shown = answer.records.filter((r) => filters.matches(r, state));
   const evidence = state.kind === 'done' ? answer.evidence : [];
   const hasOwner = answer.records.filter((r) => ownerName(r));
+  const graphState = state.open && state.tab === 'relations' ? relations.params(state.open) : null;
   const open = state.open
-    ? { record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab, people: answer.people, projects: answer.projects }
+    ? {
+      record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab, people: answer.people, projects: answer.projects,
+      graphState, graph: graphState && await api.get(relations.query(graphState)),
+    }
     : null;
   // An expanded item the filters would hide still shows, above the list.
   const stray = open && !shown.some((r) => r.id === open.record.id) ? row(open.record, [], open) : null;

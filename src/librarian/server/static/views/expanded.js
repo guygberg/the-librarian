@@ -2,6 +2,7 @@ import { act } from '../actions.js';
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { shortDate } from '../format.js';
+import * as relations from './graph.js';
 
 const BASIS = {
   stated: 'Stated: a source says this outright.',
@@ -106,7 +107,7 @@ export function panel(r, tab, ctx) {
     disagreement(r),
     tabs(r, tab),
     tab === 'relations'
-      ? h('p', { class: 'empty small', 'data-part': 'relations-placeholder' }, 'Relations are not shown here yet.')
+      ? relations.view(ctx.graph, r.id, ctx.graphState)
       : r.evidence.map((e) => evidenceLine(e, true, r.id)),
     history(r));
 }

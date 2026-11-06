@@ -10,7 +10,7 @@ export function current() {
   return {
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
-    source: q.get('source'),
+    source: q.get('source'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
   };
 }
 
@@ -19,7 +19,9 @@ export function current() {
  * is only ever the one asked for. */
 export function href({ open = null, tab = null, source = null, ...change }) {
   const q = new URLSearchParams();
+  const graphKeys = ['center', 'hops', 'kinds']; // the Relations graph's state, kept only while that tab is shown
   for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source })) {
+    if (graphKeys.includes(key) && !(open && tab === 'relations')) continue;
     if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
   }
   return `${open ? `/items/${open}` : '/'}${q.size ? `?${q}` : ''}`;
