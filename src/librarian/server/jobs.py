@@ -57,11 +57,13 @@ def snapshot(conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any]) -> d
         "SELECT id, pid, started_at, ended_at, status FROM import_runs WHERE workspace = ? ORDER BY id DESC LIMIT 1",
         (workspace,),
     ).fetchone()
-    run, running, sources, calls = None, False, {}, 0
+    # The child counts as running from its launch, before it has written its run row.
+    run, running, sources, calls = None, _child is not None and _child.poll() is None, {}, 0
     if row:
         run = dict(zip(("id", "pid", "started_at", "ended_at", "status"), row))
-        running = run["status"] == "running" and _alive(run["pid"])
-        if run["status"] == "running" and not running:
+        alive = run["status"] == "running" and _alive(run["pid"])
+        running = running or alive
+        if run["status"] == "running" and not alive:
             run["status"] = "interrupted"  # killed: the row was never closed, the lock is already gone
         for source, counter, n in conn.execute(
             "SELECT source, counter, n FROM import_counters WHERE run_id = ?", (run["id"],)

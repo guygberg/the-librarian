@@ -3,11 +3,12 @@ import * as freshness from './freshness.js';
 import { start } from './router.js';
 import { stream } from './views/stream.js';
 import * as sheet from './views/sheet.js';
+import { importPanel } from './views/import-panel.js';
 import * as search from './search.js';
 
 search.bind(document.getElementById('search'));
 
-const routes = { '/': stream, '/items/:id': stream };
+const routes = { '/': stream, '/items/:id': stream, '/import': importPanel };
 const notFound = async () => h('p', { class: 'empty' }, 'Nothing here.');
 
 let visit = 0;

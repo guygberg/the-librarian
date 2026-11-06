@@ -21,7 +21,7 @@ export async function render(target) {
     .map((name) => source(name, freshness.sources[name]));
   const line = [];
   parts.forEach((part, i) => line.push(i ? ' · ' : 'Updated from ', part));
-  target.replaceChildren(...line);
+  target.replaceChildren(h('a', { href: '/import', 'data-link': true, 'data-part': 'open-import' }, ...line));
 }
 
 /** "Last import 09:12." for the empty state; names the day when it was not today. */

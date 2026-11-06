@@ -16,7 +16,7 @@ export async function post(path, body) {
   const resp = await fetch(path, {
     method: 'POST', headers: { 'X-Librarian-Token': token, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
-  if (!resp.ok) throw new Error(`${path}: ${resp.status}`);
+  if (!resp.ok) throw Object.assign(new Error(`${path}: ${resp.status}`), { status: resp.status, body: await resp.json().catch(() => null) });
   return resp.json();
 }
 
