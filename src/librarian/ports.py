@@ -35,7 +35,11 @@ class Segment:
 
 
 class Transcriber(Protocol):
-    def transcribe(self, file: Path) -> list[Segment]: ...
+    def detect_language(self, file: Path) -> str:
+        """`he`, `en` or `mixed`, from the first 30 seconds."""
+        ...
+
+    def transcribe(self, file: Path, model: str, language: str) -> list[Segment]: ...
 
 
 class Extractor(Protocol):

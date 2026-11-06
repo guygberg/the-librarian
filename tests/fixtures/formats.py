@@ -91,9 +91,9 @@ def segment(start: float, end: float, text: str, rng) -> dict:
     }
 
 
-def write_recording(folder: Path, name: str, segments: list[dict]) -> None:
-    """Extensionless placeholder `name` plus a sidecar `name.transcript.json`."""
+def write_recording(folder: Path, name: str, segments: list[dict], **sidecar) -> None:
+    """Extensionless placeholder `name` plus a sidecar `name.transcript.json` (extra keys, e.g. `detected_language`)."""
     folder.mkdir(parents=True, exist_ok=True)
     # The name is in the bytes so that distinct recordings have distinct file hashes.
     (folder / name).write_bytes(b"placeholder recording, not real media: " + name.encode() + b"\n")
-    write_json(folder / f"{name}.transcript.json", {"segments": segments})
+    write_json(folder / f"{name}.transcript.json", {"segments": segments, **sidecar})

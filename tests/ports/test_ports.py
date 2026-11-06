@@ -45,7 +45,7 @@ def test_fake_slack_rejects_write_shaped_calls(env):
 
 def test_fake_transcriber_returns_sidecar_segments(env):
     recording = next(env.rglob("*Recording"))
-    segments = engines.get_engines().transcriber.transcribe(recording)
+    segments = engines.get_engines().transcriber.transcribe(recording, "m", "en")
     expected = json.loads((recording.parent / f"{recording.name}.transcript.json").read_text())["segments"]
     assert [s.text for s in segments] == [s["text"] for s in expected]
     assert segments[0].tokens[0].p == expected[0]["tokens"][0]["p"]
@@ -55,7 +55,7 @@ def test_fake_transcriber_missing_sidecar_is_clear(env, tmp_path):
     lonely = tmp_path / "lonely"
     lonely.write_bytes(b"x")
     with pytest.raises(FileNotFoundError, match="no sidecar transcript"):
-        engines.get_engines().transcriber.transcribe(lonely)
+        engines.get_engines().transcriber.transcribe(lonely, "m", "en")
 
 
 def test_fake_extractor_canned_bad_and_failing_outputs(env):

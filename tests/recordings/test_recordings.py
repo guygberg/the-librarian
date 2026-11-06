@@ -3,38 +3,12 @@ import shutil
 import sqlite3
 
 import pytest
-from fixtures.build import build
+from support.cli import run_librarian
+from support.recordings import make_env, run_import, search, transcriber_calls
 
-from librarian.fakes.calllog import CallLog
 from librarian.importer import recordings
-from support.cli import finish_tty, popen_librarian_tty, run_librarian
 
 ATLAS = "Atlas sync - 2026-10-12 10.00 GMT+03.00 - Recording"
-
-
-def make_env(tmp_path, home, scenario):
-    fixtures = tmp_path / "fixtures"
-    build(fixtures, scenario)
-    home.mkdir(parents=True, exist_ok=True)
-    projects = fixtures / "claude" / "projects"
-    (home / "config.toml").write_text(
-        f'account_type = "team"\nusage_rules_confirmed = true\nclaude_projects_dir = "{projects}"\n'
-        f'drive_dir = "{fixtures}"\n'
-    )
-    return {"LIBRARIAN_ENGINES": "fake", "LIBRARIAN_FIXTURES": str(fixtures)}, fixtures
-
-
-def run_import(home, env):
-    code, out = finish_tty(popen_librarian_tty(["import"], home, env))
-    return code, out.replace("\r", "")
-
-
-def search(home, query):
-    return json.loads(run_librarian(["search", query], home).stdout)["results"]
-
-
-def transcriber_calls(home):
-    return [c["args"]["file"] for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "transcriber"]
 
 
 def test_segments_are_stored_with_timestamps_and_searchable(tmp_path, home):

@@ -13,11 +13,13 @@ import json
 import re
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import asdict
 from pathlib import Path
 
 from librarian import config, store
 from librarian.importer.stages import Stage
 from librarian.ports import Transcriber
+from librarian.transcribe import language
 
 SOURCE = "recording"
 SEGMENT_SOURCE = "drive"
@@ -60,13 +62,38 @@ def _file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
-def fetch_stage(workspace: str) -> Stage:
+def _explicit_choice(item: str, overrides: dict[str, str]) -> str | None:
+    title = parse_name(Path(item).name)["title"]
+    flags = config.load().get("recording_languages", {})
+    return language.lookup(overrides, item, title) or language.lookup(flags, item, title)
+
+
+def _reopen_if_params_changed(conn: sqlite3.Connection, workspace: str, item: str, overrides: dict[str, str]) -> None:
+    """The runner skips finished (item, stage) pairs, so a changed language must reopen the stages after fetch."""
+    explicit = _explicit_choice(item, overrides)
+    stored = conn.execute(
+        "SELECT t.params FROM recording_files f JOIN recording_transcripts t USING (workspace, file_hash)"
+        " WHERE f.workspace = ? AND f.path = ?",
+        (workspace, item),
+    ).fetchone()
+    if explicit and stored and stored[0] != language.for_choice(explicit).key:
+        with conn:
+            conn.execute(
+                "DELETE FROM import_item_stages WHERE workspace = ? AND source = ? AND item = ? AND stage != 'fetch'",
+                (workspace, SOURCE, item),
+            )
+
+
+def fetch_stage(workspace: str, overrides: dict[str, str] | None = None) -> Stage:
     root = drive_dir()
+    overrides = overrides or {}
 
     def discover(conn: sqlite3.Connection) -> Iterator[tuple[str, str]]:
         if root is not None:
             for path in find_recordings(root):
-                yield SOURCE, path.relative_to(root).as_posix()
+                item = path.relative_to(root).as_posix()
+                _reopen_if_params_changed(conn, workspace, item, overrides)
+                yield SOURCE, item
 
     def process(conn: sqlite3.Connection, source: str, item: str) -> None:
         path = root / item
@@ -82,8 +109,10 @@ def fetch_stage(workspace: str) -> Stage:
     return Stage("fetch", process, discover, "fetched")
 
 
-def transcribe_stage(workspace: str, transcriber: Transcriber) -> Stage:
+def transcribe_stage(workspace: str, transcriber: Transcriber, overrides: dict[str, str] | None = None) -> Stage:
+    """`overrides` are this run's CLI language choices; config `recording_languages` holds the explicit flags."""
     root = drive_dir()
+    overrides = overrides or {}
 
     def process(conn: sqlite3.Connection, source: str, item: str) -> None:
         if source != SOURCE:
@@ -91,21 +120,26 @@ def transcribe_stage(workspace: str, transcriber: Transcriber) -> Stage:
         file_hash = conn.execute(
             "SELECT file_hash FROM recording_files WHERE workspace = ? AND path = ?", (workspace, item)
         ).fetchone()[0]
-        if conn.execute(
-            "SELECT 1 FROM recording_transcripts WHERE workspace = ? AND file_hash = ?", (workspace, file_hash)
-        ).fetchone():
-            return
-        segments = transcriber.transcribe(root / item)
+        done = conn.execute(
+            "SELECT params FROM recording_transcripts WHERE workspace = ? AND file_hash = ?", (workspace, file_hash)
+        ).fetchone()
         meta = parse_name(Path(item).name)
+        explicit = _explicit_choice(item, overrides)
+        if done and not explicit:
+            return  # no new choice: detection is not repeated for a transcript that exists
+        params = language.for_choice(explicit or transcriber.detect_language(root / item))
+        if done and done[0] == params.key:
+            return
+        segments = transcriber.transcribe(root / item, params.model, params.language)
         for number, segment in enumerate(segments, start=1):
             content = {
                 "segment": number,
                 "path": item,
                 "title": meta["title"],
                 "date": meta["date"],
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text,
+                "model": params.model,
+                "language": params.language,
+                **asdict(segment),
             }
             store.upsert(
                 conn,
@@ -117,6 +151,9 @@ def transcribe_stage(workspace: str, transcriber: Transcriber) -> Stage:
                 origin_kind="recording",
             )
         with conn:
-            conn.execute("INSERT INTO recording_transcripts VALUES (?, ?)", (workspace, file_hash))
+            conn.execute(
+                "INSERT OR REPLACE INTO recording_transcripts (workspace, file_hash, params) VALUES (?, ?, ?)",
+                (workspace, file_hash, params.key),
+            )
 
     return Stage("transcribe", process, counter="transcribed")

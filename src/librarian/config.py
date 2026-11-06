@@ -8,6 +8,10 @@ from librarian import paths
 
 DEFAULTS: dict[str, Any] = {
     "import_staleness_days": 7,
+    "low_confidence_avg_logprob": -1.0,
+    "low_confidence_no_speech_prob": 0.6,
+    "low_confidence_compression_ratio": 2.4,
+    "uncertain_word_p": 0.5,
 }
 
 

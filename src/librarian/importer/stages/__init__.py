@@ -25,7 +25,7 @@ STAGES = [
 ]
 
 
-def load_stages(workspace: str, older: str | None = None) -> list[Stage]:
+def load_stages(workspace: str, older: str | None = None, languages: dict[str, str] | None = None) -> list[Stage]:
     override = os.environ.get("LIBRARIAN_STAGES")
     if override:
         return importlib.import_module(override).STAGES
@@ -34,14 +34,14 @@ def load_stages(workspace: str, older: str | None = None) -> list[Stage]:
 
     got = engines.get_engines(workspace)
     slack = slack_fetch.stage(workspace, got.slack, older)
-    transcribe = recordings.transcribe_stage(workspace, got.transcriber)
+    transcribe = recordings.transcribe_stage(workspace, got.transcriber, languages)
     if older is not None:
         return [slack, transcribe, *STAGES[2:]]
     fetch = _fetch(
         {
             slack_fetch.SOURCE: slack,
             sessions.SOURCE: sessions.stage(workspace),
-            recordings.SOURCE: recordings.fetch_stage(workspace),
+            recordings.SOURCE: recordings.fetch_stage(workspace, languages),
         }
     )
     return [fetch, transcribe, *STAGES[2:]]
