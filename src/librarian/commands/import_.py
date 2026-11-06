@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from librarian import db, gate
+from librarian import db, gate, launch
 from librarian.extract import stage as extract_stage
 from librarian.importer import progress, runner
 from librarian.importer.lock import LockHeld, workspace_lock
@@ -31,13 +31,12 @@ def add_arguments(parser):
         action="store_true",
         help="run the local stages and print how many extraction calls an Import would make, sending nothing",
     )
-    # `serve` starts its Import as a child with no terminal; the person pressed the button.
-    parser.add_argument("--from-serve", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--older", metavar="CONVERSATION_ID", help=argparse.SUPPRESS)
 
 
 def run(args, ctx):
-    if not args.from_serve:
+    # `serve` starts its Import with no terminal; the person pressed the button, and launch proves it.
+    if not launch.granted():
         require_terminal()
     try:
         languages = dict(language.parse_override(text) for text in args.language)

@@ -10,7 +10,7 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from librarian import paths
+from librarian import launch, paths
 from librarian.importer.lock import LockHeld, workspace_lock
 from librarian.importer.progress import COUNTERS
 from librarian.query import envelope
@@ -31,13 +31,19 @@ def start(workspace: str, *args: str) -> bool:
                 pass
         except LockHeld:
             return False
-        with open(workspace_dir / "import-ui.log", "ab") as log:
-            _child = subprocess.Popen(
-                [sys.executable, "-m", "librarian", "--workspace", workspace, "import", "--from-serve", *args],
-                stdin=subprocess.DEVNULL,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
+        env, read_fd = launch.grant()
+        try:
+            with open(workspace_dir / "import-ui.log", "ab") as log:
+                _child = subprocess.Popen(
+                    [sys.executable, "-m", "librarian", "--workspace", workspace, "import", *args],
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    env={**os.environ, **env},
+                    pass_fds=[read_fd],
+                )
+        finally:
+            os.close(read_fd)
         return True
 
 

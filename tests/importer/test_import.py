@@ -90,7 +90,19 @@ def test_second_import_refused_with_progress_and_kill_frees_the_lock(home, stub_
     assert code == 0
 
 
-def test_import_without_terminal_changes_nothing(home):
-    result = run_librarian(["import"], home)
-    assert result.returncode != 0
+@pytest.mark.parametrize(
+    "args,env",
+    [
+        (["import"], {}),
+        (["import", "--from-serve"], {}),
+        (["import"], {"LIBRARIAN_IMPORT_LAUNCH": "0:deadbeef"}),
+        (["import"], {"LIBRARIAN_IMPORT_LAUNCH": "99:deadbeef"}),
+        (["import"], {"LIBRARIAN_IMPORT_LAUNCH": "bogus"}),
+    ],
+)
+def test_import_without_terminal_changes_nothing(home, args, env):
+    result = run_librarian(args, home, env=env)
+    assert result.returncode == 2
+    if "--from-serve" not in args:
+        assert "needs a terminal" in result.stderr
     assert not (home / "workspaces").exists()
