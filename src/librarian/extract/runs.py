@@ -29,8 +29,20 @@ def extract_and_record(
     candidates: list[dict[str, Any]],
     locators: set[str],
 ) -> validate.Validated:
-    envelope = extractor.extract(unit_key, unit_text, candidates)
-    result = validate.validate(envelope, unit_text, {c["id"] for c in candidates}, locators)
+    failure = None
+    try:
+        text = extractor.extract(unit_key, unit_text, candidates)
+    except Exception as exc:
+        if not hasattr(exc, "stage"):  # only a failure that carries its stage and envelope is a run to keep
+            raise
+        failure, text = exc, ""
+    # The real engine hands back the structured output but remembers the whole envelope.
+    envelope = failure.envelope if failure else getattr(text, "raw", text)
+    result = validate.Validated()
+    if failure:
+        result.rejections.append(validate.Rejection(failure.stage, "extraction_failed", failure.error))
+    else:
+        result = validate.validate(text, unit_text, {c["id"] for c in candidates}, locators)
     conn.execute("BEGIN")
     try:
         run_id = conn.execute(
@@ -57,6 +69,8 @@ def extract_and_record(
     except BaseException:
         conn.execute("ROLLBACK")
         raise
+    if failure:
+        raise failure
     return result
 
 

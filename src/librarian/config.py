@@ -13,6 +13,13 @@ DEFAULTS: dict[str, Any] = {
     "low_confidence_compression_ratio": 2.4,
     "uncertain_word_p": 0.5,
     "extract_max_calls": 200,
+    "claude_bin": "claude",
+    "claude_model": "claude-sonnet-5-5",  # full id, never an alias; `claude_code_version` may pin the install too
+    "claude_workers": 3,
+    "claude_max_turns": 3,
+    "claude_max_budget_usd": 1.0,
+    "claude_retries": 4,
+    "claude_backoff_seconds": 5,
 }
 
 

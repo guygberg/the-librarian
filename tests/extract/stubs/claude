@@ -1,0 +1,17 @@
+#!/bin/sh
+# Stub `claude`: `--version` answers; any other call records argv, stdin and env under $STUB_DIR, then prints
+# $STUB_DIR/response.<n> (n counts calls, the last one repeats) or $STUB_DIR/response.
+if [ "$1" = "--version" ]; then
+  echo "${STUB_VERSION:-2.1.0 (Claude Code)}"
+  exit 0
+fi
+me="$STUB_DIR/call.$$"
+for a in "$@"; do printf '%s\0' "$a"; done > "$me.argv"
+cat > "$me.stdin"
+env > "$me.env"
+n=$(( $(cat "$STUB_DIR/count" 2>/dev/null || echo 0) + 1 ))
+echo "$n" > "$STUB_DIR/count"
+file="$STUB_DIR/response.$n"
+[ -f "$file" ] || file="$STUB_DIR/response"
+[ -f "$file" ] || file=$(ls "$STUB_DIR"/response.* | sort | tail -1)
+cat "$file"

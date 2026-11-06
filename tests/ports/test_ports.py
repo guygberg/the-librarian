@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from librarian import engines
+from librarian.extract.claude_runner import ClaudeExtractor
 from librarian.fakes.extractor import ExtractionError
 from librarian.transcribe.whisper_cpp import WhisperCppTranscriber
 
@@ -74,12 +75,11 @@ def test_fake_extractor_canned_bad_and_failing_outputs(env):
     assert [c["args"]["unit_key"] for c in engines.call_log("work").read()] == ["good", "badjson", "boom", "missing"]
 
 
-def test_real_engines_are_placeholders(env, monkeypatch):
+def test_real_mode_builds_the_real_engines(env, monkeypatch):
     monkeypatch.setenv("LIBRARIAN_ENGINES", "real")
     real = engines.get_engines()
     assert isinstance(real.transcriber, WhisperCppTranscriber)
-    with pytest.raises(NotImplementedError, match="not implemented yet"):
-        real.extractor.extract("k", "t", [])
+    assert isinstance(real.extractor, ClaudeExtractor)
 
 
 def test_unknown_engine_mode_is_rejected(env, monkeypatch):
