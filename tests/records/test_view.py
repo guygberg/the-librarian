@@ -38,7 +38,9 @@ def record_id(home, title):
 def show(home, env, title):
     out = run_librarian(["show", str(record_id(home, title))], home, env=env)
     assert out.returncode == 0, out.stdout
-    return json.loads(out.stdout)
+    answer = json.loads(out.stdout)
+    answer.pop("freshness")  # moves with every Import; the Record itself must not
+    return answer
 
 
 def person(home, name="Sam Owner"):

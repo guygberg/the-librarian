@@ -31,7 +31,9 @@ def search(home, query):
 
 
 def show(home, locator):
-    return json.loads(run_librarian(["show", locator], home).stdout)
+    answer = json.loads(run_librarian(["show", locator], home).stdout)
+    answer.pop("freshness", None)  # moves with every Import; the item itself must not
+    return answer
 
 
 def test_copy_survives_deleting_the_original(tmp_path, home):
