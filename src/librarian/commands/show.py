@@ -1,7 +1,7 @@
 import json
 
 from librarian import config, db, locator, store
-from librarian.query import core, envelope
+from librarian.query import context, core, envelope
 from librarian.slack import permalink
 from librarian.transcribe import confidence
 
@@ -51,6 +51,8 @@ def run(args, ctx):
     if loc.part:
         item["part"] = loc.part
     with conn:
-        wrapped = envelope.build(conn, ctx.workspace, config.load(), [])
+        wrapped = envelope.build(
+            conn, ctx.workspace, config.load(), [], context=context.context(conn, ctx.workspace, loc, config.load())
+        )
     print(json.dumps({**wrapped, **item}, indent=2, ensure_ascii=False))
     return 0
