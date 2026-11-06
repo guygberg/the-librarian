@@ -22,6 +22,11 @@ def persist(
         for rec in records:
             _link_and_cite(conn, workspace, ids, rec)
             _suggest_projects(conn, workspace, ids[rec["ref"]], rec, near)
+        conn.execute("DELETE FROM unit_records WHERE workspace = ? AND unit_key = ?", (workspace, unit_key))
+        conn.executemany(
+            "INSERT OR IGNORE INTO unit_records (workspace, unit_key, record_id) VALUES (?, ?, ?)",
+            [(workspace, unit_key, record_id) for record_id in ids.values()],
+        )
         conn.execute(
             "INSERT OR REPLACE INTO extracted_units (workspace, unit_key, text_hash, extracted_at) VALUES (?, ?, ?, ?)",
             (workspace, unit_key, text_hash, _now()),

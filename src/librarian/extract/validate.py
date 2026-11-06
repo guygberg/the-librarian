@@ -15,7 +15,7 @@ from librarian.extract import schema
 
 _SLACK_USER = re.compile(r"^[UW][A-Z0-9]{2,}$")
 # Link types whose end must be a Record / a person.
-_RECORD_ONLY = {"belongs_to", "blocks", "supersedes", "related_to"}
+_RECORD_ONLY = {"belongs_to", "blocks", "supersedes", "related_to", "contradicts"}
 _PERSON_ONLY = {"owner"}
 
 

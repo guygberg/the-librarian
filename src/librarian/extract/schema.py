@@ -11,7 +11,7 @@ KINDS = ["project", "action_item", "decision", "blocker", "open_question"]
 LIFECYCLES = ["open", "pending", "suspended", "done", "dropped", "superseded"]
 BASES = ["stated", "inferred", "confirmed"]
 COMMITMENTS = ["intention", "request", "commitment"]
-LINK_TYPES = ["belongs_to", "owner", "waiting_on", "blocks", "supersedes", "related_to", "mentions"]
+LINK_TYPES = ["belongs_to", "owner", "waiting_on", "blocks", "supersedes", "related_to", "mentions", "contradicts"]
 ID_DECISIONS = ["same", "updated", "new"]
 EVIDENCE_ROLES = ["supports", "completes", "contradicts"]
 

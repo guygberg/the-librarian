@@ -1,6 +1,7 @@
 import json
 
-from librarian import config, db, locator, records, store
+from librarian import config, db, locator, store
+from librarian.query import core
 from librarian.slack import permalink
 from librarian.transcribe import confidence
 
@@ -32,7 +33,7 @@ def run(args, ctx):
         )
     if record_id:
         with conn:
-            record = records.get(conn, ctx.workspace, record_id)
+            record = core.current_view(conn, ctx.workspace, record_id, config.load())
         if record is None:
             return _error("not_found", f"no Record {record_id}")
         print(json.dumps(record, indent=2, ensure_ascii=False))

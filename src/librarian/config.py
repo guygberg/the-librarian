@@ -20,6 +20,10 @@ DEFAULTS: dict[str, Any] = {
     "claude_max_budget_usd": 1.0,
     "claude_retries": 4,
     "claude_backoff_seconds": 5,
+    # Days without new Evidence before an unfinished Record of this kind is Stale; no entry means never.
+    "stale_days_action_item": 14,
+    "stale_days_blocker": 14,
+    "stale_days_open_question": 30,
 }
 
 
