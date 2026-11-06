@@ -54,7 +54,8 @@ def _project_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, An
     return [
         {"id": record_id, "kind": "project", "title": title, "records_sent": False}
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project' ORDER BY id", (workspace,)
+            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project' AND lifecycle != 'superseded' ORDER BY id",
+            (workspace,),
         )
     ]
 

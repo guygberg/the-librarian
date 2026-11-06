@@ -14,7 +14,7 @@ from typing import Any
 
 TYPES = (
     "status_change", "owner_change", "project_move", "accept_suggestion", "reject_suggestion",
-    "merge", "split", "move_alias", "dismiss", "set_speaker", "resolve_disagreement",
+    "merge", "split", "move_alias", "dismiss", "set_speaker", "resolve_disagreement", "confirm", "rename",
 )
 
 

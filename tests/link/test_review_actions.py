@@ -1,65 +1,15 @@
 import json
-import sqlite3
 
 import pytest
 
 from fixtures.scenarios import people_aliases as p
 from librarian.link import people, review
-from support.cli import run_librarian
+from support.api import Api
 from support.recordings import make_env, run_import
 from support.serve import spawn
 
 JSON = {"Content-Type": "application/json"}
 COLLIDING, NEAR, FIRST_PERSON = "By colliding name", "By near-duplicate name", "By first person"
-
-
-class Api:
-    def __init__(self, served, home, env):
-        self.served, self.home, self.env = served, home, env
-        self.headers = {**JSON, "X-Librarian-Token": served.token()}
-
-    def call(self, method, path, body=None, headers=None):
-        resp, data = self.served.request(method, path, headers or self.headers, json.dumps(body) if body else None)
-        return resp.status, json.loads(data)
-
-    def post(self, path, body=None, headers=None):
-        return self.call("POST", path, body or {}, headers)
-
-    def review(self):
-        return self.call("GET", "/api/review")[1]
-
-    def conn(self):
-        return sqlite3.connect(next(self.home.rglob("*.db")))
-
-    def sql(self, query, *params):
-        return self.conn().execute(query, params).fetchall()
-
-    def record(self, title):
-        return self.sql("SELECT id FROM records WHERE title = ?", title)[0][0]
-
-    def person(self, name):
-        return self.sql("SELECT id FROM persons WHERE name = ?", name)[0][0]
-
-    def row(self, title):
-        [row] = [r for r in self.review()["rows"] if r["record"]["title"] == title]
-        return row
-
-    def show(self, title):
-        out = run_librarian(["show", str(self.record(title))], self.home, env=self.env)
-        assert out.returncode == 0, out.stdout
-        return json.loads(out.stdout)
-
-    def open_items(self):
-        out = run_librarian(["open-items"], self.home, env={**self.env, "TZ": "UTC"})
-        assert out.returncode == 0, out.stdout
-        return {r["title"]: r["group"] for r in json.loads(out.stdout)["records"]}
-
-    def reimport(self):
-        code, out = run_import(self.home, self.env)
-        assert code == 0, out
-
-    def events(self, name):
-        return [e for (e,) in self.sql("SELECT event FROM record_events WHERE event = ?", name)]
 
 
 @pytest.fixture

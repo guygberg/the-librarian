@@ -63,7 +63,9 @@ def _apply(
     conn: sqlite3.Connection, view: dict[str, Any], entry: dict[str, Any], lifecycle: str, done_at: datetime | None
 ) -> tuple[str, datetime | None]:
     detail = entry["detail"]
-    if entry["event"] in ("status_change", "owner_change", "project_move", "accept_suggestion", "resolve_disagreement"):
+    if entry["event"] in (
+        "status_change", "owner_change", "project_move", "accept_suggestion", "resolve_disagreement", "confirm", "rename", "merge"
+    ):
         view["basis"] = "confirmed"
     if "lifecycle" in detail:
         lifecycle = detail["lifecycle"]

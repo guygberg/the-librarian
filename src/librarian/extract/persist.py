@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from librarian import locator
-from librarian.link import people, projects, review
+from librarian.link import people, project_actions, projects, review
 
 
 def _now() -> str:
@@ -72,7 +72,7 @@ def _suggest_projects(
 def _update_record(conn: sqlite3.Connection, workspace: str, record_id: int, rec: dict[str, Any]) -> None:
     person_id, review_kind = _owner(conn, workspace, rec)
     conn.execute(
-        "UPDATE records SET title = ?, body = ?, lifecycle = ?, basis = CASE WHEN basis = 'confirmed' THEN basis ELSE ? END,"
+        "UPDATE records SET title = CASE WHEN kind = 'project' THEN title ELSE ? END, body = ?, lifecycle = ?, basis = CASE WHEN basis = 'confirmed' THEN basis ELSE ? END,"
         " commitment = ?, owner_person_id = COALESCE(?, owner_person_id), stated_deadline = ?, reasoning = ?,"
         " updated_at = ? WHERE id = ?",
         (
@@ -118,6 +118,8 @@ def _link_and_cite(conn: sqlite3.Connection, workspace: str, ids: dict[str, int]
         end = link["to"]
         if "ref" in end or "id" in end:
             to_type, to_id = "record", _record_end(ids, end)
+            if link["type"] == "belongs_to" and project_actions.moved(conn, workspace, record_id):
+                continue  # a person moved it: extraction does not move it back
         else:
             to_type = "person"
             to_id, review_kind = people.resolve(conn, workspace, end, _from_recording(rec))

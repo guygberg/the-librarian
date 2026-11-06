@@ -1,6 +1,7 @@
 """Record actions: each appends Person events and answers with the Record's new current view. No source is touched."""
 
 from librarian import config, events
+from librarian.link import project_actions
 from librarian.query import core
 from librarian.server.routes import Route
 
@@ -50,10 +51,10 @@ def _owner(conn, workspace, record_id, body):
 
 
 def _project(conn, workspace, record_id, body):
-    project_id = _int(body, "project_id")
-    if _kind(conn, workspace, project_id) != "project":
-        raise Refused(404, f"no project {project_id}")
-    events.append(conn, workspace, record_id, "project_move", {"project_id": project_id})
+    try:
+        project_actions.move(conn, workspace, record_id, _int(body, "project_id"))
+    except project_actions.Invalid as invalid:
+        raise Refused(invalid.status, invalid.message) from invalid
 
 
 def _resolve(conn, workspace, record_id, body):
