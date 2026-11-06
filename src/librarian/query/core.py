@@ -49,7 +49,8 @@ def current_view(
     if last:
         view["last_evidence"] = last.isoformat()
     view["stale"] = stale.is_stale(view["kind"], lifecycle, last, at or now(), cfg)
-    view["contradictions"] = _contradictions(conn, workspace, record_id)
+    settled = {e["detail"]["with"] for e in log if e["event"] == "resolve_disagreement" and "with" in e["detail"]}
+    view["contradictions"] = [c for c in _contradictions(conn, workspace, record_id) if c["id"] not in settled]
     view["links"] = [link for link in view["links"] if link["type"] != "contradicts"]
     if log and not conn.execute(
         "SELECT 1 FROM unit_records WHERE workspace = ? AND record_id = ?", (workspace, record_id)

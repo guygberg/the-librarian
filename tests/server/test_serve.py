@@ -1,38 +1,16 @@
-import http.client
-import os
-import re
 import socket
-import subprocess
-import sys
 
 import pytest
 
 from librarian import paths
 from librarian.importer.lock import workspace_lock
+from support.serve import spawn
 
 MEDIA_ROUTE = """
 from librarian.server.routes import Route
 ROUTES = [Route("GET", "/media/<name>", lambda req: (200, {"ok": 1}), media=True)]
 """
 JSON = {"Content-Type": "application/json"}
-
-
-class Served:
-    def __init__(self, proc, port, home):
-        self.proc, self.port, self.home = proc, port, home
-
-    def request(self, method, path, headers=None, body=None, host=None):
-        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
-        headers = {"Host": host or f"127.0.0.1:{self.port}", **(headers or {})}
-        conn.request(method, path, body=body, headers=headers)
-        resp = conn.getresponse()
-        data = resp.read().decode()
-        conn.close()
-        return resp, data
-
-    def token(self):
-        _, page = self.request("GET", "/")
-        return re.search(r'name="librarian-token" content="([^"]+)"', page).group(1)
 
 
 @pytest.fixture
@@ -43,21 +21,10 @@ def start(tmp_path, home, monkeypatch):
     def _start(*args):
         (tmp_path / "plug").mkdir(exist_ok=True)
         (tmp_path / "plug" / "media_probe.py").write_text(MEDIA_ROUTE)
-        env = {
-            **os.environ,
-            "LIBRARIAN_HOME": str(home),
-            "PYTHONPATH": str(tmp_path / "plug"),
-            "LIBRARIAN_ROUTE_MODULES": "media_probe",
-        }
-        proc = subprocess.Popen(
-            [sys.executable, "-m", "librarian", "serve", *args],
-            env=env,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
+        env = {"PYTHONPATH": str(tmp_path / "plug"), "LIBRARIAN_ROUTE_MODULES": "media_probe"}
+        proc, served = spawn(home, *args, env=env)
         procs.append(proc)
-        port = int(re.search(r":(\d+)/", proc.stdout.readline()).group(1))
-        return Served(proc, port, home)
+        return served
 
     yield _start
     for proc in procs:

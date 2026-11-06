@@ -31,6 +31,14 @@ class Request:
         finally:
             conn.close()
 
+    @contextmanager
+    def rw(self):
+        conn = db.connect_rw(self.workspace)
+        try:
+            yield conn
+        finally:
+            conn.close()
+
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True

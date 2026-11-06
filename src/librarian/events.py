@@ -1,8 +1,9 @@
-"""Person events on a Record: an append-only log. The HTTP actions come later; they and tests append through here.
+"""Person events on a Record: an append-only log. The HTTP actions (`server/routes/records.py`) append through here.
 
 `detail` keys the current view understands (see `librarian.query.core`):
 - `lifecycle` (+ optional `waiting_on`, `suspended_by`, `reason`): status_change, resolve_disagreement
 - `person_id`: owner_change; `project_id`: project_move
+- `with` (the other Record): resolve_disagreement; it hides that Record from "Sources disagree"
 Every other event is history only until the action that needs it lands.
 """
 
