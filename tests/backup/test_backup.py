@@ -72,6 +72,39 @@ def test_restore_refuses_non_empty_folder_and_overwrite_needs_typed_confirmation
     assert code == 0, out
 
 
+def test_restore_of_an_old_schema_archive_migrates_with_a_pre_migration_backup(tmp_path):
+    old = 8
+    snapshot = tmp_path / "librarian.db"
+    conn = sqlite3.connect(snapshot)
+    for version, sql_path in db.migration_files():
+        if version <= old:
+            conn.executescript(sql_path.read_text())
+    conn.execute(f"PRAGMA user_version={old}")
+    conn.commit()
+    conn.close()
+    archive = tmp_path / "old.tar.gz"
+    manifest = f'{{"workspace": "work", "migration": {old}}}'.encode()
+    with tarfile.open(archive, "w:gz") as tar:
+        tar.add(snapshot, "librarian.db")
+        info = tarfile.TarInfo("manifest.json")
+        info.size = len(manifest)
+        tar.addfile(info, io.BytesIO(manifest))
+
+    fresh = tmp_path / "fresh"
+    code, out = restore_in_pty(fresh, archive)
+    assert code == 0, out
+    status = run_librarian(["migrate", "--status"], fresh).stdout
+    assert status.strip() == f"version {db.latest_version()}, 0 pending"
+    backups = list((fresh / "workspaces" / "work" / "backups").glob(f"librarian-v{old}-*.db"))
+    assert len(backups) == 1
+
+
+def test_migrate_existing_only_changes_nothing_without_a_database(tmp_path):
+    done = run_librarian(["migrate", "--existing-only"], tmp_path / "home")
+    assert done.returncode == 0, done.stderr
+    assert not (tmp_path / "home" / "workspaces").exists()
+
+
 def test_restore_refuses_archive_with_newer_migration_and_changes_nothing(imported, tmp_path):
     home, _ = imported
     archive = backup_of(home, tmp_path / "out")

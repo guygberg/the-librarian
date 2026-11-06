@@ -130,3 +130,4 @@ def restore(workspace: str, archive: Path) -> None:
         if (staged / CONFIG).exists():
             paths.config_path().parent.mkdir(parents=True, exist_ok=True)
             shutil.move(staged / CONFIG, paths.config_path())
+    db.connect_rw(workspace).close()
