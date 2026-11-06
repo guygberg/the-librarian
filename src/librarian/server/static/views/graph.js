@@ -71,25 +71,33 @@ function border([x, y], [tx, ty]) {
   return [x + dx * t, y + dy * t];
 }
 
-function labelSpot(a, b, mid) {
-  const dist = ([x, y]) => Math.hypot(x - mid[0], y - mid[1]);
-  const [near, far] = dist(a) <= dist(b) ? [a, b] : [b, a];
-  return [near[0] + (far[0] - near[0]) * 0.65, near[1] + (far[1] - near[1]) * 0.65 - 4];
-}
-
 const LABEL_H = 18;
 const labelBox = ([x, y], content) => {
   const w = content.length * 7 + 8;
   return { l: x - w / 2, r: x + w / 2, t: y - LABEL_H + 3, b: y + 3 };
 };
 const collides = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+const nodeBox = ([x, y]) => ({ l: x - NODE[0] / 2, r: x + NODE[0] / 2, t: y - NODE[1] / 2, b: y + NODE[1] / 2 });
 
-/** Edges converging on one node put their labels in the same place; step a label down until it clears those already placed. */
-function clearSpot(spot, content, placed) {
-  let [x, y] = spot;
-  while (placed.some((box) => collides(box, labelBox([x, y], content)))) y += LABEL_H;
-  placed.push(labelBox([x, y], content));
-  return [x, y];
+/**
+ * Where an edge's label goes: on the visible stretch between the two node boxes (a..b), nearer the outer node because
+ * edges converge on the centre, and clear of every node and of the labels already placed. Null when no spot is free:
+ * the label is then left off (the edge keeps its kind as a tooltip) rather than drawn behind a node or over another label.
+ */
+function clearSpot(a, b, mid, content, placed) {
+  const dist = ([x, y]) => Math.hypot(x - mid[0], y - mid[1]);
+  const [near, far] = dist(a) <= dist(b) ? [a, b] : [b, a];
+  for (const t of [0.65, 0.5, 0.8, 0.35, 0.2]) {
+    for (const dy of [0, LABEL_H, -LABEL_H]) {
+      const spot = [near[0] + (far[0] - near[0]) * t, near[1] + (far[1] - near[1]) * t - 4 + dy];
+      const box = labelBox(spot, content);
+      if (!placed.some((other) => collides(other, box))) {
+        placed.push(box);
+        return spot;
+      }
+    }
+  }
+  return null;
 }
 
 function canvas(graph, open) {
@@ -98,16 +106,19 @@ function canvas(graph, open) {
   const spot = place(graph, mid);
   const hopOf = new Map(graph.nodes.map((n) => [n.id, n.hop]));
   const recentre = (id) => filters.href({ open, tab: 'relations', center: id === `record:${open}` ? null : id });
-  const placed = [];
+  const placed = [...spot.values()].map(nodeBox);
   const edges = graph.edges.map((e) => {
     const [from, to] = [spot.get(e.from), spot.get(e.to)];
     const [x1, y1] = border(from, to);
     const [x2, y2] = border(to, from);
+    const where = clearSpot([x1, y1], [x2, y2], mid, label(e.kind), placed);
+    const tip = svg('title', {});
+    tip.textContent = label(e.kind);
     return svg('g', { class: `edge hop-${Math.max(hopOf.get(e.from), hopOf.get(e.to))}`, 'data-part': 'graph-edge', 'data-kind': e.kind },
+      tip,
       svg('line', { x1, y1, x2, y2, stroke: '#9A95AD', 'stroke-width': 1.5, 'marker-end': 'url(#arrow)' }),
-      // Nearer the outer node: edges converge on the centre, so midpoint labels pile up there.
-      text(...clearSpot(labelSpot([x1, y1], [x2, y2], mid), label(e.kind), placed), label(e.kind),
-        { fill: '#9A95AD', 'font-size': 12, stroke: '#17151f', 'stroke-width': 4, 'paint-order': 'stroke' }));
+      ...(where ? [text(...where, label(e.kind),
+        { fill: '#9A95AD', 'font-size': 12, stroke: '#17151f', 'stroke-width': 4, 'paint-order': 'stroke' })] : []));
   });
   const arrow = svg('defs', {}, svg('marker', { id: 'arrow', markerWidth: 8, markerHeight: 8, refX: 7, refY: 4, orient: 'auto' },
     svg('path', { d: 'M0,0 L8,4 L0,8z', fill: '#9A95AD' })));

@@ -98,6 +98,16 @@ def test_edge_labels_do_not_overlap_at_two_hops(page, ui):
         for b in boxes[i + 1 :]:
             apart = a["r"] <= b["l"] or b["r"] <= a["l"] or a["b"] <= b["t"] or b["b"] <= a["t"]
             assert apart, f"labels overlap: {a} {b}"
+    nodes_ = page.locator("[data-part=graph-node] rect").evaluate_all(
+        """els => els.map(el => {
+          const r = el.getBoundingClientRect();
+          return { l: r.left, r: r.right, t: r.top, b: r.bottom };
+        })"""
+    )
+    for a in boxes:
+        for n in nodes_:
+            apart = a["r"] <= n["l"] or n["r"] <= a["l"] or a["b"] <= n["t"] or n["b"] <= a["t"]
+            assert apart, f"label behind a node: {a} {n}"
 
 
 def test_edge_kind_filter_hides_other_kinds(page, ui):
@@ -139,7 +149,9 @@ def test_clicking_a_node_recentres_and_reload_restores_the_view(page, ui):
 
 def test_reload_restores_edge_kind_filter(page, ui):
     ui, item = graph_page(page, ui)
-    expect(page.locator("[data-part=graph-edge][data-kind='evidence']").first).to_be_visible()
+    # An edge drawn through a node may have no free label spot, so look at a label, not a bare line.
+    label = page.locator("[data-part=graph-edge][data-kind='evidence'] text").first
+    expect(label).to_be_visible()
     expect(page.locator("[data-part=graph-node].source_item").first).to_contain_text('"')
     kind_chip(page, "evidence").click()
     expect(page.locator("[data-part=kind][data-kind='evidence']")).to_have_class("chip")
