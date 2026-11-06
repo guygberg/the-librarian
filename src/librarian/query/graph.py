@@ -34,7 +34,9 @@ def parse_center(text: str) -> Node:
     kind, _, number = text.rpartition(":")
     if number.isdigit() and kind in ("", "record", "person", "source_item"):
         return (kind or "record", int(number))
-    raise BadGraphRequest(f"bad center {text!r}: expected record:<id>, person:<id> or source_item:<id>")
+    raise BadGraphRequest(
+        f"bad center {text!r}: expected record:<id>, person:<id> or source_item:<id>"
+    )
 
 
 def _edges(
@@ -64,7 +66,8 @@ def _edges(
     if "evidence" in kinds:  # a Record's Evidence rows are its edges to the Source items they quote
         have = {(a, b) for t, a, b in edges if t == "evidence"}
         for record_id, source_id in conn.execute(
-            "SELECT DISTINCT e.record_id, v.source_item_id FROM evidence e JOIN source_item_revisions v ON v.id = e.revision_id"
+            "SELECT DISTINCT e.record_id, v.source_item_id FROM evidence e"
+            " JOIN source_item_revisions v ON v.id = e.revision_id"
             " WHERE e.workspace = ? ORDER BY e.id",
             (workspace,),
         ):
@@ -101,7 +104,9 @@ def _label(conn: sqlite3.Connection, workspace: str, node: Node) -> dict[str, An
     return {"title": f"{row[0]}:{row[1]}"} if row else {}
 
 
-def _evidence(conn: sqlite3.Connection, workspace: str, record_id: int, source_id: int | None = None) -> list[dict[str, Any]]:
+def _evidence(
+    conn: sqlite3.Connection, workspace: str, record_id: int, source_id: int | None = None
+) -> list[dict[str, Any]]:
     """A Record's Evidence, or only what it quotes from one Source item."""
     return [
         {"locator": loc, "quote": quote, "role": role}
@@ -145,8 +150,12 @@ def neighbourhood(
             if suggested:
                 entry["suggested"] = suggested
         if node[0] == "source_item":  # the quote the nearest Record takes from it
-            quotes = [q["quote"] for k, a, b in edges if k == "evidence" and b == node and a in distance
-                      for q in _evidence(conn, workspace, a[1], node[1])]
+            quotes = [
+                q["quote"]
+                for k, a, b in edges
+                if k == "evidence" and b == node and a in distance
+                for q in _evidence(conn, workspace, a[1], node[1])
+            ]
             if quotes:
                 entry["quote"] = quotes[0]
         nodes.append(entry)
@@ -155,7 +164,11 @@ def neighbourhood(
             "kind": kind,
             "from": f"{a[0]}:{a[1]}",
             "to": f"{b[0]}:{b[1]}",
-            "evidence": _evidence(conn, workspace, a[1], b[1] if b[0] == "source_item" else None) if a[0] == "record" else [],
+            "evidence": (
+                _evidence(conn, workspace, a[1], b[1] if b[0] == "source_item" else None)
+                if a[0] == "record"
+                else []
+            ),
         }
         for kind, a, b in edges
         if a in distance and b in distance

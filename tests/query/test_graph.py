@@ -54,7 +54,8 @@ def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(ap
     assert hops_of(one)[project] == 0
     assert {n["hop"] for n in one["nodes"]} == {0, 1}
     assert f"record:{payments.NOV_18_ID}" in hops_of(one)
-    assert {"belongs_to", "blocks", "evidence"} >= {e["kind"] for e in one["edges"]} >= {"belongs_to"}
+    kinds = {e["kind"] for e in one["edges"]}
+    assert {"belongs_to", "blocks", "evidence"} >= kinds >= {"belongs_to"}
     assert all(e["evidence"] for e in one["edges"] if e["from"] == f"record:{payments.NOV_18_ID}")
 
     _, two = api.get(f"center={project}&hops=2")
@@ -70,7 +71,8 @@ def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(ap
     sources = [n for n in quoted["nodes"] if n["type"] == "source_item"]
     assert sources and all(n["hop"] == 1 and n["quote"] for n in sources)
     evidence = [e for e in quoted["edges"] if e["kind"] == "evidence"]
-    assert {e["to"] for e in evidence if e["from"] == f"record:{payments.NOV_18_ID}"} == {n["id"] for n in sources}
+    quoted_by_record = {e["to"] for e in evidence if e["from"] == f"record:{payments.NOV_18_ID}"}
+    assert quoted_by_record == {n["id"] for n in sources}
     assert all(e["evidence"] for e in evidence)
     _, no_evidence = api.get(f"center=record:{payments.NOV_18_ID}&hops=1&kinds=belongs_to")
     assert not [n for n in no_evidence["nodes"] if n["type"] == "source_item"]
