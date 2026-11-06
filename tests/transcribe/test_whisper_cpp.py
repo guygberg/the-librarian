@@ -128,7 +128,8 @@ def test_real_engines_through_import_store_the_stubbed_transcript(rig, tmp_path)
     fake_env, _ = make_env(tmp_path, home, "base", "".join(f'{k} = "{v}"\n' for k, v in cfg.items()))
     run_env = {**env, "LIBRARIAN_ENGINES": "real", "STUB_DETECTED": "en"}
     code, out = run_import(home, run_env)
-    assert code == 0, out
+    # Only the extract stage fails: the real extractor engine is still a placeholder.
+    assert code == 1 and "failed at extract" in out and "failed at transcribe" not in out, out
     assert len(calls("whisper-cli")) == 6  # a detection and a transcription for each of the three recordings
     [hit] = search(home, "schema decisions")[:1]
     content = json.loads(json.loads(run_librarian(["show", hit["locator"]], home).stdout)["revisions"][0]["content"])

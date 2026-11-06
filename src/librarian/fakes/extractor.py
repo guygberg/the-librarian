@@ -2,6 +2,7 @@
 
 The fixture holds one of: {"result": <json>} (serialized), {"raw": "<text>"} (returned verbatim, for
 bad JSON / bad ids / invented quotes), or {"error": "<message>"} (raised).
+A unit without a fixture returns no Records.
 """
 
 import json
@@ -26,7 +27,7 @@ class FakeExtractor:
         self._log.record("extractor", "extract", unit_key=unit_key)
         path = self._dir / f"{unit_key}.json"
         if not path.exists():
-            raise ExtractionError(f"fake extractor: no canned output for unit {unit_key!r} at {path}")
+            return json.dumps({"records": []})  # a unit nobody wrote a fixture for has nothing to extract
         canned = json.loads(path.read_text())
         if "error" in canned:
             raise ExtractionError(canned["error"])

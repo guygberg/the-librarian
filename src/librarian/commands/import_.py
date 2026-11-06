@@ -44,6 +44,12 @@ def execute(ctx, older=None, languages=None):
                 stages = stages[: names.index("extract")] if "extract" in names else stages
             failed = runner.run_import(run, stages, print)
             print(f"import finished, {failed} failed")
+            for stage, error, count in conn.execute(
+                "SELECT stage, error, COUNT(*) FROM import_item_stages WHERE run_id = ? AND status = 'failed'"
+                " GROUP BY stage, error",
+                (run.id,),
+            ):
+                print(f"failed at {stage} ({count} items): {error}")
             if not status.allowed:
                 print(f"librarian: extraction skipped, {status.reason}; {status.fix}")
                 return 1

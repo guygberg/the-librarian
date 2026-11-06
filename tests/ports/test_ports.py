@@ -70,8 +70,7 @@ def test_fake_extractor_canned_bad_and_failing_outputs(env):
     assert extractor.extract("badjson", "text", []) == "{not json"
     with pytest.raises(ExtractionError, match="model crashed"):
         extractor.extract("boom", "text", [])
-    with pytest.raises(ExtractionError, match="no canned output"):
-        extractor.extract("missing", "text", [])
+    assert json.loads(extractor.extract("missing", "text", [])) == {"records": []}
     assert [c["args"]["unit_key"] for c in engines.call_log("work").read()] == ["good", "badjson", "boom", "missing"]
 
 
