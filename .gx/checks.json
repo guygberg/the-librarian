@@ -1,5 +1,5 @@
 {
   "test": {
-    "full": ".venv/bin/pytest -q"
+    "full": "[ -x .venv/bin/pytest ] || make install; .venv/bin/pytest -q"
   }
 }
