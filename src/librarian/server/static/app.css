@@ -27,4 +27,15 @@ details[open] > summary.grp::before { content: '- '; }
 .m { margin-top: 6px; color: var(--mut); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .inf { border: 1px dashed var(--mut); border-radius: 99px; padding: 0 var(--s2); }
 .conf { border: 1px solid var(--ok); color: var(--ok); border-radius: 99px; padding: 0 var(--s2); }
+.pf, .tabs, .people { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--s3); }
+.chip { padding: 5px 12px; border-radius: 99px; border: 1px solid var(--line); color: var(--mut); font-size: 13px; text-decoration: none; }
+.chip.on { border-color: var(--acc); color: var(--acc); }
+.pf { gap: var(--s2); }
+.pf .chip { padding: 6px 12px; font-size: inherit; }
+.pf .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.people select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px; font: inherit; }
+.sh { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: var(--s3) var(--s4); margin: 0 0 var(--s3); }
+.sh .t { font-size: 20px; font-weight: 600; }
+.evb { padding: var(--s3) var(--s4); background: var(--panel); border-radius: 10px; border: 1px solid var(--line); margin-top: var(--s2); }
+.evb small { display: block; font-size: 11px; color: var(--mut); margin-bottom: var(--s1); }
 .empty { font-size: 25px; font-weight: 600; margin: var(--s5) 0; }

@@ -17,7 +17,7 @@ export function start(routes, notFound, render) {
   show();
 
   function navigate(path) {
-    if (path !== location.pathname) history.pushState(null, '', path);
+    if (path !== location.pathname + location.search) history.pushState(null, '', path);
     show();
   }
 }
