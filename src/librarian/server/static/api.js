@@ -12,6 +12,14 @@ export function get(path) {
   return cache.get(path);
 }
 
+export async function post(path, body) {
+  const resp = await fetch(path, {
+    method: 'POST', headers: { 'X-Librarian-Token': token, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw new Error(`${path}: ${resp.status}`);
+  return resp.json();
+}
+
 /** Called by the router on every navigation so a view never shows another visit's answers. */
 export function forget() {
   cache = new Map();

@@ -104,8 +104,16 @@ def open_items(
         at=at,
         headline={"needs_you": needs, "waiting": waiting, "text": f"{needs} things need you, {waiting} waiting on someone else"},
         progress={"done_this_week": done_this_week, "total": done_this_week + still_open, "week_start": since.isoformat()},
-        **({"projects": _projects(conn, workspace)} if everything else {}),
+        **({"projects": _projects(conn, workspace), "people": _people(conn, workspace)} if everything else {}),
     )
+
+
+def _people(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
+    """Every Person, for choosing an owner."""
+    return [
+        {"id": row[0], "name": row[1]}
+        for row in conn.execute("SELECT id, name FROM persons WHERE workspace = ? ORDER BY id", (workspace,))
+    ]
 
 
 def _projects(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:

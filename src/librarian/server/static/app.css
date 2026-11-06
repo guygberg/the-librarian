@@ -44,5 +44,11 @@ details[open] > summary.grp::before { content: '- '; }
 .dis { margin: var(--s3) 0; padding: var(--s3) var(--s4); border: 1px solid var(--warn); border-radius: 10px; }
 .dis .w { color: var(--warn); margin: 0 0 var(--s2); }
 .side a { font-weight: 600; }
+.acts { display: flex; flex-wrap: wrap; gap: var(--s2); margin: var(--s2) 0 var(--s3); }
+.acts select, .dis button { font: inherit; font-size: 13px; background: none; color: var(--mut); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px; }
+button.chip { background: none; font-family: inherit; cursor: pointer; }
+.settle { animation: settle .5s ease-out; }
+@keyframes settle { from { opacity: .4; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .settle { animation: none; } }
 .empty.small { font-size: 14px; font-weight: 400; color: var(--mut); }
 .empty { font-size: 25px; font-weight: 600; margin: var(--s5) 0; }

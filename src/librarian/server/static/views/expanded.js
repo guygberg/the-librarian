@@ -1,3 +1,4 @@
+import { act } from '../actions.js';
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { shortDate } from '../format.js';
@@ -37,13 +38,41 @@ function flags(r) {
   ];
 }
 
+const button = (part, text, onClick) => {
+  const el = h('button', { type: 'button', class: 'chip', 'data-part': part }, text);
+  el.addEventListener('click', onClick);
+  return el;
+};
+
 function disagreement(r) {
   if (!r.contradictions.length) return null;
+  const [rival] = r.contradictions;
+  // Whichever side is chosen, the item that settles is the one open on the page.
+  const resolve = (id, other, outcome) => () => act(id, 'resolve', { other, outcome }, r.id);
   return h('div', { class: 'dis', 'data-part': 'disagreement' },
     h('p', { class: 'w' }, 'Sources disagree'),
     [r, ...r.contradictions].map((side) => h('div', { class: 'side', 'data-part': 'side' },
       h('a', { href: filters.href({ open: side.id }), 'data-link': true }, side.title),
-      side.evidence.map((e) => evidenceLine(e, true)))));
+      side.evidence.map((e) => evidenceLine(e, true)),
+      button('act-holds', 'This one holds', resolve(side.id, side === r ? rival.id : r.id, 'holds')))),
+    button('act-both-wrong', 'Both are wrong', resolve(r.id, rival.id, 'both_wrong')));
+}
+
+function choose(part, label, options, selected, onPick) {
+  const select = h('select', { 'data-part': part, 'aria-label': label },
+    h('option', { value: '' }, label),
+    options.map((o) => h('option', { value: o.id, selected: o.id === selected }, o.name ?? o.title)));
+  select.addEventListener('change', () => select.value && onPick(Number(select.value)));
+  return select;
+}
+
+/** The corrections a person can make; each is a Person event, the source is never touched. */
+function actions(r, ctx) {
+  const done = r.lifecycle === 'done';
+  return h('div', { class: 'acts', 'data-part': 'actions' },
+    done ? button('act-reopen', 'Reopen', () => act(r.id, 'reopen')) : button('act-done', 'Mark done', () => act(r.id, 'done')),
+    r.kind === 'action_item' ? choose('act-owner', 'Change owner', ctx.people, null, (person_id) => act(r.id, 'owner', { person_id })) : null,
+    choose('act-project', 'Move to project', ctx.projects, r.projects[0]?.id, (project_id) => act(r.id, 'project', { project_id })));
 }
 
 function history(r) {
@@ -63,9 +92,10 @@ function tabs(r, tab) {
 }
 
 /** The expanded item: everything known about one Record, in place under its row. */
-export function panel(r, tab) {
+export function panel(r, tab, ctx) {
   return h('div', { class: 'open', 'data-part': 'item-expanded' },
     fact('lifecycle', lifecycle(r)),
+    actions(r, ctx),
     fact('basis-text', BASIS[r.basis] ?? r.basis),
     r.kind === 'action_item' && r.commitment ? fact('commitment', `Commitment: ${r.commitment}`) : null,
     r.stated_deadline ? fact('deadline', `Deadline: ${r.stated_deadline}`) : null,

@@ -3,7 +3,11 @@ import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { lastImport } from '../freshness.js';
 import { dateLine, shortDate } from '../format.js';
+import { justActed } from '../actions.js';
 import { evidenceLine, panel } from './expanded.js';
+
+/** What the last action changed (see actions.js), so the matching parts settle on this one render. */
+let acted = null;
 
 const NEEDS = 'needs_attention';
 const WAITING = 'waiting_on_others';
@@ -46,14 +50,14 @@ function row(item, evidence, open) {
   const who = owner(item);
   const due = item.stated_deadline ? ` · due ${item.stated_deadline}` : '';
   const expanded = open?.record.id === item.id;
-  return h('div', { class: 'it', 'data-part': 'item' },
+  return h('div', { class: acted?.id === item.id ? 'it settle' : 'it', 'data-part': 'item' },
     h('div', { class: 't' }, h('a', { href: filters.href({ open: expanded ? null : item.id }), 'data-link': true }, item.title)),
     h('div', { class: 'm' },
       h('span', {}, item.projects.map((p) => p.title).join(', ')),
       h('span', {}, who + due),
       h('span', { class: cls, 'data-part': `basis-${item.basis}` }, label),
       warnings(item).map((w) => h('span', { class: 'w', 'data-part': 'warning' }, w))),
-    expanded ? panel(open.record, open.tab) : evidence.filter((e) => e.record_id === item.id).map((e) => evidenceLine(e)));
+    expanded ? panel(open.record, open.tab, open) : evidence.filter((e) => e.record_id === item.id).map((e) => evidenceLine(e)));
 }
 
 const fact = (label, f) => (f && f !== 'not found' ? h('div', { class: 'm' }, h('span', {}, label), h('span', {}, f.title ?? f.value)) : null);
@@ -74,16 +78,19 @@ async function statusHeader(name) {
       h('span', {}, `${changes.changes.length} changed`), h('span', {}, changes.resolved.baseline)));
 }
 
+// Finishing or reopening work moves the counts; they settle once, with no sound.
+const countsMoved = () => ['done', 'reopen'].includes(acted?.name);
+
 function headline(text) {
   const [before, after] = text.split('need you');
-  return h('h1', { 'data-part': 'headline' }, before, h('em', {}, 'need you'), after);
+  return h('h1', { 'data-part': 'headline', class: countsMoved() ? 'settle' : null }, before, h('em', {}, 'need you'), after);
 }
 
 function progress({ done_this_week: done, total }) {
   const width = total ? Math.round((done / total) * 100) : 0;
   return [
     h('div', { class: 'bar', 'data-part': 'progress-line' }, h('i', { style: `width:${width}%` })),
-    h('div', { class: 'barl' }, `${done} of ${total} items finished this week`),
+    h('div', { class: countsMoved() ? 'barl settle' : 'barl' }, `${done} of ${total} items finished this week`),
   ];
 }
 
@@ -110,12 +117,15 @@ function groups(items, answer, evidence, open) {
 /** The single stream: headline, progress, filters (all in the URL) and the items they leave. */
 export async function stream() {
   const state = filters.current();
+  acted = justActed();
   const [answer, status] = await Promise.all([api.get('/api/open-items?scope=all'), api.get('/api/status')]);
   const header = state.project ? await statusHeader(state.project) : null;
   const shown = answer.records.filter((r) => filters.matches(r, state));
   const evidence = state.kind === 'done' ? answer.evidence : [];
   const hasOwner = answer.records.filter((r) => ownerName(r));
-  const open = state.open ? { record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab } : null;
+  const open = state.open
+    ? { record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab, people: answer.people, projects: answer.projects }
+    : null;
   // An expanded item the filters would hide still shows, above the list.
   const stray = open && !shown.some((r) => r.id === open.record.id) ? row(open.record, [], open) : null;
 
