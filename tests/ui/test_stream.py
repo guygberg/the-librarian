@@ -87,7 +87,10 @@ def test_basis_markers_and_warnings(page, ui):
     )
 
     page.goto(ui.url)
-    expect(page.locator("[data-part=headline]")).to_be_visible()
+    headline = page.locator("[data-part=headline]")
+    expect(headline).to_be_visible()
+    expect(headline).to_have_text(re.compile(r"^1 thing needs you, "))
+    expect(headline.locator("em")).to_have_text("needs you")
 
     signup_row = row(page, hebrew.SIGNUP)
     expect(signup_row.locator("[data-part=basis-confirmed]")).to_have_text("Confirmed")

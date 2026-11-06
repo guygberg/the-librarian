@@ -45,6 +45,19 @@ def test_recording_evidence_opens_a_player_at_the_segment_start(page, ui):
     assert page.request.get(f"{ui.url}/media/drive/{file_id}").status == 200
 
 
+def test_sheet_title_names_the_recording_with_date_and_range_and_shows_the_line_before(page, ui):
+    ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
+    open_thursday(page, ui)
+
+    sheet = page.locator(SHEET)
+    expect(sheet).to_contain_text("Recording · Onboarding")
+    expect(sheet).not_to_contain_text("drive:")
+    expect(sheet.locator("[data-part=sheet-when]")).to_have_text("Oct 20 · 00:09:14 — 00:09:19")
+    before = sheet.locator("[data-part=source-line]").first
+    expect(before).to_contain_text(hebrew.SIGNUP_LINE)
+    assert before.evaluate("e => e.compareDocumentPosition(e.parentNode.querySelector('.hl')) & 4")
+
+
 def test_hebrew_quote_is_rtl_with_a_labelled_gloss_naming_the_uncertain_word(page, ui):
     ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
     open_thursday(page, ui)

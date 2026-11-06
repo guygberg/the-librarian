@@ -136,8 +136,9 @@ def _recording(conn, workspace, loc, cfg):
             "evidence": n == number,
             **confidence.describe(m, cfg),
         }
+        | ({"title": m.get("title"), "date": m.get("date")} if n == number else {})
         for n, (sid, m, _) in sorted(segments.items())
-        if abs(m["start"] - at) <= RECORDING_SECONDS
+        if abs(m["start"] - at) <= RECORDING_SECONDS or abs(n - number) <= 1
     ]
 
 

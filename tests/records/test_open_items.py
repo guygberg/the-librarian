@@ -81,6 +81,7 @@ def test_groups_follow_owner_and_lifecycle(world):
         s.REGION: "other_open",
     }
     assert (answer["headline"]["needs_you"], answer["headline"]["waiting"]) == (1, 1)
+    assert answer["headline"]["text"] == "1 thing needs you, 1 waiting on someone else"
 
 
 def test_other_peoples_pending_item_is_other_open(world):

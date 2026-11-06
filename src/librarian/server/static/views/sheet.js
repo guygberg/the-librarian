@@ -1,7 +1,7 @@
 import * as api from '../api.js';
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
-import { position } from '../format.js';
+import { position, shortDate } from '../format.js';
 
 const SOURCES = { slack: 'Slack', session: 'Session', drive: 'Recording' };
 
@@ -79,6 +79,15 @@ function original(found, raw) {
   return button;
 }
 
+/** A recording is named by its file's title, with the date and the Evidence segment's time range under it. */
+function title(found) {
+  const label = h('b', {}, SOURCES[found.source] ?? found.source);
+  const mark = found.items.find((i) => i.evidence);
+  if (found.source !== 'drive' || !mark?.title) return [label, ` · ${found.locator}`];
+  const when = `${shortDate(new Date(`${mark.date}T00:00`))} · ${position(mark.start)} — ${position(mark.end)}`;
+  return [label, ` · ${mark.title}`, h('div', { class: 'sub', 'data-part': 'sheet-when' }, when)];
+}
+
 /** The bottom sheet for `?source=<locator>`: the passage around one Evidence line, which is marked. Closing is a
  * link back to the same page without `source`, so the stream underneath is never re-rendered. */
 export async function render(host) {
@@ -92,7 +101,7 @@ export async function render(host) {
   host.replaceChildren(h('div', { class: 'sheet', 'data-part': 'source-sheet' },
     h('div', { class: 'wrap' },
       h('a', { href: close, class: 'chip', 'data-link': true, 'data-part': 'close-sheet' }, 'Close'),
-      h('b', {}, SOURCES[found.source] ?? found.source), ` · ${found.locator}`,
+      title(found),
       h('div', { class: 'passage' }, found.items.map((i) => line(i, found.glosses[0], people))),
       original(found, raw),
       raw)));

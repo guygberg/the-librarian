@@ -82,8 +82,8 @@ async function statusHeader(name, projects, items) {
 const countsMoved = () => ['done', 'reopen'].includes(acted?.name);
 
 function headline(text) {
-  const [before, after] = text.split('need you');
-  return h('h1', { 'data-part': 'headline', class: countsMoved() ? 'settle' : null }, before, h('em', {}, 'need you'), after);
+  const [, before, verb, after] = text.match(/^(.*?)(needs? you)(.*)$/);
+  return h('h1', { 'data-part': 'headline', class: countsMoved() ? 'settle' : null }, before, h('em', {}, verb), after);
 }
 
 function progress({ done_this_week: done, total }) {

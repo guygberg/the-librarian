@@ -41,6 +41,8 @@ def test_recording_window_lists_segments_with_timestamps_flags_and_uncertain_spa
     assert [i["start"] for i in items] == sorted(i["start"] for i in items)
     here = next(i for i in items if i["evidence"])
     assert here["start"] == hebrew.UNCERTAIN_START
+    assert (here["title"], here["date"]) == ("Onboarding", "2026-10-20")
+    assert items[0]["segment"] == here["segment"] - 1  # the line before is far outside the window
     assert [w["text"] for w in here["uncertain_words"]] == ["Thursday"]
     assert any(i.get("confidence", {}).get("label") == "low confidence" for i in items)
     assert list(answer)[:5] == ["warnings", "resolved", "records", "evidence", "freshness"]

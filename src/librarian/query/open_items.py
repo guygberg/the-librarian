@@ -140,7 +140,8 @@ def open_items(
         headline={
             "needs_you": needs,
             "waiting": waiting,
-            "text": f"{needs} things need you, {waiting} waiting on someone else",
+            "text": f"{needs} {'thing needs' if needs == 1 else 'things need'} you,"
+            f" {waiting} waiting on someone else",
         },
         progress={
             "done_this_week": done_this_week,
