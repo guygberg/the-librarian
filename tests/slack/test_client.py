@@ -63,7 +63,7 @@ def test_history_returns_one_page_and_api_errors_raise(login):
 
 def test_client_can_only_read(login):
     public = {n for n in dir(SlackClient) if not n.startswith("_")}
-    assert public == {"auth_info", "list_conversations", "history", "replies", "from_config"}
+    assert public == {"auth_info", "list_users", "list_conversations", "history", "replies", "from_config"}
     assert all(m.split(".")[1] in {"test", "list", "history", "replies"} for m in READ_METHODS)
     with pytest.raises(ValueError, match="not a read method"):
         SlackClient(login, Stub())._call("chat.postMessage", channel="C1", text="x")

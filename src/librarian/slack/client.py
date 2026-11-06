@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-READ_METHODS = frozenset({"auth.test", "conversations.list", "conversations.history", "conversations.replies"})
+READ_METHODS = frozenset({"auth.test", "conversations.list", "conversations.history", "conversations.replies", "users.list"})
 PAGE_LIMIT = 200
 MAX_RETRIES = 5
 
@@ -80,6 +80,15 @@ class SlackClient:
             cursor = (page.get("response_metadata") or {}).get("next_cursor")
             if not cursor:
                 return conversations
+
+    def list_users(self) -> list[dict[str, Any]]:
+        users, cursor = [], None
+        while True:
+            page = self._call("users.list", limit=PAGE_LIMIT, cursor=cursor)
+            users += page["members"]
+            cursor = (page.get("response_metadata") or {}).get("next_cursor")
+            if not cursor:
+                return users
 
     def history(self, channel: str, cursor: str | None = None) -> dict[str, Any]:
         return self._call("conversations.history", channel=channel, limit=PAGE_LIMIT, cursor=cursor)

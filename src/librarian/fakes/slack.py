@@ -31,6 +31,10 @@ class FakeSlack:
         self._log.record("slack", "list_conversations")
         return self._load("conversations.list.json")["channels"]
 
+    def list_users(self) -> list[dict]:
+        self._log.record("slack", "list_users")
+        return self._load("users.list.json")["members"]
+
     def history(self, channel: str, cursor: str | None = None) -> dict:
         self._log.record("slack", "history", channel=channel, cursor=cursor)
         page = 0 if not cursor else int(cursor.rsplit("-", 1)[1])

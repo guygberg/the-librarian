@@ -3,6 +3,8 @@
 import sqlite3
 from typing import Any
 
+from librarian.link import review
+
 _FIELDS = ("id", "kind", "title", "body", "lifecycle", "basis", "commitment", "stated_deadline", "reasoning")
 
 
@@ -16,7 +18,16 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
     record: dict[str, Any] = {k: v for k, v in zip(_FIELDS, row, strict=False) if v not in (None, "")}
     parent_id, owner_id = row[-2:]
     if owner_id:
-        record["owner"] = conn.execute("SELECT name FROM persons WHERE id = ?", (owner_id,)).fetchone()[0]
+        name, is_me = conn.execute("SELECT name, is_me FROM persons WHERE id = ?", (owner_id,)).fetchone()
+        record["owner"] = name
+        if is_me:
+            record["owner_is_me"] = True
+    # Suggested links: shown with their mark, never as the Record's owner or Links.
+    suggested = review.for_record(conn, workspace, record_id)
+    if suggested:
+        record["suggested"] = suggested
+        if any(s["kind"] == review.UNKNOWN_SPEAKER and s["link"] == "owner" for s in suggested):
+            record["owner"] = review.MARKS[review.UNKNOWN_SPEAKER]
     links = [
         {"type": type_, "to_type": to_type, "to_id": to_id, "to": _label(conn, to_type, to_id)}
         for type_, to_type, to_id in conn.execute(

@@ -11,7 +11,7 @@ from support.cli import finish_tty, popen_librarian_tty, run_librarian
 
 NOW = 1_700_000_000
 DAY = 86_400
-READ_CALLS = {"auth_info", "list_conversations", "history", "replies"}
+READ_CALLS = {"auth_info", "list_users", "list_conversations", "history", "replies"}
 
 
 def make_env(tmp_path, home, scenario):

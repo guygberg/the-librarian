@@ -14,6 +14,7 @@ from typing import Any
 
 from librarian import paths, store
 from librarian.importer.stages import Stage
+from librarian.link import people
 from librarian.ports import SlackSource
 from librarian.slack import permalink, picks
 
@@ -140,7 +141,9 @@ def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage
         wanted = picks.picked_ids(conn, workspace)
         if not wanted:
             return
-        permalink.save_workspace_url(conn, workspace, slack.auth_info()["url"])
+        auth = slack.auth_info()
+        permalink.save_workspace_url(conn, workspace, auth["url"])
+        people.save_slack_users(conn, workspace, slack.list_users(), auth.get("user_id"))
         conversations = {c["id"]: c for c in slack.list_conversations()}
         for channel in sorted((wanted & conversations.keys()) if older is None else {older} & wanted):
             origin = {"name": picks.rows([conversations[channel]], wanted)[0]["name"],
