@@ -27,7 +27,7 @@ def run_import(home, env):
 
 
 def search(home, query):
-    return json.loads(run_librarian(["search", query], home).stdout)["results"]
+    return json.loads(run_librarian(["search", query], home).stdout)["evidence"]
 
 
 def show(home, locator):

@@ -26,7 +26,7 @@ def run_import(home, env, *args):
 
 
 def search(home, query):
-    return json.loads(run_librarian(["search", query], home).stdout)["results"]
+    return json.loads(run_librarian(["search", query], home).stdout)["evidence"]
 
 
 def engine_calls(home, method):

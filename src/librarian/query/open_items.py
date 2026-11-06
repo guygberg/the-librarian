@@ -6,7 +6,7 @@ from typing import Any
 
 from librarian import config
 from librarian.link import review
-from librarian.query import core, search, stale
+from librarian.query import core, envelope, stale
 
 KINDS = ("action_item", "blocker", "open_question")
 NEEDS, WAITING, OTHER = "needs_attention", "waiting_on_others", "other_open"
@@ -71,13 +71,12 @@ def open_items(conn: sqlite3.Connection, workspace: str, at: datetime | None = N
     items.sort(key=lambda v: (GROUPS.index(v["group"]), not (v["stale"] or v["contradictions"])))
     needs = sum(v["group"] == NEEDS for v in items)
     waiting = sum(v["group"] == WAITING for v in items)
-    return {
-        "headline": {"needs_you": needs, "waiting": waiting, "text": f"{needs} things need you, {waiting} waiting on someone else"},
-        "records": items,
-        "progress": {
-            "done_this_week": done_this_week,
-            "total": done_this_week + still_open,
-            "week_start": since.isoformat(),
-        },
-        "freshness": search.freshness(conn, workspace),
-    }
+    return envelope.build(
+        conn,
+        workspace,
+        cfg,
+        items,
+        at=at,
+        headline={"needs_you": needs, "waiting": waiting, "text": f"{needs} things need you, {waiting} waiting on someone else"},
+        progress={"done_this_week": done_this_week, "total": done_this_week + still_open, "week_start": since.isoformat()},
+    )

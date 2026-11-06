@@ -12,6 +12,9 @@ DEFAULTS: dict[str, Any] = {
     "low_confidence_no_speech_prob": 0.6,
     "low_confidence_compression_ratio": 2.4,
     "uncertain_word_p": 0.5,
+    # Sources an answer expects to have been imported; `source_overdue_days_<source>` overrides the shared threshold.
+    "import_sources": ["slack", "drive", "session"],
+    "source_overdue_days": 7,
     "extract_max_calls": 200,
     "claude_bin": "claude",
     "claude_model": "claude-sonnet-5-5",  # full id, never an alias; `claude_code_version` may pin the install too

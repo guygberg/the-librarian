@@ -54,21 +54,22 @@ def search(home, query, *extra):
 
 
 def snippets(answer):
-    return [r["snippet"] for r in answer["results"]]
+    return [r["quote"] for r in answer["evidence"]]
 
 
 def test_finds_slack_text_with_locator_source_and_freshness(hebrew):
     code, answer = search(hebrew, "deploy")
     assert code == 0
-    [hit] = answer["results"]
-    assert hit["snippet"] == "Deploy the release tomorrow"
+    [hit] = answer["evidence"]
+    assert hit["quote"] == "Deploy the release tomorrow" and hit["role"] == "match"
     assert hit["source"] == "slack" and hit["locator"].startswith("slack:C001/")
     assert answer["freshness"]["last_import_finished_at"]
 
 
 def test_no_match_is_an_empty_list_not_an_error(hebrew):
-    assert search(hebrew, "nonexistent") == (0, {"results": [], "freshness": search(hebrew, "x")[1]["freshness"]})
-    assert search(hebrew, "   ")[1]["results"] == []
+    code, answer = search(hebrew, "nonexistent")
+    assert code == 0 and answer["evidence"] == [] and answer["records"] == []
+    assert search(hebrew, "   ")[1]["evidence"] == []
 
 
 def test_unmarked_query_finds_niqqud_text(hebrew):
@@ -100,7 +101,7 @@ def test_other_workspace_sees_nothing(hebrew, monkeypatch):
 
     db.connect_rw("other").close()
     code, answer = search(hebrew, "deploy", "--workspace", "other")
-    assert code == 0 and answer["results"] == []
+    assert code == 0 and answer["evidence"] == []
 
 
 def test_missing_database_is_the_schema_outdated_envelope(home):

@@ -83,9 +83,10 @@ def test_import_stores_records_each_with_located_evidence(home, base):
     assert decision["projects"] == [{"id": 1, "title": "Atlas"}]
     assert decision["reasoning"] == "one file per workspace"
     assert (action["commitment"], action["owner"], action["stated_deadline"]) == ("request", "Priya Shah", "2026-12-01")
-    assert action["evidence"] == [
-        {"locator": f"slack:C001/{THREAD_REPLY}", "quote": "Should Atlas use SQLite", "role": "supports", "gloss": "Priya agrees"}
-    ]
+    [cited] = action["evidence"]
+    assert cited.items() >= {
+        "locator": f"slack:C001/{THREAD_REPLY}", "quote": "Should Atlas use SQLite", "role": "supports", "gloss": "Priya agrees"
+    }.items()
     for record in (project, decision, action):
         assert record["evidence"] and all({"locator", "quote", "role"} <= e.keys() for e in record["evidence"])
     assert run_librarian(["show", "99"], home).returncode == 1
