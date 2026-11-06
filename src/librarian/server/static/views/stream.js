@@ -3,6 +3,7 @@ import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { lastImport } from '../freshness.js';
 import { dateLine, shortDate } from '../format.js';
+import { evidenceLine, panel } from './expanded.js';
 
 const NEEDS = 'needs_attention';
 const WAITING = 'waiting_on_others';
@@ -39,20 +40,20 @@ function warnings(item) {
   return out;
 }
 
-const evidenceLine = (e) => h('div', { class: 'evb', 'data-part': 'evidence' }, h('small', {}, e.locator), e.quote);
-
-function row(item, evidence) {
+/** `open` is the expanded Record (its full view) and its tab; its row grows a panel, the others link to their own URL. */
+function row(item, evidence, open) {
   const [cls, label] = BASIS[item.basis] ?? [null, item.basis];
   const who = owner(item);
   const due = item.stated_deadline ? ` · due ${item.stated_deadline}` : '';
+  const expanded = open?.record.id === item.id;
   return h('div', { class: 'it', 'data-part': 'item' },
-    h('div', { class: 't' }, item.title),
+    h('div', { class: 't' }, h('a', { href: filters.href({ open: expanded ? null : item.id }), 'data-link': true }, item.title)),
     h('div', { class: 'm' },
       h('span', {}, item.projects.map((p) => p.title).join(', ')),
       h('span', {}, who + due),
       h('span', { class: cls, 'data-part': `basis-${item.basis}` }, label),
       warnings(item).map((w) => h('span', { class: 'w', 'data-part': 'warning' }, w))),
-    evidence.filter((e) => e.record_id === item.id).map(evidenceLine));
+    expanded ? panel(open.record, open.tab) : evidence.filter((e) => e.record_id === item.id).map((e) => evidenceLine(e)));
 }
 
 const fact = (label, f) => (f && f !== 'not found' ? h('div', { class: 'm' }, h('span', {}, label), h('span', {}, f.title ?? f.value)) : null);
@@ -87,9 +88,9 @@ function progress({ done_this_week: done, total }) {
 }
 
 /** The open items in their three groups. */
-function groups(items, answer, evidence) {
+function groups(items, answer, evidence, open) {
   const of = (group) => items.filter((r) => r.group === group);
-  const section = (title, list) => [h('div', { class: 'grp', 'data-part': 'group' }, title), list.map((i) => row(i, evidence))];
+  const section = (title, list) => [h('div', { class: 'grp', 'data-part': 'group' }, title), list.map((i) => row(i, evidence, open))];
   const needs = of(NEEDS);
   const waiting = of(WAITING);
   const other = of(OTHER);
@@ -100,8 +101,8 @@ function groups(items, answer, evidence) {
         h('p', { class: 'empty', 'data-part': 'empty' }, `Nothing needs you today. ${lastImport(answer.freshness)}`)],
     waiting.length ? section('Waiting on others', waiting) : null,
     other.length
-      ? h('details', { 'data-part': 'other-open' },
-        h('summary', { class: 'grp', 'data-part': 'group' }, `Other open`), other.map((i) => row(i, evidence)))
+      ? h('details', { 'data-part': 'other-open', open: other.some((i) => i.id === open?.record.id) },
+        h('summary', { class: 'grp', 'data-part': 'group' }, `Other open`), other.map((i) => row(i, evidence, open)))
       : null,
   ];
 }
@@ -114,6 +115,9 @@ export async function stream() {
   const shown = answer.records.filter((r) => filters.matches(r, state));
   const evidence = state.kind === 'done' ? answer.evidence : [];
   const hasOwner = answer.records.filter((r) => ownerName(r));
+  const open = state.open ? { record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab } : null;
+  // An expanded item the filters would hide still shows, above the list.
+  const stray = open && !shown.some((r) => r.id === open.record.id) ? row(open.record, [], open) : null;
 
   return h('div', {},
     h('div', { class: 'date', 'data-part': 'date-line' }, `${dateLine(new Date())} · ${status.workspace}`),
@@ -123,9 +127,10 @@ export async function stream() {
     header,
     filters.tabs(state),
     filters.people(hasOwner.map(ownerName), answer.records.map(filters.waitingOn), state),
+    stray,
     state.kind === 'items'
-      ? groups(shown, answer, evidence)
+      ? groups(shown, answer, evidence, open)
       : shown.length
-        ? shown.map((i) => row(i, evidence))
+        ? shown.map((i) => row(i, evidence, open))
         : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing here.'));
 }

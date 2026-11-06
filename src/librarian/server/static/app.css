@@ -38,4 +38,11 @@ details[open] > summary.grp::before { content: '- '; }
 .sh .t { font-size: 20px; font-weight: 600; }
 .evb { padding: var(--s3) var(--s4); background: var(--panel); border-radius: 10px; border: 1px solid var(--line); margin-top: var(--s2); }
 .evb small { display: block; font-size: 11px; color: var(--mut); margin-bottom: var(--s1); }
+.t a, .side a { color: inherit; text-decoration: none; }
+.open { margin-top: var(--s3); }
+.fact { font-size: 16px; margin: 0 0 var(--s1); }
+.dis { margin: var(--s3) 0; padding: var(--s3) var(--s4); border: 1px solid var(--warn); border-radius: 10px; }
+.dis .w { color: var(--warn); margin: 0 0 var(--s2); }
+.side a { font-weight: 600; }
+.empty.small { font-size: 14px; font-weight: 400; color: var(--mut); }
 .empty { font-size: 25px; font-weight: 600; margin: var(--s5) 0; }

@@ -3,20 +3,24 @@ import { h } from './dom.js';
 export const TABS = [['items', 'Items'], ['decisions', 'Decisions'], ['blockers', 'Blockers'], ['questions', 'Questions'], ['done', 'Done']];
 const RECORD_KIND = { decisions: 'decision', blockers: 'blocker', questions: 'open_question' };
 
-/** Every filter lives in the URL query, so a reload or a shared link returns to the same view. */
+/** Every filter lives in the URL, so a reload or a shared link returns to the same view. An expanded item is `/items/<id>`. */
 export function current() {
   const q = new URLSearchParams(location.search);
   const kind = q.get('kind');
-  return { project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting') };
+  return {
+    project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
+    open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
+  };
 }
 
-/** The URL for the current filters with `change` applied; a null value clears that filter. */
-export function href(change) {
+/** The URL for the current filters with `change` applied; a null value clears that filter. The expanded item and
+ * its tab are not carried over: changing a filter collapses it. */
+export function href({ open = null, tab = null, ...change }) {
   const q = new URLSearchParams();
-  for (const [key, value] of Object.entries({ ...current(), ...change })) {
-    if (value && !(key === 'kind' && value === 'items')) q.set(key, value);
+  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null })) {
+    if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
   }
-  return q.size ? `/?${q}` : '/';
+  return `${open ? `/items/${open}` : '/'}${q.size ? `?${q}` : ''}`;
 }
 
 export function waitingOn(item) {

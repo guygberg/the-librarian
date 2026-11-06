@@ -1,10 +1,11 @@
 import * as api from './api.js';
 
-/** Every view has its own URL. `routes` maps an exact path to a view; `notFound` renders anything else. */
+/** Every view has its own URL. `routes` maps an exact path to a view (a numeric segment matches `:id`);
+ * `notFound` renders anything else. */
 export function start(routes, notFound, render) {
   const show = () => {
     api.forget();
-    render(routes[location.pathname] ?? notFound);
+    render(routes[location.pathname] ?? routes[location.pathname.replace(/\/\d+$/, '/:id')] ?? notFound);
   };
   addEventListener('popstate', show);
   document.addEventListener('click', (event) => {

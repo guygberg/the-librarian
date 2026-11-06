@@ -3,7 +3,7 @@ import * as freshness from './freshness.js';
 import { start } from './router.js';
 import { stream } from './views/stream.js';
 
-const routes = { '/': stream };
+const routes = { '/': stream, '/items/:id': stream };
 const notFound = async () => h('p', { class: 'empty' }, 'Nothing here.');
 
 let visit = 0;
