@@ -111,8 +111,11 @@ def test_project_confirm_rename_and_merge_from_the_status_header(page, ui):
 
     page.goto(f"{ui.url}/?project={ATLAS.replace(' ', '%20')}")
     tools = page.locator("[data-part=project-tools]")
+    drawn = tools.locator("[data-part=project-name]").element_handle()
     with page.expect_response("**/confirm"):
         tools.locator("[data-part=project-confirm]").click()
+    # The page draws again after the response, replacing the header: a fill before that is lost.
+    page.wait_for_function("el => !el.isConnected", arg=drawn)
     assert ui.sql("SELECT basis FROM records WHERE title = ?", ATLAS) == [("confirmed",)]
 
     tools.locator("[data-part=project-name]").fill("Atlas Cloud")
