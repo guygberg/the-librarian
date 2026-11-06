@@ -19,8 +19,10 @@ def save_workspace_url(conn: sqlite3.Connection, workspace: str, url: str) -> No
 
 
 def for_item(conn: sqlite3.Connection, workspace: str, stable_id: str) -> str | None:
-    """Permalink of a stored `<channel>/<ts>` item, or None when the URL or message is unavailable."""
-    row = conn.execute("SELECT url FROM slack_workspace WHERE workspace = ?", (workspace,)).fetchone()
+    """Permalink of a stored `<channel>/<ts>` item, or None when the URL or message is gone."""
+    row = conn.execute(
+        "SELECT url FROM slack_workspace WHERE workspace = ?", (workspace,)
+    ).fetchone()
     item = store.get_item(conn, workspace, "slack", stable_id)
     if row is None or item is None:
         return None

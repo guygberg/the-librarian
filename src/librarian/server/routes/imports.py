@@ -1,4 +1,7 @@
-"""The import panel: start and watch an Import, dry-run it, the Slack picked list, and older Slack history."""
+"""The import panel.
+
+Start and watch an Import, dry-run it, the Slack picked list, and older Slack history.
+"""
 
 from urllib.parse import parse_qs
 
@@ -34,7 +37,9 @@ def start(req):
 
 
 def dry_run(req):
-    ctx = Context(req.workspace, paths.data_home(), paths.workspace_dir(req.workspace), config.load())
+    ctx = Context(
+        req.workspace, paths.data_home(), paths.workspace_dir(req.workspace), config.load()
+    )
     try:
         calls, failed = import_.count_calls(ctx)
     except LockHeld:
@@ -66,7 +71,9 @@ def post_picks(req):
 
 def _older_row(req, conversation):
     with req.rw() as conn:
-        match = [r for r in _picks(req, conn) if r["picked"] and conversation in (r["id"], r["name"])]
+        match = [
+            r for r in _picks(req, conn) if r["picked"] and conversation in (r["id"], r["name"])
+        ]
     return match[0] if match else None
 
 

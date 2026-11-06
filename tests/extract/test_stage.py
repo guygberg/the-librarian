@@ -26,7 +26,11 @@ def make_env(tmp_path, home, scenario, now):
     ws = home / "workspaces" / "work"
     ws.mkdir(parents=True, exist_ok=True)
     (ws / "channels.json").write_text(json.dumps({"picked": ["C001"]}))
-    return {"LIBRARIAN_ENGINES": "fake", "LIBRARIAN_FIXTURES": str(fixtures), "LIBRARIAN_NOW": str(now)}, fixtures
+    return {
+        "LIBRARIAN_ENGINES": "fake",
+        "LIBRARIAN_FIXTURES": str(fixtures),
+        "LIBRARIAN_NOW": str(now),
+    }, fixtures
 
 
 def run_import(home, env):
@@ -53,14 +57,37 @@ def thread_result():
     base = {"match": {"decision": "new"}, "lifecycle": "open", "basis": "stated"}
     return {
         "records": [
-            {**base, "ref": "p", "kind": "project", "title": "Atlas",
-             "evidence": evidence(f"slack:C001/{THREAD_ROOT}", "Should Atlas use SQLite per workspace?")},
-            {**base, "ref": "d", "kind": "decision", "title": "SQLite with FTS5", "lifecycle": "done",
-             "reasoning": "one file per workspace", "links": [{"type": "belongs_to", "to": {"ref": "p"}}],
-             "evidence": evidence(f"slack:C001/{THREAD_REPLY}#1", "use SQLite per workspace")},
-            {**base, "ref": "a", "kind": "action_item", "title": "Draft the schema", "commitment": "request",
-             "owner": {"slack_user": "U003"}, "stated_deadline": "2026-12-01",
-             "evidence": evidence(f"slack:C001/{THREAD_REPLY}", "Should Atlas use SQLite", gloss="Priya agrees")},
+            {
+                **base,
+                "ref": "p",
+                "kind": "project",
+                "title": "Atlas",
+                "evidence": evidence(
+                    f"slack:C001/{THREAD_ROOT}", "Should Atlas use SQLite per workspace?"
+                ),
+            },
+            {
+                **base,
+                "ref": "d",
+                "kind": "decision",
+                "title": "SQLite with FTS5",
+                "lifecycle": "done",
+                "reasoning": "one file per workspace",
+                "links": [{"type": "belongs_to", "to": {"ref": "p"}}],
+                "evidence": evidence(f"slack:C001/{THREAD_REPLY}#1", "use SQLite per workspace"),
+            },
+            {
+                **base,
+                "ref": "a",
+                "kind": "action_item",
+                "title": "Draft the schema",
+                "commitment": "request",
+                "owner": {"slack_user": "U003"},
+                "stated_deadline": "2026-12-01",
+                "evidence": evidence(
+                    f"slack:C001/{THREAD_REPLY}", "Should Atlas use SQLite", gloss="Priya agrees"
+                ),
+            },
         ]
     }
 
@@ -79,31 +106,66 @@ def test_import_stores_records_each_with_located_evidence(home, base):
     assert code == 0, out
     project, decision, action = show(home, 1), show(home, 2), show(home, 3)
     assert (project["kind"], project["title"], project["lifecycle"], project["basis"]) == (
-        "project", "Atlas", "open", "inferred")  # a project Claude creates waits for the person to confirm it
+        "project",
+        "Atlas",
+        "open",
+        "inferred",
+    )  # a project Claude creates waits for the person to confirm it
     assert decision["projects"] == [{"id": 1, "title": "Atlas"}]
     assert decision["reasoning"] == "one file per workspace"
-    assert (action["commitment"], action["owner"], action["stated_deadline"]) == ("request", "Priya Shah", "2026-12-01")
+    assert (action["commitment"], action["owner"], action["stated_deadline"]) == (
+        "request",
+        "Priya Shah",
+        "2026-12-01",
+    )
     [cited] = action["evidence"]
-    assert cited.items() >= {
-        "locator": f"slack:C001/{THREAD_REPLY}", "quote": "Should Atlas use SQLite", "role": "supports", "gloss": "Priya agrees"
-    }.items()
+    assert (
+        cited.items()
+        >= {
+            "locator": f"slack:C001/{THREAD_REPLY}",
+            "quote": "Should Atlas use SQLite",
+            "role": "supports",
+            "gloss": "Priya agrees",
+        }.items()
+    )
     for record in (project, decision, action):
-        assert record["evidence"] and all({"locator", "quote", "role"} <= e.keys() for e in record["evidence"])
+        assert record["evidence"] and all(
+            {"locator", "quote", "role"} <= e.keys() for e in record["evidence"]
+        )
     assert run_librarian(["show", "99"], home).returncode == 1
 
 
 def test_rejected_pieces_are_logged_and_the_good_remainder_is_stored(home, base):
     env, fixtures = base
-    good = {"match": {"decision": "new"}, "lifecycle": "open", "basis": "stated", "kind": "decision"}
+    good = {
+        "match": {"decision": "new"},
+        "lifecycle": "open",
+        "basis": "stated",
+        "kind": "decision",
+    }
     note = f"slack:C001/{f.ts(T0 + 3 * 60)}"
     result = {
         "records": [
-            {**good, "ref": "ok", "title": "Kept", "links": [{"type": "related_to", "to": {"ref": "ghost"}}],
-             "evidence": [{"locator": note, "quote": "Atlas status note 3", "role": "supports"}]},
-            {**good, "ref": "invented", "title": "Dropped quote",
-             "evidence": [{"locator": note, "quote": "never said this", "role": "supports"}]},
-            {**good, "ref": "badid", "title": "Dropped id", "match": {"decision": "same", "id": 99},
-             "evidence": [{"locator": note, "quote": "Atlas status note 3", "role": "supports"}]},
+            {
+                **good,
+                "ref": "ok",
+                "title": "Kept",
+                "links": [{"type": "related_to", "to": {"ref": "ghost"}}],
+                "evidence": [{"locator": note, "quote": "Atlas status note 3", "role": "supports"}],
+            },
+            {
+                **good,
+                "ref": "invented",
+                "title": "Dropped quote",
+                "evidence": [{"locator": note, "quote": "never said this", "role": "supports"}],
+            },
+            {
+                **good,
+                "ref": "badid",
+                "title": "Dropped id",
+                "match": {"decision": "same", "id": 99},
+                "evidence": [{"locator": note, "quote": "Atlas status note 3", "role": "supports"}],
+            },
         ]
     }
     canned(fixtures, DAY_KEY, result=result)
@@ -134,7 +196,9 @@ def test_failed_unit_is_reported_and_retried_alone(tmp_path, home):
     code, out = run_import(home, env)
 
     assert code == 0, out
-    extracted = [c["args"]["unit_key"] for c in log.read()[calls_before:] if c["engine"] == "extractor"]
+    extracted = [
+        c["args"]["unit_key"] for c in log.read()[calls_before:] if c["engine"] == "extractor"
+    ]
     assert extracted == [failure.THREAD_KEY]
 
 
@@ -147,30 +211,72 @@ def test_units_group_threads_channel_days_and_transcript_windows(home, monkeypat
     conn = db.connect_rw("work")
 
     def put(source, stable_id, **content):
-        store.upsert(conn, "work", source, stable_id, json.dumps(content), origin_name=content.get("path", ""))
+        store.upsert(
+            conn,
+            "work",
+            source,
+            stable_id,
+            json.dumps(content),
+            origin_name=content.get("path", ""),
+        )
 
     day = 1_700_000_000
-    put("slack", f"C1/{day}.000000", user="U1", text="root", ts=f"{day}.000000", thread_ts=f"{day}.000000")
-    put("slack", f"C1/{day + 1}.000000", user="U2", text="reply", ts=f"{day + 1}.000000", thread_ts=f"{day}.000000")
+    put(
+        "slack",
+        f"C1/{day}.000000",
+        user="U1",
+        text="root",
+        ts=f"{day}.000000",
+        thread_ts=f"{day}.000000",
+    )
+    put(
+        "slack",
+        f"C1/{day + 1}.000000",
+        user="U2",
+        text="reply",
+        ts=f"{day + 1}.000000",
+        thread_ts=f"{day}.000000",
+    )
     put("slack", f"C1/{day + 2}.000000", user="U1", text="loose a", ts=f"{day + 2}.000000")
     put("slack", f"C1/{day + 3}.000000", user="U1", text="loose b", ts=f"{day + 3}.000000")
     for number, start in enumerate(range(0, 40 * 60, 5 * 60), start=1):
-        put("drive", f"abc/{number}", segment=number, start=float(start), text=f"words {number}", path="talk.m4a")
+        put(
+            "drive",
+            f"abc/{number}",
+            segment=number,
+            start=float(start),
+            text=f"words {number}",
+            path="talk.m4a",
+        )
 
     got = extract.stage("work", engines.get_engines().extractor)
-    for source, item in [("slack", f"C1/{day}.000000"), ("slack", f"C1/{day + 1}.000000"),
-                         ("slack", f"C1/{day + 2}.000000"), ("slack", f"C1/{day + 3}.000000"),
-                         ("recording", "talk.m4a")]:
+    for source, item in [
+        ("slack", f"C1/{day}.000000"),
+        ("slack", f"C1/{day + 1}.000000"),
+        ("slack", f"C1/{day + 2}.000000"),
+        ("slack", f"C1/{day + 3}.000000"),
+        ("recording", "talk.m4a"),
+    ]:
         got.process(conn, source, item)
 
     keys = [c["args"]["unit_key"] for c in CallLog(db.db_path("work").parent).read()]
-    assert sorted(keys) == sorted([
-        f"slack-thread-C1-{day}.000000", "slack-day-C1-2023-11-14", "drive-abc-1", "drive-abc-2", "drive-abc-3",
-    ])
+    assert sorted(keys) == sorted(
+        [
+            f"slack-thread-C1-{day}.000000",
+            "slack-day-C1-2023-11-14",
+            "drive-abc-1",
+            "drive-abc-2",
+            "drive-abc-3",
+        ]
+    )
 
 
 def extractor_keys(home):
-    return [c["args"]["unit_key"] for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"]
+    return [
+        c["args"]["unit_key"]
+        for c in CallLog(home / "workspaces" / "work").read()
+        if c["engine"] == "extractor"
+    ]
 
 
 def import_with(home, env, *flags):

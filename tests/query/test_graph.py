@@ -15,7 +15,9 @@ class Api:
         self.served, self.home = served, home
 
     def get(self, query):
-        resp, data = self.served.request("GET", f"/api/graph?{query}", {"X-Librarian-Token": self.served.token()})
+        resp, data = self.served.request(
+            "GET", f"/api/graph?{query}", {"X-Librarian-Token": self.served.token()}
+        )
         return resp.status, json.loads(data)
 
     def sql(self, query, *params):
@@ -57,7 +59,11 @@ def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(ap
 
     _, two = api.get(f"center={project}&hops=2")
     owners = [n for n in two["nodes"] if n["type"] == "person"]
-    assert [n["hop"] for n in owners] == [2] and owners[0]["title"] == "Raz Peretz" and "aliases" in owners[0]
+    assert (
+        [n["hop"] for n in owners] == [2]
+        and owners[0]["title"] == "Raz Peretz"
+        and "aliases" in owners[0]
+    )
     assert "owner" in {e["kind"] for e in two["edges"]}
 
     _, three = api.get(f"center={project}&hops=3")
@@ -80,9 +86,11 @@ def test_centre_on_a_person_returns_owned_records_and_superseded_records_keep_ed
     assert ids[f"record:{payments.PROJECT_ID}"] == 2
     superseded = next(n for n in body["nodes"] if n["id"] == f"record:{blocker}")
     assert superseded["lifecycle"] == "superseded"
-    assert [(e["kind"], e["to"]) for e in body["edges"] if e["from"] == superseded["id"] and e["kind"] == "owner"] == [
-        ("owner", f"person:{person}")
-    ]
+    assert [
+        (e["kind"], e["to"])
+        for e in body["edges"]
+        if e["from"] == superseded["id"] and e["kind"] == "owner"
+    ] == [("owner", f"person:{person}")]
 
 
 @pytest.mark.parametrize(

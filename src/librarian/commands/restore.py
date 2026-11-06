@@ -23,10 +23,15 @@ def run(args, ctx):
         with workspace_lock(ctx.workspace_dir):
             if not backup.is_empty(ctx.workspace):
                 if not args.overwrite:
-                    print(f"librarian: {ctx.workspace_dir} is not empty; pass --overwrite to replace it")
+                    print(
+                        f"librarian: {ctx.workspace_dir} is not empty; "
+                        "pass --overwrite to replace it"
+                    )
                     return 1
                 try:
-                    answer = input(f"This replaces the Workspace's data. Type {ctx.workspace} to confirm: ").strip()
+                    answer = input(
+                        f"This replaces the Workspace's data. Type {ctx.workspace} to confirm: "
+                    ).strip()
                 except EOFError:
                     answer = ""
                 if answer != ctx.workspace:

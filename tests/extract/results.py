@@ -22,7 +22,13 @@ def good() -> dict:
                 "title": "Rollout",
                 "lifecycle": "open",
                 "basis": "stated",
-                "evidence": [{"locator": "slack:C1/1.0#1", "quote": "send the rollout plan", "role": "supports"}],
+                "evidence": [
+                    {
+                        "locator": "slack:C1/1.0#1",
+                        "quote": "send the rollout plan",
+                        "role": "supports",
+                    }
+                ],
             },
             {
                 "ref": "a1",
@@ -39,7 +45,13 @@ def good() -> dict:
                     {"type": "waiting_on", "to": {"name": "Lee"}},
                     {"type": "related_to", "to": {"id": 8}},
                 ],
-                "evidence": [{"locator": "slack:C1/1.0", "quote": "I will send the rollout plan by Friday", "role": "supports"}],
+                "evidence": [
+                    {
+                        "locator": "slack:C1/1.0",
+                        "quote": "I will send the rollout plan by Friday",
+                        "role": "supports",
+                    }
+                ],
             },
             {
                 "ref": "d1",
@@ -50,7 +62,12 @@ def good() -> dict:
                 "basis": "inferred",
                 "reasoning": "the migration is risky",
                 "evidence": [
-                    {"locator": "slack:C1/2.0", "quote": "התחלנו עם הבדיקות", "role": "supports", "gloss": "We started with the tests"}
+                    {
+                        "locator": "slack:C1/2.0",
+                        "quote": "התחלנו עם הבדיקות",
+                        "role": "supports",
+                        "gloss": "We started with the tests",
+                    }
                 ],
             },
             {
@@ -62,7 +79,9 @@ def good() -> dict:
                 "basis": "inferred",
                 "commitment": "intention",
                 "owner": {"speaker": "first_person"},
-                "evidence": [{"locator": "slack:C1/2.0", "quote": "we decided to ship", "role": "completes"}],
+                "evidence": [
+                    {"locator": "slack:C1/2.0", "quote": "we decided to ship", "role": "completes"}
+                ],
             },
         ]
     }

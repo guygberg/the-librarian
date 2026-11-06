@@ -1,6 +1,9 @@
-"""The passage around one Evidence locator, with the Evidence item marked. Read-only: takes a `db.connect_ro` connection.
+"""The passage around one Evidence locator, with the Evidence item marked.
 
-Slack: the thread. Session: the copied lines around the evidence line. Recording (`drive`): the transcript segments
+Read-only: takes a `db.connect_ro` connection.
+
+Slack: the thread. Session: the copied lines around the evidence line.
+Recording (`drive`): the transcript segments
 within a window around the evidence segment, with low-confidence flags and uncertain word spans.
 """
 
@@ -23,19 +26,29 @@ def _number(stable_id: str) -> tuple[str, int] | None:
     return (prefix, int(tail)) if prefix and tail.isdigit() else None
 
 
-def _latest(conn: sqlite3.Connection, workspace: str, source: str, like: str) -> list[tuple[str, dict[str, Any], str]]:
-    """(stable_id, parsed content, raw content) of the latest revision of every item whose id matches `like`."""
+def _latest(
+    conn: sqlite3.Connection, workspace: str, source: str, like: str
+) -> list[tuple[str, dict[str, Any], str]]:
+    """(stable_id, parsed content, raw content) of the latest revision of each matching item.
+
+    An item matches when its id matches `like`.
+    """
     rows = conn.execute(
-        "SELECT i.stable_id, r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
+        "SELECT i.stable_id, r.content FROM source_items i"
+        " JOIN source_item_revisions r ON r.source_item_id = i.id"
         " WHERE i.workspace = ? AND i.source = ? AND i.stable_id LIKE ? ESCAPE '\\'"
-        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions WHERE source_item_id = i.id)",
+        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions"
+        " WHERE source_item_id = i.id)",
         (workspace, source, like),
     )
     return [(stable_id, parse_content(raw), raw) for stable_id, raw in rows]
 
 
 def parse_content(raw: str) -> dict[str, Any]:
-    """Content that is not a JSON object (a hand-stored item) has no fields to show; it must not break `show`."""
+    """Content that is not a JSON object (a hand-stored item) has no fields to show.
+
+    It must not break `show`.
+    """
     try:
         parsed = json.loads(raw)
     except ValueError:
@@ -70,7 +83,12 @@ def _slack(conn, workspace, loc, cfg):
     )
     gone = store.gone_ids(conn, workspace, "slack")
     return [
-        {"locator": str(locator.Locator("slack", sid)), "user": m.get("user"), "ts": m.get("ts"), "text": m.get("text", "")}
+        {
+            "locator": str(locator.Locator("slack", sid)),
+            "user": m.get("user"),
+            "ts": m.get("ts"),
+            "text": m.get("text", ""),
+        }
         | {"evidence": sid == loc.stable_id, "gone_from_source": sid in gone}
         for sid, m in thread
     ]
@@ -126,10 +144,16 @@ def _recording(conn, workspace, loc, cfg):
 _PASSAGES = {"slack": _slack, "session": _session, "drive": _recording}
 
 
-def _glosses(conn: sqlite3.Connection, workspace: str, loc: locator.Locator) -> list[dict[str, Any]]:
-    """Evidence quotes of this item that carry a gloss. The gloss is machine translation, never the source's words."""
+def _glosses(
+    conn: sqlite3.Connection, workspace: str, loc: locator.Locator
+) -> list[dict[str, Any]]:
+    """Evidence quotes of this item that carry a gloss.
+
+    The gloss is machine translation, never the source's words.
+    """
     rows = conn.execute(
-        "SELECT record_id, locator, quote, gloss FROM evidence WHERE workspace = ? AND gloss IS NOT NULL ORDER BY id",
+        "SELECT record_id, locator, quote, gloss FROM evidence"
+        " WHERE workspace = ? AND gloss IS NOT NULL ORDER BY id",
         (workspace,),
     )
     return [
@@ -147,20 +171,30 @@ def _same_item(text: str, loc: locator.Locator) -> bool:
     return (other.source, other.stable_id) == (loc.source, loc.stable_id)
 
 
-def context(conn: sqlite3.Connection, workspace: str, loc: locator.Locator, cfg: dict[str, Any]) -> dict[str, Any] | None:
+def context(
+    conn: sqlite3.Connection, workspace: str, loc: locator.Locator, cfg: dict[str, Any]
+) -> dict[str, Any] | None:
     """None when the locator names no stored Source item of a known source."""
     passage = _PASSAGES.get(loc.source)
     items = passage(conn, workspace, loc, cfg) if passage else None
     if items is None:
         return None
-    found = {"locator": str(loc), "source": loc.source, "items": items, "glosses": _glosses(conn, workspace, loc)}
+    found = {
+        "locator": str(loc),
+        "source": loc.source,
+        "items": items,
+        "glosses": _glosses(conn, workspace, loc),
+    }
     if loc.source == "slack":
         found["permalink"] = permalink.for_item(conn, workspace, loc.stable_id)
     return found
 
 
 def answer(conn: sqlite3.Connection, workspace: str, text: str) -> tuple[int, dict[str, Any]]:
-    """The envelope with a `context` key, or an `error` body, with the HTTP status that goes with it."""
+    """The envelope with a `context` key, or an `error` body.
+
+    Either comes with the HTTP status that goes with it.
+    """
     try:
         loc = locator.parse(text)
     except ValueError as err:
@@ -168,5 +202,10 @@ def answer(conn: sqlite3.Connection, workspace: str, text: str) -> tuple[int, di
     cfg = config.load()
     found = context(conn, workspace, loc, cfg)
     if found is None:
-        return 404, {"error": {"code": "not_found", "message": f"no Source item {loc.source}:{loc.stable_id}"}}
+        return 404, {
+            "error": {
+                "code": "not_found",
+                "message": f"no Source item {loc.source}:{loc.stable_id}",
+            }
+        }
     return 200, envelope.build(conn, workspace, cfg, [], context=found)

@@ -21,7 +21,10 @@ class Api:
 
     def post(self, record_id, action, body=None, headers=None):
         resp, data = self.served.request(
-            "POST", f"/api/records/{record_id}/{action}", headers or self.headers, json.dumps(body or {})
+            "POST",
+            f"/api/records/{record_id}/{action}",
+            headers or self.headers,
+            json.dumps(body or {}),
         )
         return resp.status, json.loads(data)
 
@@ -58,12 +61,14 @@ def api(tmp_path, home, monkeypatch):
 
 
 def seed(api):
-    """A second project, an action item and a person: the payments scenario's own action items are all rejected."""
+    """A second project, an action item and a person: the payments scenario's own action
+    items are all rejected."""
     conn = sqlite3.connect(next(api.home.rglob("*.db")))
     with conn:
         ids = [
             conn.execute(
-                "INSERT INTO records (workspace, kind, title, created_at, updated_at) VALUES ('work', ?, ?, 'x', 'x')",
+                "INSERT INTO records (workspace, kind, title, created_at, updated_at)"
+                " VALUES ('work', ?, ?, 'x', 'x')",
                 (kind, title),
             ).lastrowid
             for kind, title in (("project", "Billing cleanup"), ("action_item", "Call the bank"))
@@ -78,22 +83,34 @@ def test_done_reopen_and_owner_return_the_history_and_survive_import(api):
     _, task, person = seed(api)
 
     status, view = api.post(task, "done")
-    assert (status, view["lifecycle"]) == (200, "done") and view["history"][0]["event"] == "status_change"
+    assert (status, view["lifecycle"]) == (200, "done") and view["history"][0][
+        "event"
+    ] == "status_change"
     status, view = api.post(task, "owner", {"person_id": person})
     assert (status, view["owner"]) == (200, "Dana Cohen")
     status, view = api.post(task, "reopen")
     assert (status, view["lifecycle"]) == (200, "open")
-    assert [h["event"] for h in view["history"]] == ["status_change", "owner_change", "status_change"]
+    assert [h["event"] for h in view["history"]] == [
+        "status_change",
+        "owner_change",
+        "status_change",
+    ]
 
     api.reimport()
     shown = api.show(task)
-    assert (shown["lifecycle"], shown["owner"], shown["basis"]) == ("open", "Dana Cohen", "confirmed")
+    assert (shown["lifecycle"], shown["owner"], shown["basis"]) == (
+        "open",
+        "Dana Cohen",
+        "confirmed",
+    )
     assert shown["history"] == view["history"]
     assert api.show(payments.NOV_18_ID)["history"] == []
 
 
 def test_choose_one_supersedes_the_other_and_clears_the_warning(api):
-    status, view = api.post(payments.NOV_18_ID, "resolve", {"other": api.nov_25, "outcome": "holds"})
+    status, view = api.post(
+        payments.NOV_18_ID, "resolve", {"other": api.nov_25, "outcome": "holds"}
+    )
     assert (status, view["lifecycle"], view["contradictions"]) == (200, "open", [])
 
     api.reimport()
@@ -103,14 +120,20 @@ def test_choose_one_supersedes_the_other_and_clears_the_warning(api):
 
 
 def test_both_wrong_drops_both_with_the_reason(api):
-    status, view = api.post(payments.NOV_18_ID, "resolve", {"other": api.nov_25, "outcome": "both_wrong"})
+    status, view = api.post(
+        payments.NOV_18_ID, "resolve", {"other": api.nov_25, "outcome": "both_wrong"}
+    )
     assert (status, view["lifecycle"], view["contradictions"]) == (200, "dropped", [])
     assert view["history"][0]["change"]["reason"] == "marked wrong by me"
 
     api.reimport()
     for rid in (payments.NOV_18_ID, api.nov_25):
         shown = api.show(rid)
-        assert (shown["lifecycle"], shown["contradictions"], shown["reason"]) == ("dropped", [], "marked wrong by me")
+        assert (shown["lifecycle"], shown["contradictions"], shown["reason"]) == (
+            "dropped",
+            [],
+            "marked wrong by me",
+        )
 
 
 def test_project_move_survives_import(api):
@@ -141,7 +164,13 @@ def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(ap
     ],
 )
 def test_invalid_actions_are_refused_and_write_nothing(api, record, action, body, status):
-    target = 999 if record == "missing" else payments.PROJECT_ID if record == "project" else payments.NOV_18_ID
+    target = (
+        999
+        if record == "missing"
+        else payments.PROJECT_ID
+        if record == "project"
+        else payments.NOV_18_ID
+    )
     assert api.post(target, action, body)[0] == status
     assert api.events() == []
 

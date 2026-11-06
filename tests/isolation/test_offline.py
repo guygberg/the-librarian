@@ -57,4 +57,6 @@ def test_no_download_code_path_exists():
     downloaders = re.compile(r"urlretrieve|\bwget\b|\bcurl\b|\.download\(|hf_hub_download")
     assert [p.name for p, text in sources.items() if downloaders.search(text)] == []
     # The only network client is the Slack API reader; models are copied in by hand.
-    assert {p.relative_to(SRC).as_posix() for p, text in sources.items() if "urllib.request" in text} == {"slack/client.py"}
+    assert {
+        p.relative_to(SRC).as_posix() for p, text in sources.items() if "urllib.request" in text
+    } == {"slack/client.py"}

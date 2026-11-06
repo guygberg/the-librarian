@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 import pytest
+
 from fixtures.build import build
 from fixtures.scenarios import onboarding_hebrew as hebrew
 from fixtures.scenarios import session_librarian_echo as session
@@ -48,11 +49,20 @@ def test_recording_window_lists_segments_with_timestamps_flags_and_uncertain_spa
 def test_gloss_of_the_evidence_quote_is_labelled_machine_translation(onboarding):
     conn = sqlite3.connect(next(onboarding.rglob("*.db")))
     with conn:
-        conn.execute("UPDATE evidence SET gloss = ? WHERE quote = ?", (hebrew.SIGNUP_GLOSS, hebrew.SIGNUP_LINE))
-    locator = conn.execute("SELECT locator FROM evidence WHERE quote = ?", (hebrew.SIGNUP_LINE,)).fetchone()[0]
+        conn.execute(
+            "UPDATE evidence SET gloss = ? WHERE quote = ?",
+            (hebrew.SIGNUP_GLOSS, hebrew.SIGNUP_LINE),
+        )
+    locator = conn.execute(
+        "SELECT locator FROM evidence WHERE quote = ?", (hebrew.SIGNUP_LINE,)
+    ).fetchone()[0]
     _, answer = show(onboarding, locator)
     [gloss] = answer["context"]["glosses"]
-    assert (gloss["quote"], gloss["gloss"], gloss["label"]) == (hebrew.SIGNUP_LINE, hebrew.SIGNUP_GLOSS, "machine translation")
+    assert (gloss["quote"], gloss["gloss"], gloss["label"]) == (
+        hebrew.SIGNUP_LINE,
+        hebrew.SIGNUP_GLOSS,
+        "machine translation",
+    )
 
 
 def test_slack_thread_marks_only_the_evidence_message(onboarding):
@@ -84,9 +94,14 @@ def test_session_passage_has_the_copied_lines_and_the_raw_view(tmp_path, home):
     build(fixtures, "session_librarian_echo")
     home.mkdir()
     (home / "config.toml").write_text(
-        f'account_type = "team"\nusage_rules_confirmed = true\nclaude_projects_dir = "{fixtures / "claude" / "projects"}"\n'
+        'account_type = "team"\nusage_rules_confirmed = true\n'
+        f'claude_projects_dir = "{fixtures / "claude" / "projects"}"\n'
     )
-    code, out = finish_tty(popen_librarian_tty(["import"], home, {"LIBRARIAN_ENGINES": "fake", "LIBRARIAN_FIXTURES": str(fixtures)}))
+    code, out = finish_tty(
+        popen_librarian_tty(
+            ["import"], home, {"LIBRARIAN_ENGINES": "fake", "LIBRARIAN_FIXTURES": str(fixtures)}
+        )
+    )
     assert code == 0, out
     locator = f"session:{session.SESSION_ID}/4"
     code, answer = show(home, locator)
@@ -97,7 +112,9 @@ def test_session_passage_has_the_copied_lines_and_the_raw_view(tmp_path, home):
     assert json.loads(items[2]["raw"])["text"] == "the cutover moved to Dec 1"
 
 
-@pytest.mark.parametrize("locator", ["slack:C001/1.0", "session:nope/3", "drive:zzzz/1", "bogus:a/1"])
+@pytest.mark.parametrize(
+    "locator", ["slack:C001/1.0", "session:nope/3", "drive:zzzz/1", "bogus:a/1"]
+)
 def test_unknown_locator_is_a_not_found_error(onboarding, locator):
     code, answer = show(onboarding, locator)
     assert code == 1 and answer["error"]["code"] == "not_found"
@@ -111,7 +128,9 @@ def test_the_http_route_returns_the_context_and_404s_when_unknown(onboarding):
         resp, data = served.request("GET", f"/api/context?locator={locator}", headers)
         assert resp.status == 200
         assert json.loads(data)["context"] == show(onboarding, locator)[1]["context"]
-        assert served.request("GET", "/api/context?locator=slack:C001/1.0", headers)[0].status == 404
+        assert (
+            served.request("GET", "/api/context?locator=slack:C001/1.0", headers)[0].status == 404
+        )
         assert served.request("GET", "/api/context", headers)[0].status == 400
     finally:
         proc.terminate()

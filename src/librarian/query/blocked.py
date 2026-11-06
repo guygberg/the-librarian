@@ -1,4 +1,7 @@
-"""`librarian blocked [--project P]`: unfinished blockers and what they block (their blocks Links)."""
+"""`librarian blocked [--project P]`: unfinished blockers and what they block.
+
+What they block are their blocks Links.
+"""
 
 import sqlite3
 from datetime import datetime
@@ -8,7 +11,9 @@ from librarian import config
 from librarian.query import core, envelope, project, stale
 
 
-def blocked(conn: sqlite3.Connection, workspace: str, name: str | None = None, at: datetime | None = None) -> dict[str, Any]:
+def blocked(
+    conn: sqlite3.Connection, workspace: str, name: str | None = None, at: datetime | None = None
+) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     resolved: dict[str, Any] = envelope.WORKSPACE_BASELINE
@@ -34,7 +39,11 @@ def blocked(conn: sqlite3.Connection, workspace: str, name: str | None = None, a
                 "record_id": v["id"],
                 "title": v["title"],
                 "owner": project._owner(v),
-                "blocks": [{"id": link["to_id"], "title": link["to"]} for link in v["links"] if link["type"] == "blocks"],
+                "blocks": [
+                    {"id": link["to_id"], "title": link["to"]}
+                    for link in v["links"]
+                    if link["type"] == "blocks"
+                ],
             }
             for v in blockers
         ],

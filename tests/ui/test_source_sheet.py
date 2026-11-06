@@ -1,10 +1,10 @@
 import json
 
 from playwright.sync_api import expect
+from test_expanded import expand
 
 from fixtures.scenarios import payments_cutover as payments
 from support.ui_stream import STAMP
-from test_expanded import expand
 
 SHEET = "[data-part=source-sheet]"
 
@@ -15,7 +15,11 @@ def first_quote(panel):
 
 def test_slack_quote_opens_the_thread_with_the_evidence_line_and_the_permalink(page, ui):
     ui = ui("payments-cutover", payments.NOW)
-    [(locator,)] = ui.sql("SELECT locator FROM evidence WHERE record_id = (SELECT id FROM records WHERE title = ?) LIMIT 1", payments.NOV_18)
+    [(locator,)] = ui.sql(
+        "SELECT locator FROM evidence"
+        " WHERE record_id = (SELECT id FROM records WHERE title = ?) LIMIT 1",
+        payments.NOV_18,
+    )
     ts = locator.split("/", 1)[1]
 
     first_quote(expand(page, ui, payments.NOV_18)).click()
@@ -28,7 +32,9 @@ def test_slack_quote_opens_the_thread_with_the_evidence_line_and_the_permalink(p
     stored = ui.sql("SELECT quote FROM evidence WHERE locator = ?", locator)[0][0]
     expect(marked).to_contain_text(stored.split()[0])
     link = sheet.locator("[data-part=open-original]")
-    assert link.get_attribute("href").startswith(f"{payments.URL}archives/C001/p{ts.replace('.', '')}")
+    assert link.get_attribute("href").startswith(
+        f"{payments.URL}archives/C001/p{ts.replace('.', '')}"
+    )
     assert link.get_attribute("target") == "_blank"
 
 
@@ -52,15 +58,28 @@ def test_session_quote_opens_the_raw_jsonl_passage(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     lines = [{"role": "user", "text": f"line {n}"} for n in (1, 2, 3)]
     for n, line in enumerate(lines, 1):
-        ui.sql("INSERT INTO source_items (id, workspace, source, stable_id, created_at) VALUES (?, 'work', 'session', ?, ?)", 900 + n, f"s1/{n}", STAMP)
         ui.sql(
-            "INSERT INTO source_item_revisions (id, workspace, source_item_id, revision, content_hash, content, fetched_at)"
+            "INSERT INTO source_items (id, workspace, source, stable_id, created_at)"
+            " VALUES (?, 'work', 'session', ?, ?)",
+            900 + n,
+            f"s1/{n}",
+            STAMP,
+        )
+        ui.sql(
+            "INSERT INTO source_item_revisions"
+            " (id, workspace, source_item_id, revision, content_hash, content, fetched_at)"
             " VALUES (?, 'work', ?, 1, ?, ?, ?)",
-            900 + n, 900 + n, f"h{n}", json.dumps(line), STAMP,
+            900 + n,
+            900 + n,
+            f"h{n}",
+            json.dumps(line),
+            STAMP,
         )
     ui.sql(
-        "UPDATE evidence SET locator = 'session:s1/2', revision_id = 902, quote = 'line 2' WHERE id = ("
-        " SELECT MIN(id) FROM evidence WHERE record_id = (SELECT id FROM records WHERE title = ?))", payments.NOV_18,
+        "UPDATE evidence SET locator = 'session:s1/2', revision_id = 902, quote = 'line 2'"
+        " WHERE id = ("
+        " SELECT MIN(id) FROM evidence WHERE record_id = (SELECT id FROM records WHERE title = ?))",
+        payments.NOV_18,
     )
 
     first_quote(expand(page, ui, payments.NOV_18)).click()

@@ -11,23 +11,31 @@ from librarian.query import core, envelope, project
 FALLBACK_DAYS = 7
 
 
-def last_meeting(conn: sqlite3.Connection, workspace: str, record_ids: list[int] | None) -> tuple[str, str] | None:
-    """(title, date) of the latest recording that is Evidence for one of `record_ids`, or any recording if None."""
+def last_meeting(
+    conn: sqlite3.Connection, workspace: str, record_ids: list[int] | None
+) -> tuple[str, str] | None:
+    """(title, date) of the latest recording that is Evidence for one of `record_ids`.
+
+    Any recording counts if `record_ids` is None.
+    """
     stable_ids = None
     if record_ids is not None:
         marks = ", ".join("?" * len(record_ids))
         stable_ids = {
             loc.removeprefix("drive:").split("#")[0]
             for (loc,) in conn.execute(
-                f"SELECT locator FROM evidence WHERE workspace = ? AND locator LIKE 'drive:%' AND record_id IN ({marks})",
+                "SELECT locator FROM evidence WHERE workspace = ? AND locator LIKE 'drive:%'"
+                f" AND record_id IN ({marks})",
                 (workspace, *record_ids),
             )
         }
     found = []
     for stable_id, content in conn.execute(
-        "SELECT s.stable_id, r.content FROM source_items s JOIN source_item_revisions r ON r.source_item_id = s.id"
+        "SELECT s.stable_id, r.content FROM source_items s"
+        " JOIN source_item_revisions r ON r.source_item_id = s.id"
         " WHERE s.workspace = ? AND s.source = 'drive'"
-        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions WHERE source_item_id = s.id)",
+        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions"
+        " WHERE source_item_id = s.id)",
         (workspace,),
     ):
         segment = json.loads(content)
@@ -37,7 +45,9 @@ def last_meeting(conn: sqlite3.Connection, workspace: str, record_ids: list[int]
     return (title, date) if date else None
 
 
-def changes(conn: sqlite3.Connection, workspace: str, name: str | None = None, at: datetime | None = None) -> dict[str, Any]:
+def changes(
+    conn: sqlite3.Connection, workspace: str, name: str | None = None, at: datetime | None = None
+) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     scope = None
@@ -47,7 +57,10 @@ def changes(conn: sqlite3.Connection, workspace: str, name: str | None = None, a
         if winner is None:
             return project.unresolved(conn, workspace, cfg, name, ranked, at, changes=[])
         scope = [winner, *project._member_ids(conn, workspace, winner)]
-        resolved["project"] = {"id": winner, "name": conn.execute("SELECT title FROM records WHERE id = ?", (winner,)).fetchone()[0]}
+        resolved["project"] = {
+            "id": winner,
+            "name": conn.execute("SELECT title FROM records WHERE id = ?", (winner,)).fetchone()[0],
+        }
     meeting = last_meeting(conn, workspace, scope)
     if meeting:
         title, date = meeting
@@ -55,16 +68,21 @@ def changes(conn: sqlite3.Connection, workspace: str, name: str | None = None, a
         resolved["baseline"] = f"since the last meeting, {title or 'a recording'}, on {date}"
     else:
         since = at - timedelta(days=FALLBACK_DAYS)
-        resolved["baseline"] = f"no meeting found; the last {FALLBACK_DAYS} days, since {since.date().isoformat()}"
+        resolved["baseline"] = (
+            f"no meeting found; the last {FALLBACK_DAYS} days, since {since.date().isoformat()}"
+        )
     cutoff = since.isoformat()
     in_scope = lambda column: (  # noqa: E731
-        ("", ()) if scope is None else (f" AND {column} IN ({', '.join('?' * len(scope))})", tuple(scope))
+        ("", ())
+        if scope is None
+        else (f" AND {column} IN ({', '.join('?' * len(scope))})", tuple(scope))
     )
     sql, args = in_scope("id")
     imported = {
         row[0]: "created" if row[1] >= cutoff else "updated"
         for row in conn.execute(
-            f"SELECT id, created_at FROM records WHERE workspace = ? AND updated_at >= ?{sql} ORDER BY id",
+            "SELECT id, created_at FROM records WHERE workspace = ? AND updated_at >= ?"
+            f"{sql} ORDER BY id",
             (workspace, cutoff, *args),
         )
     }
@@ -72,7 +90,8 @@ def changes(conn: sqlite3.Connection, workspace: str, name: str | None = None, a
     person = [
         {"record_id": rid, "event": event, "at": when, "change": json.loads(detail)}
         for rid, event, detail, when in conn.execute(
-            f"SELECT record_id, event, detail, at FROM record_events WHERE workspace = ? AND at >= ?{sql} ORDER BY id",
+            "SELECT record_id, event, detail, at FROM record_events"
+            f" WHERE workspace = ? AND at >= ?{sql} ORDER BY id",
             (workspace, cutoff, *args),
         )
     ]

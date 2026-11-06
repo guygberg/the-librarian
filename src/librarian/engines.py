@@ -29,7 +29,9 @@ def get_engines(workspace: str = paths.DEFAULT_WORKSPACE) -> Engines:
     mode = os.environ.get("LIBRARIAN_ENGINES") or config.load().get("engines", "real")
     if mode == "real":
         cfg = config.load()
-        return Engines(SlackClient.from_config(cfg), WhisperCppTranscriber(cfg), ClaudeExtractor(cfg))
+        return Engines(
+            SlackClient.from_config(cfg), WhisperCppTranscriber(cfg), ClaudeExtractor(cfg)
+        )
     if mode != "fake":
         raise ValueError(f"LIBRARIAN_ENGINES must be 'fake' or 'real', got {mode!r}")
     log, fixtures = call_log(workspace), fixtures_dir()

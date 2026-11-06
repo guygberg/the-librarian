@@ -1,6 +1,7 @@
 """Source item store. Items are keyed by Workspace + source + stable id; edits add revisions.
 
-This module never deletes items or revisions; `mark_gone` only sets a flag. Only `librarian.forget` deletes them.
+This module never deletes items or revisions; `mark_gone` only sets a flag. Only
+`librarian.forget` deletes them.
 """
 
 import hashlib
@@ -52,17 +53,22 @@ def upsert(
         text = textsearch.index_text(content)
         conn.execute("DELETE FROM source_search WHERE source_item_id = ?", (item_id,))
         conn.execute(
-            "INSERT INTO source_search (body, workspace, source, stable_id, source_item_id, original)"
+            "INSERT INTO source_search"
+            " (body, workspace, source, stable_id, source_item_id, original)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             (textsearch.normalise(text), workspace, source, stable_id, item_id, text),
         )
         return True
 
 
-def latest_content(conn: sqlite3.Connection, workspace: str, source: str, stable_id: str) -> str | None:
+def latest_content(
+    conn: sqlite3.Connection, workspace: str, source: str, stable_id: str
+) -> str | None:
     row = conn.execute(
-        "SELECT r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
-        " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ? ORDER BY r.revision DESC LIMIT 1",
+        "SELECT r.content FROM source_items i"
+        " JOIN source_item_revisions r ON r.source_item_id = i.id"
+        " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ?"
+        " ORDER BY r.revision DESC LIMIT 1",
         (workspace, source, stable_id),
     ).fetchone()
     return row[0] if row else None

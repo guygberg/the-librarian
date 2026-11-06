@@ -27,7 +27,11 @@ def test_normalise(raw, normalised):
 
 @pytest.mark.parametrize(
     ("content", "text"),
-    [('{"text": "hello", "user": "U1"}', "hello"), ("plain words", "plain words"), ("[1, 2]", "[1, 2]")],
+    [
+        ('{"text": "hello", "user": "U1"}', "hello"),
+        ("plain words", "plain words"),
+        ("[1, 2]", "[1, 2]"),
+    ],
 )
 def test_index_text(content, text):
     assert textsearch.index_text(content) == text

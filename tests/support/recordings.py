@@ -3,7 +3,6 @@
 import json
 
 from fixtures.build import build
-
 from librarian.fakes.calllog import CallLog
 from support.cli import finish_tty, popen_librarian_tty, run_librarian
 

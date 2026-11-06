@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 import pytest
-from fixtures.build import build
 
+from fixtures.build import build
 from librarian.fakes.calllog import CallLog
 from support.cli import finish_tty, popen_librarian_tty, run_librarian
 

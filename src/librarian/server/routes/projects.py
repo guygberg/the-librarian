@@ -1,4 +1,6 @@
-"""Project corrections from the status header. Each answers with the resulting project's current view.
+"""Project corrections from the status header.
+
+Each answers with the resulting project's current view.
 Moving a Record is `POST /api/records/<id>/project`."""
 
 from librarian.link import project_actions as actions
@@ -22,10 +24,21 @@ def _merge(conn, workspace, req):
 
 
 def _split(conn, workspace, req):
-    return actions.split(conn, workspace, _project_id(req), field(req.body, "name", str), field(req.body, "record_ids", list))
+    return actions.split(
+        conn,
+        workspace,
+        _project_id(req),
+        field(req.body, "name", str),
+        field(req.body, "record_ids", list),
+    )
 
 
 ROUTES = [
     Route("POST", f"/api/projects/<id>/{name}", mutating(do))
-    for name, do in (("confirm", _confirm), ("rename", _rename), ("merge", _merge), ("split", _split))
+    for name, do in (
+        ("confirm", _confirm),
+        ("rename", _rename),
+        ("merge", _merge),
+        ("split", _split),
+    )
 ]

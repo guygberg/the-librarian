@@ -24,7 +24,9 @@ def get(req):
     with req.ro() as conn:
         found = graph.neighbourhood(conn, req.workspace, center, hops, kinds)
     if found is None:
-        return 404, {"error": {"code": "not_found", "message": f"no such node {params['center'][0]}"}}
+        return 404, {
+            "error": {"code": "not_found", "message": f"no such node {params['center'][0]}"}
+        }
     return 200, found
 
 

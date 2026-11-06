@@ -41,7 +41,9 @@ def run(args, ctx):
         extra = input(f"Extra names that mean you, comma separated [{names}]: ").strip()
     except EOFError:
         raise SystemExit("librarian: setup aborted, nothing saved") from None
-    me_names = [n.strip() for n in extra.split(",") if n.strip()] if extra else cfg.get("me_names", [])
+    me_names = (
+        [n.strip() for n in extra.split(",") if n.strip()] if extra else cfg.get("me_names", [])
+    )
     config.save(
         {
             "account_type": account,

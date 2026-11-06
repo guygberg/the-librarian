@@ -3,7 +3,10 @@ import json
 from librarian import db
 from librarian.query import project
 
-help = "One project's status, owners, deadlines, latest decision and main blocker with Evidence, as JSON (read-only)"
+help = (
+    "One project's status, owners, deadlines, latest decision and main blocker "
+    "with Evidence, as JSON (read-only)"
+)
 
 
 def add_arguments(parser):

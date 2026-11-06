@@ -47,7 +47,9 @@ def test_fake_slack_rejects_write_shaped_calls(env):
 def test_fake_transcriber_returns_sidecar_segments(env):
     recording = next(env.rglob("*Recording"))
     segments = engines.get_engines().transcriber.transcribe(recording, "m", "en")
-    expected = json.loads((recording.parent / f"{recording.name}.transcript.json").read_text())["segments"]
+    expected = json.loads((recording.parent / f"{recording.name}.transcript.json").read_text())[
+        "segments"
+    ]
     assert [s.text for s in segments] == [s["text"] for s in expected]
     assert segments[0].tokens[0].p == expected[0]["tokens"][0]["p"]
 
@@ -72,7 +74,12 @@ def test_fake_extractor_canned_bad_and_failing_outputs(env):
     with pytest.raises(ExtractionError, match="model crashed"):
         extractor.extract("boom", "text", [])
     assert json.loads(extractor.extract("missing", "text", [])) == {"records": []}
-    assert [c["args"]["unit_key"] for c in engines.call_log("work").read()] == ["good", "badjson", "boom", "missing"]
+    assert [c["args"]["unit_key"] for c in engines.call_log("work").read()] == [
+        "good",
+        "badjson",
+        "boom",
+        "missing",
+    ]
 
 
 def test_real_mode_builds_the_real_engines(env, monkeypatch):

@@ -37,7 +37,8 @@ def normalise(text: str) -> str:
 
 
 def validate(raw: str, unit_text: str, candidate_ids: set[int], locators: set[str]) -> Validated:
-    """`locators` are the `<source>:<stable_id>` of the Source items sent (a `#part` is not part of it)."""
+    """`locators` are the `<source>:<stable_id>` of the Source items sent (a `#part` is not part
+    of it)."""
     out = Validated()
     try:
         data = json.loads(raw)
@@ -46,7 +47,9 @@ def validate(raw: str, unit_text: str, candidate_ids: set[int], locators: set[st
         return out
     records = data.get("records") if isinstance(data, dict) else None
     if not isinstance(records, list):
-        out.rejections.append(Rejection("result", "bad_shape", "expected an object with a `records` list"))
+        out.rejections.append(
+            Rejection("result", "bad_shape", "expected an object with a `records` list")
+        )
         return out
 
     sent_text = normalise(unit_text)
@@ -81,13 +84,22 @@ def _check_record(rec: Any, candidate_ids: set[int], refs: set[str]) -> tuple[st
         return "duplicate_ref", ref
     if not (isinstance(rec.get("title"), str) and rec["title"].strip()):
         return "bad_shape", "missing title"
-    for key, allowed in (("kind", schema.KINDS), ("lifecycle", schema.LIFECYCLES), ("basis", schema.BASES)):
+    for key, allowed in (
+        ("kind", schema.KINDS),
+        ("lifecycle", schema.LIFECYCLES),
+        ("basis", schema.BASES),
+    ):
         if rec.get(key) not in allowed:
             return "bad_enum", f"{key}={rec.get(key)!r}"
     if "commitment" in rec and rec["commitment"] not in schema.COMMITMENTS:
         return "bad_enum", f"commitment={rec['commitment']!r}"
-    only = {"commitment": "action_item", "owner": "action_item", "stated_deadline": "action_item",
-            "reasoning": "decision", "parent": "project"}
+    only = {
+        "commitment": "action_item",
+        "owner": "action_item",
+        "stated_deadline": "action_item",
+        "reasoning": "decision",
+        "parent": "project",
+    }
     for key, needed in only.items():
         if key in rec and kind != needed:
             return "bad_shape", f"`{key}` only belongs on a {needed}"
@@ -113,7 +125,9 @@ def _check_record(rec: Any, candidate_ids: set[int], refs: set[str]) -> tuple[st
     return None
 
 
-def _check_evidence(items: list, piece: str, sent_text: str, locators: set[str], out: Validated) -> list:
+def _check_evidence(
+    items: list, piece: str, sent_text: str, locators: set[str], out: Validated
+) -> list:
     good = []
     for j, ev in enumerate(items):
         where = f"{piece}.evidence[{j}]"
@@ -144,7 +158,7 @@ def _check_one_evidence(ev: Any, sent_text: str, locators: set[str]) -> tuple[st
 def _is_person(end: Any) -> bool:
     if not isinstance(end, dict) or len(end) != 1:
         return False
-    (key, value), = end.items()
+    ((key, value),) = end.items()
     if key == "slack_user":
         return isinstance(value, str) and bool(_SLACK_USER.match(value))
     if key == "name":
@@ -160,7 +174,9 @@ def _is_record_end(end: Any, candidate_ids: set[int], refs: set[str]) -> bool:
     return "id" in end and end["id"] in candidate_ids
 
 
-def _check_ends(rec: dict, piece: str, candidate_ids: set[int], refs: set[str], out: Validated) -> None:
+def _check_ends(
+    rec: dict, piece: str, candidate_ids: set[int], refs: set[str], out: Validated
+) -> None:
     """Drop (in place) the parent and Links whose ends were not sent or not accepted."""
     if "parent" in rec and not _is_record_end(rec["parent"], candidate_ids, refs):
         out.rejections.append(Rejection(f"{piece}.parent", "bad_link_end", repr(rec["parent"])))

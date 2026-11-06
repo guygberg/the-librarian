@@ -11,7 +11,16 @@ from support.recordings import make_env, run_import
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILL = ROOT / "skill" / "SKILL.md"
-ANSWER_COMMANDS = ["open-items", "project", "changes", "waiting", "decision", "blocked", "search", "show"]
+ANSWER_COMMANDS = [
+    "open-items",
+    "project",
+    "changes",
+    "waiting",
+    "decision",
+    "blocked",
+    "search",
+    "show",
+]
 ANSWER_ARGS = [
     ["open-items"],
     ["project", "Payments"],
@@ -81,7 +90,9 @@ def test_answer_commands_open_the_database_read_only(argv, seeded, home, monkeyp
         return opened[-1]
 
     monkeypatch.setattr(db, "connect_ro", spy)
-    monkeypatch.setattr(db, "connect_rw", lambda *a, **k: pytest.fail("answer command opened a writable connection"))
+    monkeypatch.setattr(
+        db, "connect_rw", lambda *a, **k: pytest.fail("answer command opened a writable connection")
+    )
     cli.main(["--workspace", "work", *argv])
     assert opened
     for conn in opened:
@@ -90,7 +101,9 @@ def test_answer_commands_open_the_database_read_only(argv, seeded, home, monkeyp
 
 
 @pytest.mark.parametrize("argv", ADMIN_ARGS, ids=lambda a: "-".join(a))
-def test_writing_admin_commands_refuse_without_a_terminal_and_change_nothing(argv, seeded, home, tmp_path):
+def test_writing_admin_commands_refuse_without_a_terminal_and_change_nothing(
+    argv, seeded, home, tmp_path
+):
     before, user_home = tree(home), tmp_path / "user-home"
     result = run_librarian(argv, home, env={**seeded, "HOME": str(user_home)})
     assert result.returncode != 0
@@ -99,7 +112,9 @@ def test_writing_admin_commands_refuse_without_a_terminal_and_change_nothing(arg
     assert not user_home.exists()
 
 
-def test_install_skill_links_the_skill_and_adds_the_shim_and_a_second_run_is_harmless(tmp_path, home):
+def test_install_skill_links_the_skill_and_adds_the_shim_and_a_second_run_is_harmless(
+    tmp_path, home
+):
     user_home = tmp_path / "user-home"
     user_home.mkdir()
     env = {"HOME": str(user_home)}

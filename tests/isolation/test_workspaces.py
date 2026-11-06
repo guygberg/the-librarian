@@ -4,17 +4,18 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+
 from fixtures.scenarios import payments_cutover as payments
+from librarian import cli
 from support.cli import finish_tty, popen_librarian_tty, run_librarian
 from support.recordings import make_env
-
-from librarian import cli
 
 NOW = str(payments.NOW)
 
 
 def import_into(workspace, tmp_path, home, scenario):
-    """Import a fixture scenario into one Workspace (config is shared, so it is rewritten per scenario)."""
+    """Import a fixture scenario into one Workspace (config is shared, so it is rewritten per
+    scenario)."""
     env, _ = make_env(tmp_path / workspace, home, scenario)
     env["LIBRARIAN_NOW"] = NOW
     folder = home / "workspaces" / workspace
@@ -35,7 +36,9 @@ def two_workspaces(tmp_path, home, monkeypatch):
 
 
 def evidence(home, workspace, query):
-    out = run_librarian(["--workspace", workspace, "search", query], home, env={"LIBRARIAN_NOW": NOW})
+    out = run_librarian(
+        ["--workspace", workspace, "search", query], home, env={"LIBRARIAN_NOW": NOW}
+    )
     return json.loads(out.stdout)["evidence"]
 
 
@@ -70,7 +73,9 @@ def touched_paths(monkeypatch, capsys, argv):
 
 
 @pytest.mark.parametrize("command", COMMANDS, ids=lambda c: c[0])
-def test_answers_for_another_workspace_never_open_the_work_file(command, tmp_path, home, monkeypatch, capsys):
+def test_answers_for_another_workspace_never_open_the_work_file(
+    command, tmp_path, home, monkeypatch, capsys
+):
     monkeypatch.setenv("LIBRARIAN_HOME", str(home))
     import_into("work", tmp_path, home, "payments-cutover")
     work_db = (home / "workspaces" / "work" / "librarian.db").resolve()

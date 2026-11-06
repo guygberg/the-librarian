@@ -1,4 +1,6 @@
-"""`librarian doctor`: read-only checks of everything the real engines need, each failure with its fix.
+"""`librarian doctor`: read-only checks of everything the real engines need.
+
+Each failure comes with its fix.
 
 Nothing is downloaded. The only network use is the one Slack read call, made through the Slack port.
 """
@@ -44,7 +46,11 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess | None:
 def _python() -> Check:
     if sys.version_info >= MIN_PYTHON:
         return Check("python", True)
-    return _fail("python", f"Python {sys.version_info[0]}.{sys.version_info[1]}", f"install Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer")
+    return _fail(
+        "python",
+        f"Python {sys.version_info[0]}.{sys.version_info[1]}",
+        f"install Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer",
+    )
 
 
 def _ffmpeg(cfg: dict[str, Any]) -> Check:
@@ -58,14 +64,18 @@ def _whisper(cfg: dict[str, Any]) -> list[Check]:
     name = cfg.get("whisper_cli", "whisper-cli")
     binary = shutil.which(name)
     if not binary:
-        return [_fail("whisper.cpp", f"`{name}` not found on PATH", "run `brew install whisper-cpp`")]
+        return [
+            _fail("whisper.cpp", f"`{name}` not found on PATH", "run `brew install whisper-cpp`")
+        ]
     minimum = ".".join(map(str, MIN_WHISPER_CPP))
     upgrade = f"run `brew upgrade whisper-cpp` (version {minimum} or newer is needed for --vad)"
     checks = []
     version = _run([binary, "--version"])
     found = _VERSION.search(version.stdout + version.stderr) if version else None
     if found and tuple(map(int, found.groups())) < MIN_WHISPER_CPP:
-        checks.append(_fail("whisper.cpp version", f"{found.group(0)} is older than {minimum}", upgrade))
+        checks.append(
+            _fail("whisper.cpp version", f"{found.group(0)} is older than {minimum}", upgrade)
+        )
     else:
         checks.append(Check("whisper.cpp version", True, "" if found else "version not reported"))
     helped = _run([binary, "--help"])
@@ -91,11 +101,29 @@ def _models(cfg: dict[str, Any]) -> list[Check]:
         path = Path(cfg.get(entry["config_key"]) or paths.data_home() / "models" / entry["name"])
         label = f"model {entry['name']}"
         if not path.is_file():
-            checks.append(_fail(label, f"{entry['what']} not at {path}", f"copy it there by hand (never downloaded for you) from {entry['url']}"))
+            checks.append(
+                _fail(
+                    label,
+                    f"{entry['what']} not at {path}",
+                    f"copy it there by hand (never downloaded for you) from {entry['url']}",
+                )
+            )
         elif not entry["sha256"]:
-            checks.append(_fail(label, "hash not recorded", f"hash not recorded: run shasum -a 256 {path} and record it in {manifest.name}"))
+            checks.append(
+                _fail(
+                    label,
+                    "hash not recorded",
+                    f"hash not recorded: run shasum -a 256 {path} and record it in {manifest.name}",
+                )
+            )
         elif _sha256(path) != entry["sha256"]:
-            checks.append(_fail(label, f"{path} does not match the manifest SHA-256", f"copy the model again from {entry['url']}"))
+            checks.append(
+                _fail(
+                    label,
+                    f"{path} does not match the manifest SHA-256",
+                    f"copy the model again from {entry['url']}",
+                )
+            )
         else:
             checks.append(Check(label, True))
     return checks
@@ -105,7 +133,11 @@ def _claude(cfg: dict[str, Any]) -> Check:
     name = cfg.get("claude_bin", "claude")
     binary = shutil.which(name)
     if not binary:
-        return _fail("claude login", f"`{name}` not found on PATH", "install Claude Code and run `claude` to log in")
+        return _fail(
+            "claude login",
+            f"`{name}` not found on PATH",
+            "install Claude Code and run `claude` to log in",
+        )
     done = _run([binary, "auth", "status"])
     if done and done.returncode == 0:
         return Check("claude login", True)
@@ -114,18 +146,34 @@ def _claude(cfg: dict[str, Any]) -> Check:
 
 def _gate(cfg: dict[str, Any]) -> Check:
     status = training_gate_status(cfg)
-    return Check("no-training gate", True) if status.allowed else _fail("no-training gate", status.reason, status.fix)
+    return (
+        Check("no-training gate", True)
+        if status.allowed
+        else _fail("no-training gate", status.reason, status.fix)
+    )
 
 
 def _slack(cfg: dict[str, Any]) -> list[Check]:
     vendor = Path(cfg.get("slack_vendor_dir") or paths.data_home() / "vendor" / "slack")
     if not vendor.is_dir():
-        return [_fail("slack skill folder", f"{vendor} does not exist", "copy the Slack skill folder there by hand")]
+        return [
+            _fail(
+                "slack skill folder",
+                f"{vendor} does not exist",
+                "copy the Slack skill folder there by hand",
+            )
+        ]
     checks = [Check("slack skill folder", True)]
     try:
         engines.get_engines().slack.auth_info()
     except Exception as err:  # any failure of the read call is the finding
-        checks.append(_fail("slack login", f"read call failed: {err}", "log in with the Slack skill and set `slack_login_path` in the config"))
+        checks.append(
+            _fail(
+                "slack login",
+                f"read call failed: {err}",
+                "log in with the Slack skill and set `slack_login_path` in the config",
+            )
+        )
     else:
         checks.append(Check("slack login", True))
     return checks
@@ -139,4 +187,13 @@ def _data_folder() -> Check:
 
 
 def run_checks(cfg: dict[str, Any]) -> list[Check]:
-    return [_python(), _ffmpeg(cfg), *_whisper(cfg), *_models(cfg), _claude(cfg), _gate(cfg), *_slack(cfg), _data_folder()]
+    return [
+        _python(),
+        _ffmpeg(cfg),
+        *_whisper(cfg),
+        *_models(cfg),
+        _claude(cfg),
+        _gate(cfg),
+        *_slack(cfg),
+        _data_folder(),
+    ]

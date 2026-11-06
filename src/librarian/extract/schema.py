@@ -11,22 +11,51 @@ KINDS = ["project", "action_item", "decision", "blocker", "open_question"]
 LIFECYCLES = ["open", "pending", "suspended", "done", "dropped", "superseded"]
 BASES = ["stated", "inferred", "confirmed"]
 COMMITMENTS = ["intention", "request", "commitment"]
-LINK_TYPES = ["belongs_to", "owner", "waiting_on", "blocks", "supersedes", "related_to", "mentions", "contradicts"]
+LINK_TYPES = [
+    "belongs_to",
+    "owner",
+    "waiting_on",
+    "blocks",
+    "supersedes",
+    "related_to",
+    "mentions",
+    "contradicts",
+]
 ID_DECISIONS = ["same", "updated", "new"]
 EVIDENCE_ROLES = ["supports", "completes", "contradicts"]
 
 # A link end or parent: a Record of this result, a candidate Record id, or (links only) a person.
-_REF_END = {"type": "object", "required": ["ref"], "additionalProperties": False,
-            "properties": {"ref": {"type": "string"}}}
-_ID_END = {"type": "object", "required": ["id"], "additionalProperties": False,
-           "properties": {"id": {"type": "integer"}}}
+_REF_END = {
+    "type": "object",
+    "required": ["ref"],
+    "additionalProperties": False,
+    "properties": {"ref": {"type": "string"}},
+}
+_ID_END = {
+    "type": "object",
+    "required": ["id"],
+    "additionalProperties": False,
+    "properties": {"id": {"type": "integer"}},
+}
 _OWNER_VARIANTS = [
-    {"type": "object", "required": ["slack_user"], "additionalProperties": False,
-     "properties": {"slack_user": {"type": "string"}}},
-    {"type": "object", "required": ["name"], "additionalProperties": False,
-     "properties": {"name": {"type": "string"}}},
-    {"type": "object", "required": ["speaker"], "additionalProperties": False,
-     "properties": {"speaker": {"enum": ["first_person"]}}},
+    {
+        "type": "object",
+        "required": ["slack_user"],
+        "additionalProperties": False,
+        "properties": {"slack_user": {"type": "string"}},
+    },
+    {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": False,
+        "properties": {"name": {"type": "string"}},
+    },
+    {
+        "type": "object",
+        "required": ["speaker"],
+        "additionalProperties": False,
+        "properties": {"speaker": {"enum": ["first_person"]}},
+    },
 ]
 
 SCHEMA = {

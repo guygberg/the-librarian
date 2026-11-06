@@ -8,7 +8,13 @@ CONVERSATIONS = [
     {"id": "C001", "name": "atlas-dev", "is_channel": True, "is_private": False, "num_members": 12},
     {"id": "G001", "name": "atlas-leads", "is_group": True, "is_private": True, "num_members": 4},
     {"id": "D001", "is_im": True, "is_private": True, "user": "U001", "num_members": 2},
-    {"id": "M001", "name": "mpdm-dana--omer-1", "is_mpim": True, "is_private": True, "num_members": 3},
+    {
+        "id": "M001",
+        "name": "mpdm-dana--omer-1",
+        "is_mpim": True,
+        "is_private": True,
+        "num_members": 3,
+    },
 ]
 
 

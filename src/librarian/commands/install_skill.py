@@ -4,7 +4,10 @@ from pathlib import Path
 
 from librarian.tty import require_terminal
 
-help = "Link the Claude Code skill into ~/.claude/skills and put a `librarian` shim in ~/.local/bin (terminal only)"
+help = (
+    "Link the Claude Code skill into ~/.claude/skills "
+    "and put a `librarian` shim in ~/.local/bin (terminal only)"
+)
 
 SKILL_SOURCE = Path(__file__).resolve().parents[3] / "skill"
 SHIM_MARK = "# librarian shim"
@@ -37,7 +40,9 @@ def _write_shim(shim: Path) -> str:
         if current == text:
             return "already installed"
         if SHIM_MARK not in current:
-            raise SystemExit(f"librarian: {shim} exists and is not the librarian shim; move it away first")
+            raise SystemExit(
+                f"librarian: {shim} exists and is not the librarian shim; move it away first"
+            )
     shim.parent.mkdir(parents=True, exist_ok=True)
     shim.write_text(text)
     shim.chmod(0o755)

@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from test_view import person, record_id, seed, show, world  # noqa: E402, F401
+import test_view  # noqa: E402
+from test_view import person, record_id, seed  # noqa: E402
+
+# Re-export the fixture as a variable: pytest registers it as `world`, and tests'
+# `world` parameters do not shadow an import.
+world = test_view.world
 
 from fixtures.scenarios import stale_and_ownerless as s  # noqa: E402
 from librarian import db  # noqa: E402
@@ -31,7 +36,8 @@ def me(home):
     try:
         with conn:
             return conn.execute(
-                "INSERT INTO persons (workspace, name, is_me, created_at) VALUES ('work', 'Dana', 1, '2023-11-01T00:00:00+00:00')"
+                "INSERT INTO persons (workspace, name, is_me, created_at)"
+                " VALUES ('work', 'Dana', 1, '2023-11-01T00:00:00+00:00')"
             ).lastrowid
     finally:
         conn.close()
@@ -49,8 +55,12 @@ def suggest(home, title, kind):
 def test_ownerless_and_stale_fixtures_land_in_needs_attention_oldest_flagged_first(world):
     home, env = world
     answer = ask(home, env)
-    assert groups(answer) == {s.VENDOR: "needs_attention", s.REGION: "needs_attention",
-                              s.TAXES: "needs_attention", s.INVOICE: "needs_attention"}
+    assert groups(answer) == {
+        s.VENDOR: "needs_attention",
+        s.REGION: "needs_attention",
+        s.TAXES: "needs_attention",
+        s.INVOICE: "needs_attention",
+    }
     assert answer["records"][0]["title"] == s.VENDOR and answer["records"][0]["stale"] is True
     assert answer["headline"]["text"] == "4 things need you, 0 waiting on someone else"
     assert answer["freshness"]["last_import_finished_at"]
@@ -64,8 +74,12 @@ def test_groups_follow_owner_and_lifecycle(world):
     seed(s.REGION, home, "status_change", {"lifecycle": "suspended", "suspended_by": "budget"})
     seed(s.INVOICE, home, "owner_change", {"person_id": me(home)})
     answer = ask(home, env)
-    assert groups(answer) == {s.INVOICE: "needs_attention", s.VENDOR: "waiting_on_others",
-                              s.TAXES: "other_open", s.REGION: "other_open"}
+    assert groups(answer) == {
+        s.INVOICE: "needs_attention",
+        s.VENDOR: "waiting_on_others",
+        s.TAXES: "other_open",
+        s.REGION: "other_open",
+    }
     assert (answer["headline"]["needs_you"], answer["headline"]["waiting"]) == (1, 1)
 
 
@@ -130,7 +144,8 @@ def test_week_starts_sunday_midnight_local(at, start):
 
 def test_progress_counts_only_this_weeks_completions(world):
     home, env = world
-    # Ship the report was completed 20 days ago; finding that Evidence only now does not make it this week's.
+    # Ship the report was completed 20 days ago; finding that Evidence only now does not make
+    # it this week's.
     assert ask(home, env)["progress"]["done_this_week"] == 0
     seed(s.TAXES, home, "status_change", {"lifecycle": "done"}, "2023-11-11T23:59:59+00:00")
     seed(s.INVOICE, home, "status_change", {"lifecycle": "done"}, "2023-11-12T00:00:00+00:00")

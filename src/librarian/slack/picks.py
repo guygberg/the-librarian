@@ -26,7 +26,9 @@ def picked_ids(conn: sqlite3.Connection, workspace: str) -> set[str]:
 
 def seed_once(conn: sqlite3.Connection, workspace: str, workspace_dir: Path) -> None:
     """Copy ids from `channels.json` (a list, or {"picked": [...]}) the first time only."""
-    if conn.execute("SELECT 1 FROM slack_picks_seeded WHERE workspace = ?", (workspace,)).fetchone():
+    if conn.execute(
+        "SELECT 1 FROM slack_picks_seeded WHERE workspace = ?", (workspace,)
+    ).fetchone():
         return
     seed = workspace_dir / SEED_FILE
     ids: list[str] = []
@@ -35,7 +37,9 @@ def seed_once(conn: sqlite3.Connection, workspace: str, workspace_dir: Path) -> 
         ids = data["picked"] if isinstance(data, dict) else data
     with conn:
         conn.execute("INSERT INTO slack_picks_seeded VALUES (?)", (workspace,))
-        conn.executemany("INSERT OR IGNORE INTO slack_picks VALUES (?, ?)", [(workspace, i) for i in ids])
+        conn.executemany(
+            "INSERT OR IGNORE INTO slack_picks VALUES (?, ?)", [(workspace, i) for i in ids]
+        )
 
 
 def edit_picks(
@@ -43,9 +47,12 @@ def edit_picks(
 ) -> set[str]:
     """The one writer of the list; the terminal command and the HTTP API both call it."""
     with conn:
-        conn.executemany("INSERT OR IGNORE INTO slack_picks VALUES (?, ?)", [(workspace, i) for i in pick])
         conn.executemany(
-            "DELETE FROM slack_picks WHERE workspace = ? AND conversation_id = ?", [(workspace, i) for i in unpick]
+            "INSERT OR IGNORE INTO slack_picks VALUES (?, ?)", [(workspace, i) for i in pick]
+        )
+        conn.executemany(
+            "DELETE FROM slack_picks WHERE workspace = ? AND conversation_id = ?",
+            [(workspace, i) for i in unpick],
         )
     return picked_ids(conn, workspace)
 

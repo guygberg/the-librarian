@@ -9,7 +9,10 @@ def add_arguments(parser):
     parser.add_argument(
         "folder",
         type=Path,
-        help="where to write the archive; do not use a Drive-synced folder (a sync client can upload a half-written file)",
+        help=(
+            "where to write the archive; do not use a Drive-synced folder "
+            "(a sync client can upload a half-written file)"
+        ),
     )
 
 

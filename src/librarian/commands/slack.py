@@ -11,7 +11,9 @@ def add_arguments(parser):
     sub = parser.add_subparsers(dest="action", required=True)
     pick = sub.add_parser("pick", help="list conversations and edit the picked ones")
     pick.add_argument("--list", action="store_true", help="only print the list (read-only)")
-    older = sub.add_parser("import-older", help="fetch a picked conversation's history beyond 30 days")
+    older = sub.add_parser(
+        "import-older", help="fetch a picked conversation's history beyond 30 days"
+    )
     older.add_argument("conversation", help="picked conversation id or name")
 
 
@@ -40,7 +42,10 @@ def _import_older(args, ctx):
     rows = [r for r in picks.rows(slack.list_conversations(), picked) if r["picked"]]
     match = [r for r in rows if args.conversation in (r["id"], r["name"])]
     if not match:
-        raise SystemExit(f"librarian: {args.conversation!r} is not a picked conversation; see `librarian slack pick`")
+        raise SystemExit(
+            f"librarian: {args.conversation!r} is not a picked conversation; "
+            "see `librarian slack pick`"
+        )
     row = match[0]
     count = slack_fetch.count_older(slack, row["id"])
     print(f"{row['name']}: {count} messages older than 30 days would be fetched")

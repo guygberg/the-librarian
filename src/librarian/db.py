@@ -1,4 +1,7 @@
-"""One SQLite file per Workspace. Only `connect_rw` may write or migrate; answer paths use `connect_ro`."""
+"""One SQLite file per Workspace.
+
+Only `connect_rw` may write or migrate; answer paths use `connect_ro`.
+"""
 
 import re
 import sqlite3
@@ -79,7 +82,9 @@ def connect_rw(workspace: str, directory: Path = MIGRATIONS_DIR) -> sqlite3.Conn
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     for version, sql_path in pending:
-        conn.executescript(f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};\nCOMMIT;")
+        conn.executescript(
+            f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};\nCOMMIT;"
+        )
     return conn
 
 

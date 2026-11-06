@@ -22,16 +22,24 @@ def waiting(conn: sqlite3.Connection, workspace: str, at: datetime | None = None
     ids = [
         row[0]
         for row in conn.execute(
-            f"SELECT id FROM records WHERE workspace = ? AND kind IN ({', '.join('?' * len(KINDS))}) ORDER BY id",
+            "SELECT id FROM records WHERE workspace = ?"
+            f" AND kind IN ({', '.join('?' * len(KINDS))}) ORDER BY id",
             (workspace, *KINDS),
         )
     ]
-    views = [v for v in (core.current_view(conn, workspace, rid, cfg, at) for rid in ids) if v["lifecycle"] == "pending"]
+    views = [
+        v
+        for v in (core.current_view(conn, workspace, rid, cfg, at) for rid in ids)
+        if v["lifecycle"] == "pending"
+    ]
     return envelope.build(
         conn,
         workspace,
         cfg,
         views,
         at=at,
-        waiting=[{"record_id": v["id"], "title": v["title"], "next_step_owner": next_step_owner(v)} for v in views],
+        waiting=[
+            {"record_id": v["id"], "title": v["title"], "next_step_owner": next_step_owner(v)}
+            for v in views
+        ],
     )

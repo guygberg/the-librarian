@@ -14,7 +14,8 @@ from support.serve import spawn  # noqa: E402
 
 @pytest.fixture
 def world(tmp_path, home):
-    """The Hebrew Slack fixture imported, plus Records and a person written straight into the database."""
+    """The Hebrew Slack fixture imported, plus Records and a person written straight into the
+    database."""
     env = make_env(tmp_path, home, "slack_hebrew")
     assert run_import(home, env)[0] == 0
     conn = sqlite3.connect(next(home.rglob("*.db")))
@@ -32,12 +33,18 @@ def world(tmp_path, home):
         project = record("project", "Billing cleanup")
         conn.execute("INSERT INTO project_aliases VALUES ('work', ?, 'ניקוי חשבוניות')", (project,))
         conn.execute(
-            "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
+            "INSERT INTO evidence"
+            " (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
             " VALUES ('work', ?, ?, 'slack:C001/1.0', 'נדחה לשבוע הבא', 'supports', 'x')",
             (decision, revision),
         )
-        person = conn.execute("INSERT INTO persons (workspace, name, created_at) VALUES ('work', 'Noa Zamir', 'x')").lastrowid
-        conn.execute("INSERT INTO aliases (workspace, person_id, alias) VALUES ('work', ?, 'נועה')", (person,))
+        person = conn.execute(
+            "INSERT INTO persons (workspace, name, created_at) VALUES ('work', 'Noa Zamir', 'x')"
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO aliases (workspace, person_id, alias) VALUES ('work', ?, 'נועה')",
+            (person,),
+        )
         meeting = record("action_item", "סיכום הפגישה")
     return home, {"decision": decision, "project": project, "person": person, "meeting": meeting}
 
@@ -61,7 +68,10 @@ def test_record_evidence_quotes_are_searchable_and_listed_before_passages(world)
     home, ids = world
     answer = cli(home, "שבוע")
     assert [r["id"] for r in answer["records"]] == [ids["decision"]]
-    assert answer["evidence"][0]["record_id"] == ids["decision"] and answer["evidence"][0]["locator"] == "slack:C001/1.0"
+    assert (
+        answer["evidence"][0]["record_id"] == ids["decision"]
+        and answer["evidence"][0]["locator"] == "slack:C001/1.0"
+    )
 
 
 def test_projects_by_alias_and_people_by_alias_or_name(world):
@@ -77,10 +87,17 @@ def test_the_http_route_returns_what_the_command_returns(world):
     home, _ = world
     proc, served = spawn(home, "--port", "0")
     try:
-        resp, data = served.request("GET", "/api/search?q=%D7%94%D7%A4%D7%92%D7%99%D7%A9%D7%94", {"X-Librarian-Token": served.token()})
+        resp, data = served.request(
+            "GET",
+            "/api/search?q=%D7%94%D7%A4%D7%92%D7%99%D7%A9%D7%94",
+            {"X-Librarian-Token": served.token()},
+        )
         assert resp.status == 200
         assert json.loads(data) == cli(home, "הפגישה")
-        assert served.request("GET", "/api/search", {"X-Librarian-Token": served.token()})[0].status == 400
+        assert (
+            served.request("GET", "/api/search", {"X-Librarian-Token": served.token()})[0].status
+            == 400
+        )
     finally:
         proc.terminate()
         proc.wait(timeout=10)

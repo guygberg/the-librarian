@@ -1,4 +1,6 @@
-"""Real Slack Web API client behind the SlackSource port. Read-only: only allow-listed methods can be called.
+"""Real Slack Web API client behind the SlackSource port.
+
+Read-only: only allow-listed methods can be called.
 
 The login is the vendored Slack skill's saved login: a JSON file (path from config
 `slack_login_path`) with `token` and, for browser-session tokens, `cookie`. That layout is assumed.
@@ -13,7 +15,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-READ_METHODS = frozenset({"auth.test", "conversations.list", "conversations.history", "conversations.replies", "users.list"})
+READ_METHODS = frozenset(
+    {
+        "auth.test",
+        "conversations.list",
+        "conversations.history",
+        "conversations.replies",
+        "users.list",
+    }
+)
 PAGE_LIMIT = 200
 MAX_RETRIES = 5
 
@@ -46,7 +56,10 @@ class SlackClient:
 
     def _headers(self) -> dict[str, str]:
         if not self._login_path:
-            raise RuntimeError("no Slack login: set `slack_login_path` in the config to the Slack skill's saved login")
+            raise RuntimeError(
+                "no Slack login: set `slack_login_path` in the config "
+                "to the Slack skill's saved login"
+            )
         login = json.loads(Path(self._login_path).read_text())
         headers = {"Authorization": f"Bearer {login['token']}"}
         if login.get("cookie"):
@@ -58,12 +71,16 @@ class SlackClient:
             raise ValueError(f"Slack method {method!r} is not a read method")
         sent = {k: str(v) for k, v in params.items() if v is not None}
         for attempt in range(MAX_RETRIES + 1):
-            status, headers, body = self._http(f"https://slack.com/api/{method}", sent, self._headers())
+            status, headers, body = self._http(
+                f"https://slack.com/api/{method}", sent, self._headers()
+            )
             if status == 429 and attempt < MAX_RETRIES:
                 self._sleep(float(headers.get("Retry-After", 2**attempt)))
                 continue
             if status != 200 or not body.get("ok"):
-                raise RuntimeError(f"Slack {method} failed: HTTP {status} {body.get('error', '')}".strip())
+                raise RuntimeError(
+                    f"Slack {method} failed: HTTP {status} {body.get('error', '')}".strip()
+                )
             return body
         raise AssertionError("unreachable")
 
@@ -74,7 +91,10 @@ class SlackClient:
         conversations, cursor = [], None
         while True:
             page = self._call(
-                "conversations.list", types="public_channel,private_channel,mpim,im", limit=PAGE_LIMIT, cursor=cursor
+                "conversations.list",
+                types="public_channel,private_channel,mpim,im",
+                limit=PAGE_LIMIT,
+                cursor=cursor,
             )
             conversations += page["channels"]
             cursor = (page.get("response_metadata") or {}).get("next_cursor")
@@ -96,7 +116,13 @@ class SlackClient:
     def replies(self, channel: str, thread_ts: str) -> list[dict[str, Any]]:
         messages, cursor = [], None
         while True:
-            page = self._call("conversations.replies", channel=channel, ts=thread_ts, limit=PAGE_LIMIT, cursor=cursor)
+            page = self._call(
+                "conversations.replies",
+                channel=channel,
+                ts=thread_ts,
+                limit=PAGE_LIMIT,
+                cursor=cursor,
+            )
             messages += page["messages"]
             cursor = (page.get("response_metadata") or {}).get("next_cursor")
             if not cursor:

@@ -29,7 +29,8 @@ def start_run(conn: sqlite3.Connection, workspace: str, pid: int) -> Run:
 
 
 def run_import(run: Run, stages: Sequence[Stage], report: Callable[[str], None]) -> int:
-    """Run every stage in order; return how many items failed. Finished (item, stage) pairs are skipped."""
+    """Run every stage in order; return how many items failed. Finished (item, stage) pairs are
+    skipped."""
     conn = run.conn
     for index, stage in enumerate(stages):
         for source, item in stage.discover(conn):

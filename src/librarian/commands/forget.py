@@ -11,7 +11,10 @@ def add_arguments(parser):
 
 
 def _resolve(conn, ctx, text):
-    """(id, label) of the conversation, or None. An id counts when it has stored items or is picked."""
+    """(id, label) of the conversation, or None.
+
+    An id counts when it has stored items or is picked.
+    """
     if forget.items_of(conn, ctx.workspace, text) or text in picks.picked_ids(conn, ctx.workspace):
         return text, text
     rows = picks.rows(engines.get_engines(ctx.workspace).slack.list_conversations(), set())
@@ -29,7 +32,10 @@ def run(args, ctx):
                 raise SystemExit(f"librarian: no Slack conversation {args.conversation!r}")
             conversation_id, label = found
             count = len(forget.items_of(conn, ctx.workspace, conversation_id))
-            print(f"{label}: {count} messages and every Record supported only by them would be deleted")
+            print(
+                f"{label}: {count} messages and every Record supported only by them "
+                "would be deleted"
+            )
             try:
                 answer = input(f"Type {label} to confirm: ").strip()
             except EOFError:

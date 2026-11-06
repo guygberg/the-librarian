@@ -1,6 +1,7 @@
-"""Low-confidence segments and uncertain words, computed from the raw metrics stored with each segment.
+"""Low-confidence segments and uncertain words, computed from the raw metrics stored per segment.
 
-Computed when shown, not when stored, so changing a threshold in config changes the result without re-transcribing.
+Computed when shown, not when stored, so changing a threshold in config changes the result
+without re-transcribing.
 The starting thresholds are unvalidated.
 """
 
@@ -11,13 +12,19 @@ def low_confidence_reasons(segment: dict[str, Any], cfg: dict[str, Any]) -> list
     checks = (
         ("avg_logprob", segment["avg_logprob"] < cfg["low_confidence_avg_logprob"]),
         ("no_speech_prob", segment["no_speech_prob"] > cfg["low_confidence_no_speech_prob"]),
-        ("compression_ratio", segment["compression_ratio"] > cfg["low_confidence_compression_ratio"]),
+        (
+            "compression_ratio",
+            segment["compression_ratio"] > cfg["low_confidence_compression_ratio"],
+        ),
     )
     return [name for name, hit in checks if hit]
 
 
 def uncertain_words(segment: dict[str, Any], cfg: dict[str, Any]) -> list[dict[str, Any]]:
-    """Tokens below the probability threshold, each with its character span `[start, end)` in the segment text."""
+    """Tokens below the probability threshold.
+
+    Each comes with its character span `[start, end)` in the segment text.
+    """
     text, cursor, found = segment["text"], 0, []
     for token in segment["tokens"]:
         word = token["text"].strip()

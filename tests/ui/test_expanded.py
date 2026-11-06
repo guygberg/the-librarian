@@ -30,12 +30,16 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
     expect(panel.locator("[data-part=lifecycle]")).to_have_text("Open")
     expect(panel.locator("[data-part=basis-text]")).to_contain_text("Inferred")
     expect(panel.locator("[data-part=commitment]")).to_have_count(0)
-    expect(row(page, payments.NOV_18).locator("[data-part=basis-inferred]")).to_have_text("Inferred")
+    expect(row(page, payments.NOV_18).locator("[data-part=basis-inferred]")).to_have_text(
+        "Inferred"
+    )
 
     evidence = panel.locator(":scope > [data-part=evidence]")
     shown = evidence.all_text_contents()
     assert shown
-    stored = ui.sql("SELECT locator, role, quote FROM evidence WHERE record_id = ? ORDER BY id", cutover["id"])
+    stored = ui.sql(
+        "SELECT locator, role, quote FROM evidence WHERE record_id = ? ORDER BY id", cutover["id"]
+    )
     for (locator, role, quote), text in zip(stored, shown, strict=True):
         assert locator in text and role in text and quote in text
 
@@ -84,7 +88,9 @@ def test_stale_item_says_stale_after_the_threshold_is_lowered(page, ui):
     config = ui.home / "config.toml"
     config.write_text(config.read_text() + "stale_days_blocker = 1\n")
     page.reload()
-    expect(page.locator("[data-part=flag]")).to_contain_text("Stale: not mentioned in any source since")
+    expect(page.locator("[data-part=flag]")).to_contain_text(
+        "Stale: not mentioned in any source since"
+    )
 
 
 def test_expanded_url_reloads_to_the_same_item_even_when_filtered_out(page, ui):
@@ -94,7 +100,11 @@ def test_expanded_url_reloads_to_the_same_item_even_when_filtered_out(page, ui):
     page.reload()
     assert page.url == url
     expect(page.locator("[data-part=item-expanded]")).to_have_count(1)
-    expect(page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]")).locator(".t")).to_have_text(payments.NOV_18)
+    expect(
+        page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]")).locator(
+            ".t"
+        )
+    ).to_have_text(payments.NOV_18)
 
     page.goto(url + "?kind=done")
     expect(page.locator("[data-part=item-expanded]")).to_have_count(1)

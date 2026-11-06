@@ -1,4 +1,5 @@
-"""Projects: an exact name or Alias links automatically; a near name is only suggested; nothing is merged."""
+"""Projects: an exact name or Alias links automatically; a near name is only suggested; nothing
+is merged."""
 
 import sqlite3
 from dataclasses import dataclass
@@ -17,14 +18,19 @@ class Match:
 
 
 def names(conn: sqlite3.Connection, workspace: str) -> dict[int, list[str]]:
-    """Every project with its title and Aliases; a merged one is gone, its names are the survivor's Aliases."""
+    """Every project with its title and Aliases; a merged one is gone, its names are the
+    survivor's Aliases."""
     found: dict[int, list[str]] = {
         record_id: [title]
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project' AND lifecycle != 'superseded'", (workspace,)
+            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project'"
+            " AND lifecycle != 'superseded'",
+            (workspace,),
         )
     }
-    for record_id, alias in conn.execute("SELECT record_id, alias FROM project_aliases WHERE workspace = ?", (workspace,)):
+    for record_id, alias in conn.execute(
+        "SELECT record_id, alias FROM project_aliases WHERE workspace = ?", (workspace,)
+    ):
         found.setdefault(record_id, []).append(alias)
     return found
 

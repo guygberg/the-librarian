@@ -12,23 +12,30 @@ SLACK = "slack:"
 
 
 def add_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: str) -> None:
-    conn.execute("INSERT OR IGNORE INTO aliases (workspace, person_id, alias) VALUES (?, ?, ?)", (workspace, person_id, alias))
+    conn.execute(
+        "INSERT OR IGNORE INTO aliases (workspace, person_id, alias) VALUES (?, ?, ?)",
+        (workspace, person_id, alias),
+    )
 
 
 def new_person(conn: sqlite3.Connection, workspace: str, name: str, is_me: bool = False) -> int:
     return conn.execute(
-        "INSERT INTO persons (workspace, name, created_at, is_me) VALUES (?, ?, ?, ?)", (workspace, name, utc_now_iso(), is_me)
+        "INSERT INTO persons (workspace, name, created_at, is_me) VALUES (?, ?, ?, ?)",
+        (workspace, name, utc_now_iso(), is_me),
     ).lastrowid
 
 
 def _by_slack_id(conn: sqlite3.Connection, workspace: str, slack_id: str) -> int | None:
     row = conn.execute(
-        "SELECT person_id FROM aliases WHERE workspace = ? AND alias = ?", (workspace, SLACK + slack_id)
+        "SELECT person_id FROM aliases WHERE workspace = ? AND alias = ?",
+        (workspace, SLACK + slack_id),
     ).fetchone()
     return row[0] if row else None
 
 
-def save_slack_users(conn: sqlite3.Connection, workspace: str, users: list[dict[str, Any]], login_id: str | None) -> None:
+def save_slack_users(
+    conn: sqlite3.Connection, workspace: str, users: list[dict[str, Any]], login_id: str | None
+) -> None:
     """A Person per Slack user, the Slack id and the names as Aliases; the login's user is Me."""
     for user in users:
         person_id = _by_slack_id(conn, workspace, user["id"])
@@ -45,20 +52,29 @@ def save_slack_users(conn: sqlite3.Connection, workspace: str, users: list[dict[
 def _become_me(conn: sqlite3.Connection, workspace: str, person_id: int) -> None:
     """Me is a single Person: an earlier placeholder "Me" folds into the Slack login's Person."""
     old = conn.execute(
-        "SELECT id FROM persons WHERE workspace = ? AND is_me = 1 AND id != ?", (workspace, person_id)
+        "SELECT id FROM persons WHERE workspace = ? AND is_me = 1 AND id != ?",
+        (workspace, person_id),
     ).fetchall()
     conn.execute("UPDATE persons SET is_me = 1 WHERE id = ?", (person_id,))
     for (old_id,) in old:
-        conn.execute("UPDATE OR IGNORE aliases SET person_id = ? WHERE person_id = ?", (person_id, old_id))
+        conn.execute(
+            "UPDATE OR IGNORE aliases SET person_id = ? WHERE person_id = ?", (person_id, old_id)
+        )
         conn.execute("DELETE FROM aliases WHERE person_id = ?", (old_id,))
-        conn.execute("UPDATE records SET owner_person_id = ? WHERE owner_person_id = ?", (person_id, old_id))
-        conn.execute("UPDATE links SET to_id = ? WHERE to_type = 'person' AND to_id = ?", (person_id, old_id))
+        conn.execute(
+            "UPDATE records SET owner_person_id = ? WHERE owner_person_id = ?", (person_id, old_id)
+        )
+        conn.execute(
+            "UPDATE links SET to_id = ? WHERE to_type = 'person' AND to_id = ?", (person_id, old_id)
+        )
         conn.execute("UPDATE persons SET is_me = 0 WHERE id = ?", (old_id,))
 
 
 def me(conn: sqlite3.Connection, workspace: str) -> int:
     """The Me Person, with the names listed at setup as its Aliases."""
-    row = conn.execute("SELECT id FROM persons WHERE workspace = ? AND is_me = 1", (workspace,)).fetchone()
+    row = conn.execute(
+        "SELECT id FROM persons WHERE workspace = ? AND is_me = 1", (workspace,)
+    ).fetchone()
     person_id = row[0] if row else new_person(conn, workspace, "Me", is_me=True)
     for name in config.load().get("me_names", []):
         add_alias(conn, workspace, person_id, name)
@@ -70,16 +86,20 @@ def _by_name(conn: sqlite3.Connection, workspace: str, name: str) -> int | None:
     wanted = key(name)
     found = {
         person_id
-        for person_id, alias in conn.execute("SELECT person_id, alias FROM aliases WHERE workspace = ?", (workspace,))
+        for person_id, alias in conn.execute(
+            "SELECT person_id, alias FROM aliases WHERE workspace = ?", (workspace,)
+        )
         if not alias.startswith(SLACK) and key(alias) == wanted
     }
     return found.pop() if len(found) == 1 else None
 
 
-def resolve(conn: sqlite3.Connection, workspace: str, end: dict[str, str], recording: bool) -> tuple[int | None, str | None]:
-    """(person id, None) when the end is certain, else (None, the review kind): a name that is not one known
-    Alias, or a first-person line of a recording, whose speaker nobody has set."""
-    (kind, value), = end.items()
+def resolve(
+    conn: sqlite3.Connection, workspace: str, end: dict[str, str], recording: bool
+) -> tuple[int | None, str | None]:
+    """(person id, None) when the end is certain, else (None, the review kind): a name that is not
+    one known Alias, or a first-person line of a recording, whose speaker nobody has set."""
+    ((kind, value),) = end.items()
     if kind == "slack_user":
         person_id = _by_slack_id(conn, workspace, value)
         if person_id is None:  # not in the users list: still a stable Person, keyed by its id

@@ -6,12 +6,17 @@ from librarian.server.routes import File, Route
 
 
 def get(req):
-    """The recording file behind a transcript, found through its first segment. Only files under the Drive folder."""
+    """The recording file behind a transcript, found through its first segment.
+
+    Only files under the Drive folder.
+    """
     root = recordings.drive_dir()
     with req.ro() as conn:
         row = conn.execute(
-            "SELECT r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
-            " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ? ORDER BY r.revision DESC LIMIT 1",
+            "SELECT r.content FROM source_items i"
+            " JOIN source_item_revisions r ON r.source_item_id = i.id"
+            " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ?"
+            " ORDER BY r.revision DESC LIMIT 1",
             (req.workspace, recordings.SEGMENT_SOURCE, f"{req.params['file_id']}/1"),
         ).fetchone()
     path = (root / json.loads(row[0])["path"]).resolve() if row and root else None

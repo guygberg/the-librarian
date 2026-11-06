@@ -33,21 +33,26 @@ def extract_and_record(
     try:
         text = extractor.extract(unit_key, unit_text, candidates)
     except Exception as exc:
-        if not hasattr(exc, "stage"):  # only a failure that carries its stage and envelope is a run to keep
+        if not hasattr(
+            exc, "stage"
+        ):  # only a failure that carries its stage and envelope is a run to keep
             raise
         failure, text = exc, ""
     # The real engine hands back the structured output but remembers the whole envelope.
     envelope = failure.envelope if failure else getattr(text, "raw", text)
     result = validate.Validated()
     if failure:
-        result.rejections.append(validate.Rejection(failure.stage, "extraction_failed", failure.error))
+        result.rejections.append(
+            validate.Rejection(failure.stage, "extraction_failed", failure.error)
+        )
     else:
         result = validate.validate(text, unit_text, {c["id"] for c in candidates}, locators)
     conn.execute("BEGIN")
     try:
         run_id = conn.execute(
-            "INSERT INTO extraction_runs (workspace, unit_key, model, claude_code_version, prompt_hash,"
-            " schema_hash, envelope, accepted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO extraction_runs (workspace, unit_key, model, claude_code_version,"
+            " prompt_hash, schema_hash, envelope, accepted, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 workspace,
                 unit_key,
@@ -77,18 +82,28 @@ def extract_and_record(
 def list_runs(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     runs = []
     for row in conn.execute(
-        "SELECT id, unit_key, model, claude_code_version, prompt_hash, schema_hash, envelope, accepted,"
-        " created_at FROM extraction_runs WHERE workspace = ? ORDER BY id",
+        "SELECT id, unit_key, model, claude_code_version, prompt_hash, schema_hash, envelope,"
+        " accepted, created_at FROM extraction_runs WHERE workspace = ? ORDER BY id",
         (workspace,),
     ).fetchall():
         rejections = [
             {"piece": p, "reason": r, "detail": d}
             for p, r, d in conn.execute(
-                "SELECT piece, reason, detail FROM extraction_rejections WHERE run_id = ? ORDER BY id",
+                "SELECT piece, reason, detail FROM extraction_rejections"
+                " WHERE run_id = ? ORDER BY id",
                 (row[0],),
             )
         ]
-        keys = ("id", "unit_key", "model", "claude_code_version", "prompt_hash", "schema_hash",
-                "envelope", "accepted_records", "created_at")
+        keys = (
+            "id",
+            "unit_key",
+            "model",
+            "claude_code_version",
+            "prompt_hash",
+            "schema_hash",
+            "envelope",
+            "accepted_records",
+            "created_at",
+        )
         runs.append({**dict(zip(keys, row, strict=True)), "rejected": rejections})
     return runs

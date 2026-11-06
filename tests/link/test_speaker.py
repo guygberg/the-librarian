@@ -1,12 +1,12 @@
 import json
 
 import pytest
+
 from fixtures.scenarios import people_aliases as p
+from librarian.importer import recordings
 from support.api import Api
 from support.recordings import make_env, run_import
 from support.serve import spawn
-
-from librarian.importer import recordings
 
 FIRST_PERSON = "By first person"
 UNKNOWN = "unknown speaker"
@@ -37,12 +37,15 @@ def segment_locator(api):
 
 
 def set_speaker(api, name="Dana Cohen"):
-    return api.post("/api/speaker", {"locator": segment_locator(api), "person_id": api.person(name)})
+    return api.post(
+        "/api/speaker", {"locator": segment_locator(api), "person_id": api.person(name)}
+    )
 
 
 def retranscribe(api, titles_and_matches):
-    """The recording's bytes change (new file hash) and its segment comes back with shifted times; the canned
-    extraction of the new segment holds one first-person Record per (title, match)."""
+    """The recording's bytes change (new file hash) and its segment comes back with shifted
+    times; the canned extraction of the new segment holds one first-person Record per
+    (title, match)."""
     recording = api.fixtures / "Meet Recordings" / p.RECORDING
     recording.write_bytes(recording.read_bytes() + b"re-encoded\n")
     sidecar = recording.with_name(recording.name + ".transcript.json")
@@ -57,16 +60,28 @@ def retranscribe(api, titles_and_matches):
     prefix = recordings._file_hash(recording)[: recordings._ID_LENGTH]
     records = [
         {
-            "ref": title, "match": match, "kind": "action_item", "title": title, "lifecycle": "open",
-            "basis": "stated", "commitment": "request", "owner": {"speaker": "first_person"},
-            "evidence": [{"locator": f"drive:{prefix}/1", "quote": p.FIRST_PERSON, "role": "supports"}],
+            "ref": title,
+            "match": match,
+            "kind": "action_item",
+            "title": title,
+            "lifecycle": "open",
+            "basis": "stated",
+            "commitment": "request",
+            "owner": {"speaker": "first_person"},
+            "evidence": [
+                {"locator": f"drive:{prefix}/1", "quote": p.FIRST_PERSON, "role": "supports"}
+            ],
         }
         for title, match in titles_and_matches
     ]
-    (api.fixtures / "extraction" / f"drive-{prefix}-1.json").write_text(json.dumps({"result": {"records": records}}))
+    (api.fixtures / "extraction" / f"drive-{prefix}-1.json").write_text(
+        json.dumps({"result": {"records": records}})
+    )
 
 
-def test_setting_the_speaker_gives_the_record_an_owner_clears_its_review_entry_and_moves_the_open_item(api):
+def test_setting_the_speaker_owns_the_record_clears_its_review_entry_and_moves_the_open_item(
+    api,
+):
     assert api.show(FIRST_PERSON)["owner"] == UNKNOWN
     assert api.open_items()[FIRST_PERSON] != "other_open"
 
@@ -84,7 +99,10 @@ def test_the_setting_survives_re_transcription_and_re_extraction(api):
     set_speaker(api)
     retranscribe(
         api,
-        [(FIRST_PERSON, {"decision": "updated", "id": api.record(FIRST_PERSON)}), ("Resent report", {"decision": "new"})],
+        [
+            (FIRST_PERSON, {"decision": "updated", "id": api.record(FIRST_PERSON)}),
+            ("Resent report", {"decision": "new"}),
+        ],
     )
     api.reimport()
 

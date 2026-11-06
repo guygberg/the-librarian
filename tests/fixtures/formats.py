@@ -29,7 +29,10 @@ def slack_message(user: str, text: str, ts_: str, thread_ts: str | None = None, 
 
 def write_slack_workspace(target: Path, url: str, users: list[dict], conversations: list[dict]):
     slack = target / "slack"
-    write_json(slack / "auth.test.json", {"ok": True, "url": url, "team": "Acme Test", "user_id": users[0]["id"]})
+    write_json(
+        slack / "auth.test.json",
+        {"ok": True, "url": url, "team": "Acme Test", "user_id": users[0]["id"]},
+    )
     write_json(slack / "users.list.json", {"ok": True, "members": users})
     write_json(
         slack / "conversations.list.json",
@@ -42,10 +45,14 @@ def slack_root(target: Path, generation: int = 0) -> Path:
     return target / "slack" / (f"gen-{generation}" if generation else "")
 
 
-def write_slack_history(target: Path, channel: str, messages: list[dict], generation: int = 0) -> None:
+def write_slack_history(
+    target: Path, channel: str, messages: list[dict], generation: int = 0
+) -> None:
     """Newest-first pages of at most PAGE_SIZE, chained by cursor like conversations.history."""
     newest_first = sorted(messages, key=lambda m: m["ts"], reverse=True)
-    chunks = [newest_first[i : i + PAGE_SIZE] for i in range(0, len(newest_first), PAGE_SIZE)] or [[]]
+    chunks = [newest_first[i : i + PAGE_SIZE] for i in range(0, len(newest_first), PAGE_SIZE)] or [
+        []
+    ]
     for n, chunk in enumerate(chunks):
         more = n + 1 < len(chunks)
         write_json(
@@ -69,13 +76,20 @@ def write_slack_replies(
 
 
 def session_line(role: str, timestamp: str, content: list[dict] | str, **extra) -> dict:
-    return {"type": role, "timestamp": timestamp, "message": {"role": role, "content": content}, **extra}
+    return {
+        "type": role,
+        "timestamp": timestamp,
+        "message": {"role": role, "content": content},
+        **extra,
+    }
 
 
 def write_session(target: Path, project_dir: str, session_id: str, lines: list[dict]) -> None:
     path = target / "claude" / "projects" / project_dir / f"{session_id}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(l, ensure_ascii=False, sort_keys=True) + "\n" for l in lines))
+    path.write_text(
+        "".join(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n" for line in lines)
+    )
 
 
 def segment(start: float, end: float, text: str, rng) -> dict:
@@ -92,7 +106,8 @@ def segment(start: float, end: float, text: str, rng) -> dict:
 
 
 def write_recording(folder: Path, name: str, segments: list[dict], **sidecar) -> None:
-    """Extensionless placeholder `name` plus a sidecar `name.transcript.json` (extra keys, e.g. `detected_language`)."""
+    """Extensionless placeholder `name` plus a sidecar `name.transcript.json`
+    (extra keys, e.g. `detected_language`)."""
     folder.mkdir(parents=True, exist_ok=True)
     # The name is in the bytes so that distinct recordings have distinct file hashes.
     (folder / name).write_bytes(b"placeholder recording, not real media: " + name.encode() + b"\n")

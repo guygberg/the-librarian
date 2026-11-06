@@ -6,20 +6,35 @@ from typing import Any
 from librarian import store
 from librarian.link import review
 
-_FIELDS = ("id", "kind", "title", "body", "lifecycle", "basis", "commitment", "stated_deadline", "reasoning")
+_FIELDS = (
+    "id",
+    "kind",
+    "title",
+    "body",
+    "lifecycle",
+    "basis",
+    "commitment",
+    "stated_deadline",
+    "reasoning",
+)
 
 
 def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, Any] | None:
     row = conn.execute(
-        f"SELECT {', '.join(_FIELDS)}, parent_id, owner_person_id FROM records WHERE workspace = ? AND id = ?",
+        f"SELECT {', '.join(_FIELDS)}, parent_id, owner_person_id FROM records"
+        " WHERE workspace = ? AND id = ?",
         (workspace, record_id),
     ).fetchone()
     if row is None:
         return None
-    record: dict[str, Any] = {k: v for k, v in zip(_FIELDS, row, strict=False) if v not in (None, "")}
+    record: dict[str, Any] = {
+        k: v for k, v in zip(_FIELDS, row, strict=False) if v not in (None, "")
+    }
     parent_id, owner_id = row[-2:]
     if owner_id:
-        name, is_me = conn.execute("SELECT name, is_me FROM persons WHERE id = ?", (owner_id,)).fetchone()
+        name, is_me = conn.execute(
+            "SELECT name, is_me FROM persons WHERE id = ?", (owner_id,)
+        ).fetchone()
         record["owner"] = name
         if is_me:
             record["owner_is_me"] = True
@@ -32,7 +47,8 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
     links = [
         {"type": type_, "to_type": to_type, "to_id": to_id, "to": _label(conn, to_type, to_id)}
         for type_, to_type, to_id in conn.execute(
-            "SELECT type, to_type, to_id FROM links WHERE workspace = ? AND from_type = 'record' AND from_id = ?"
+            "SELECT type, to_type, to_id FROM links"
+            " WHERE workspace = ? AND from_type = 'record' AND from_id = ?"
             " ORDER BY id",
             (workspace, record_id),
         )
@@ -53,7 +69,8 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
             **({"gone_from_source": True} if store.evidence_is_gone(loc, gone) else {}),
         }
         for loc, quote, role, gloss in conn.execute(
-            "SELECT locator, quote, role, gloss FROM evidence WHERE workspace = ? AND record_id = ? ORDER BY id",
+            "SELECT locator, quote, role, gloss FROM evidence"
+            " WHERE workspace = ? AND record_id = ? ORDER BY id",
             (workspace, record_id),
         )
     ]
@@ -61,7 +78,9 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
 
 
 def _label(conn: sqlite3.Connection, to_type: str, to_id: int) -> str | None:
-    table, column = {"record": ("records", "title"), "person": ("persons", "name")}.get(to_type, (None, None))
+    table, column = {"record": ("records", "title"), "person": ("persons", "name")}.get(
+        to_type, (None, None)
+    )
     if table is None:
         return None
     row = conn.execute(f"SELECT {column} FROM {table} WHERE id = ?", (to_id,)).fetchone()

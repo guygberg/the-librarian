@@ -1,7 +1,8 @@
 import json
 
-from fixtures.scenarios import people_aliases as p
 from playwright.sync_api import expect
+
+from fixtures.scenarios import people_aliases as p
 from support.ui_stream import open_stream, row
 
 SHEET = "[data-part=source-sheet]"
@@ -21,13 +22,18 @@ def start(page, ui):
 
 
 def owner_of(ui):
-    return ui.sql("SELECT p.name FROM records r JOIN persons p ON p.id = r.owner_person_id WHERE r.title = 'By first person'")
+    return ui.sql(
+        "SELECT p.name FROM records r JOIN persons p ON p.id = r.owner_person_id"
+        " WHERE r.title = 'By first person'"
+    )
 
 
 def test_pick_a_person_from_the_line_sets_the_owner_and_clears_the_mark_after_reload(page, ui):
     ui = start(page, ui)
 
-    page.locator(f"{SHEET} [data-part=evidence-line] [data-part=speaker-pick]").select_option(label="Dana Cohen")
+    page.locator(f"{SHEET} [data-part=evidence-line] [data-part=speaker-pick]").select_option(
+        label="Dana Cohen"
+    )
 
     expect(row(page, "By first person").locator(MARK)).to_have_count(0)
     assert owner_of(ui) == [("Dana Cohen",)]

@@ -8,7 +8,9 @@ help = "Print extraction runs with their rejection counts and reasons (read-only
 
 
 def add_arguments(parser):
-    parser.add_argument("--json", action="store_true", help="full records, including the raw envelope")
+    parser.add_argument(
+        "--json", action="store_true", help="full records, including the raw envelope"
+    )
 
 
 def run(args, ctx):
@@ -24,7 +26,9 @@ def run(args, ctx):
         print(json.dumps(found, indent=2, ensure_ascii=False))
         return 0
     for r in found:
-        reasons = ", ".join(f"{n} {reason}" for reason, n in Counter(x["reason"] for x in r["rejected"]).items())
+        reasons = ", ".join(
+            f"{n} {reason}" for reason, n in Counter(x["reason"] for x in r["rejected"]).items()
+        )
         print(
             f"{r['id']}\t{r['unit_key']}\t{r['model']}\t{r['claude_code_version']}"
             f"\taccepted {r['accepted_records']}\trejected {len(r['rejected'])}"

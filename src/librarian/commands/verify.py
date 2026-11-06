@@ -1,8 +1,12 @@
 from librarian.query import core
 
-help = "Write the real-source check template to <data>/verification/<date>.md (counts and verdicts only)"
+help = (
+    "Write the real-source check template to <data>/verification/<date>.md "
+    "(counts and verdicts only)"
+)
 
-# One line per criterion of the spec's Real-source check. Fill in numbers and right/wrong/unsupported only:
+# One line per criterion of the spec's Real-source check.
+# Fill in numbers and right/wrong/unsupported only:
 # the file is meant to be shared, so it must never hold source text.
 TEMPLATE = """\
 # Real-source check, {date}

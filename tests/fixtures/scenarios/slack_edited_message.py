@@ -9,7 +9,9 @@ NOW = 1_700_000_000
 DAY = 86_400
 URL = "https://acme-test.slack.com/"
 USERS = [{"id": "U001", "name": "dana", "real_name": "Dana Levi"}]
-CONVERSATIONS = [{"id": "C001", "name": "atlas-dev", "is_channel": True, "is_private": False, "num_members": 12}]
+CONVERSATIONS = [
+    {"id": "C001", "name": "atlas-dev", "is_channel": True, "is_private": False, "num_members": 12}
+]
 
 
 def messages(edited: bool = False):

@@ -25,6 +25,8 @@ class FakeTranscriber:
         return self._sidecar(file).get("detected_language", "en")
 
     def transcribe(self, file: Path, model: str, language: str) -> list[Segment]:
-        self._log.record("transcriber", "transcribe", file=str(file), model=model, language=language)
+        self._log.record(
+            "transcriber", "transcribe", file=str(file), model=model, language=language
+        )
         segments = self._sidecar(file)["segments"]
         return [Segment(**{**s, "tokens": [Token(**t) for t in s["tokens"]]}) for s in segments]

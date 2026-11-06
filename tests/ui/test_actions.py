@@ -32,7 +32,8 @@ def test_mark_done_updates_the_counts_and_the_item_appears_under_done_with_histo
     assert after["headline"]["needs_you"] == before["headline"]["needs_you"] - 1
     expect(page.locator("[data-part=headline]")).to_have_text(after["headline"]["text"])
     expect(page.locator(".barl")).to_have_text(
-        f"{after['progress']['done_this_week']} of {after['progress']['total']} items finished this week"
+        f"{after['progress']['done_this_week']} of {after['progress']['total']}"
+        " items finished this week"
     )
     expect(page.locator("[data-part=headline]")).to_have_class("settle")
     expect(page.locator("[data-part=lifecycle]")).to_contain_text("Done")
@@ -66,7 +67,10 @@ def test_reopen_owner_and_project_show_in_history_and_survive_reload_and_import(
         expect(current.locator("[data-part=lifecycle]")).to_have_text("Open")
         [view] = [r for r in ui.answer("open-items")["records"] if r["id"] == item]
         assert (view["owner"], [p["id"] for p in view["projects"]]) == ("Raz Peretz", [project])
-        events = [e.strip() for e in current.locator("[data-part=event] span:first-child").all_text_contents()]
+        events = [
+            e.strip()
+            for e in current.locator("[data-part=event] span:first-child").all_text_contents()
+        ]
         assert events[-4:] == ["status change", "status change", "owner change", "project move"]
 
     check()
@@ -81,7 +85,10 @@ def test_reopen_owner_and_project_show_in_history_and_survive_reload_and_import(
 @pytest.mark.parametrize("outcome", ["holds", "both_wrong"])
 def test_resolving_the_date_disagreement(page, ui, outcome):
     ui = ui("payments-cutover", payments.NOW)
-    nov_18, nov_25 = (ui.sql("SELECT id FROM records WHERE title = ?", t)[0][0] for t in (payments.NOV_18, payments.NOV_25))
+    nov_18, nov_25 = (
+        ui.sql("SELECT id FROM records WHERE title = ?", t)[0][0]
+        for t in (payments.NOV_18, payments.NOV_25)
+    )
     panel = panel_of(page, ui, nov_18)
     expect(panel.locator("[data-part=disagreement]")).to_be_visible()
 
@@ -91,15 +98,22 @@ def test_resolving_the_date_disagreement(page, ui, outcome):
         panel.locator("[data-part=act-both-wrong]").click()
 
     expect(page.locator("[data-part=disagreement]")).to_have_count(0)
-    expect(page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]"))).to_have_class("it settle")
+    expect(
+        page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]"))
+    ).to_have_class("it settle")
     expect(page.locator("[data-part=warning]", has_text="Sources disagree")).to_have_count(0)
 
-    for record_id, expected in ((nov_18, "Open" if outcome == "holds" else "Dropped"), (nov_25, "Superseded" if outcome == "holds" else "Dropped")):
+    for record_id, expected in (
+        (nov_18, "Open" if outcome == "holds" else "Dropped"),
+        (nov_25, "Superseded" if outcome == "holds" else "Dropped"),
+    ):
         page.goto(f"{ui.url}/items/{record_id}")
         expect(page.locator("[data-part=lifecycle]")).to_contain_text(expected)
 
     page.goto(f"{ui.url}/items/{nov_18}")
     expect(page.locator("[data-part=disagreement]")).to_have_count(0)
-    assert any("resolve disagreement" in t for t in page.locator("[data-part=event]").all_text_contents())
+    assert any(
+        "resolve disagreement" in t for t in page.locator("[data-part=event]").all_text_contents()
+    )
     changed = [c["record_id"] for c in ui.answer("changes")["changes"]]
     assert nov_18 in changed and nov_25 in changed

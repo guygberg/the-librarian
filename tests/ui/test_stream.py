@@ -20,9 +20,15 @@ def test_header_groups_and_other_open_expands_in_place(page, ui):
     open_stream(page, ui)
     assert page.locator("[data-part=date-line]").text_content() == "Tue 14 Nov · work"
     assert page.locator("[data-part=headline]").text_content() == answer["headline"]["text"]
-    assert answer["headline"] == {"needs_you": 2, "waiting": 1, "text": "2 things need you, 1 waiting on someone else"}
+    assert answer["headline"] == {
+        "needs_you": 2,
+        "waiting": 1,
+        "text": "2 things need you, 1 waiting on someone else",
+    }
     progress = answer["progress"]
-    expect(page.locator(".barl")).to_have_text(f"{progress['done_this_week']} of {progress['total']} items finished this week")
+    expect(page.locator(".barl")).to_have_text(
+        f"{progress['done_this_week']} of {progress['total']} items finished this week"
+    )
 
     headings = [t.strip() for t in page.locator("[data-part=group]").all_text_contents()]
     assert headings == ["Needs attention", "Waiting on others", "Other open"]
@@ -41,38 +47,76 @@ def test_basis_markers_and_warnings(page, ui):
     ui.sql("UPDATE persons SET is_me = 1 WHERE name = 'Dana Levi'")
     ui.sql("UPDATE records SET basis = 'confirmed' WHERE title = ?", hebrew.SIGNUP)
     ui.sql("UPDATE records SET basis = 'inferred' WHERE title = ?", hebrew.LEGAL)
-    signup, legal = (ui.sql("SELECT id FROM records WHERE title = ?", t)[0][0] for t in (hebrew.SIGNUP, hebrew.LEGAL))
-    # The signup item's other Evidence is the doubtful "Thursday" segment.
-    [(file_id,)] = ui.sql("SELECT substr(locator, 7, instr(locator, '/') - 7) FROM evidence WHERE record_id = ?", signup)
-    ui.sql(
-        "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
-        " SELECT workspace, record_id, revision_id, ?, quote, role, retrieved_at FROM evidence WHERE record_id = ?",
-        f"drive:{file_id}/2", signup,
+    signup, legal = (
+        ui.sql("SELECT id FROM records WHERE title = ?", t)[0][0]
+        for t in (hebrew.SIGNUP, hebrew.LEGAL)
     )
-    ui.sql("INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
-           " VALUES ('work', 'contradicts', 'record', ?, 'record', ?, ?)", signup, legal, STAMP)
+    # The signup item's other Evidence is the doubtful "Thursday" segment.
+    [(file_id,)] = ui.sql(
+        "SELECT substr(locator, 7, instr(locator, '/') - 7) FROM evidence WHERE record_id = ?",
+        signup,
+    )
+    ui.sql(
+        "INSERT INTO evidence"
+        " (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
+        " SELECT workspace, record_id, revision_id, ?, quote, role, retrieved_at"
+        " FROM evidence WHERE record_id = ?",
+        f"drive:{file_id}/2",
+        signup,
+    )
+    ui.sql(
+        "INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
+        " VALUES ('work', 'contradicts', 'record', ?, 'record', ?, ?)",
+        signup,
+        legal,
+        STAMP,
+    )
     stranger = record(ui, "Call the landlord")
-    ui.sql("INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
-           " VALUES ('work', 'unknown_speaker', ?, 'owner', NULL, ?)", stranger, STAMP)
+    ui.sql(
+        "INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
+        " VALUES ('work', 'unknown_speaker', ?, 'owner', NULL, ?)",
+        stranger,
+        STAMP,
+    )
     pending = record(ui, "Book the venue", owner=person(ui, "Dana Levi", me=False))
-    ui.sql("INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
-           " VALUES ('work', 'unconfirmed_person', ?, 'owner', 'Dani', ?)", pending, STAMP)
+    ui.sql(
+        "INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
+        " VALUES ('work', 'unconfirmed_person', ?, 'owner', 'Dani', ?)",
+        pending,
+        STAMP,
+    )
 
     page.goto(ui.url)
     expect(page.locator("[data-part=headline]")).to_be_visible()
 
     signup_row = row(page, hebrew.SIGNUP)
     expect(signup_row.locator("[data-part=basis-confirmed]")).to_have_text("Confirmed")
-    assert signup_row.locator("[data-part=basis-confirmed]").evaluate("e => getComputedStyle(e).borderTopStyle") == "solid"
-    expect(signup_row.locator("[data-part=warning]")).to_have_text(["Sources disagree", "Transcription uncertain"])
+    assert (
+        signup_row.locator("[data-part=basis-confirmed]").evaluate(
+            "e => getComputedStyle(e).borderTopStyle"
+        )
+        == "solid"
+    )
+    expect(signup_row.locator("[data-part=warning]")).to_have_text(
+        ["Sources disagree", "Transcription uncertain"]
+    )
 
     legal_row = row(page, hebrew.LEGAL)
     expect(legal_row.locator("[data-part=basis-inferred]")).to_have_text("Inferred")
-    assert legal_row.locator("[data-part=basis-inferred]").evaluate("e => getComputedStyle(e).borderTopStyle") == "dashed"
-    expect(legal_row.locator("[data-part=warning]")).to_have_text(["Sources disagree", "Not mentioned since Oct 22"])
+    assert (
+        legal_row.locator("[data-part=basis-inferred]").evaluate(
+            "e => getComputedStyle(e).borderTopStyle"
+        )
+        == "dashed"
+    )
+    expect(legal_row.locator("[data-part=warning]")).to_have_text(
+        ["Sources disagree", "Not mentioned since Oct 22"]
+    )
     expect(legal_row).to_contain_text("No owner")
 
-    expect(row(page, "Call the landlord").locator("[data-part=warning]")).to_have_text(["unknown speaker"])
+    expect(row(page, "Call the landlord").locator("[data-part=warning]")).to_have_text(
+        ["unknown speaker"]
+    )
     unconfirmed = row(page, "Book the venue")
     expect(unconfirmed.locator("[data-part=warning]")).to_have_text(["unconfirmed person"])
     expect(unconfirmed).not_to_contain_text("Needs attention")

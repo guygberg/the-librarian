@@ -14,9 +14,17 @@ def media(tmp_path, home, monkeypatch):
     code, out = run_import(home, env)
     assert code == 0, out
     db = sqlite3.connect(next(home.rglob("*.db")))
-    file_id = db.execute("SELECT stable_id FROM source_items WHERE source = 'drive'").fetchone()[0].split("/")[0]
+    file_id = (
+        db.execute("SELECT stable_id FROM source_items WHERE source = 'drive'")
+        .fetchone()[0]
+        .split("/")[0]
+    )
     proc, served = spawn(home, "--port", "0", env=env)
-    yield served, f"/media/drive/{file_id}", (fixtures / "Meet Recordings" / hebrew.NAME).read_bytes()
+    yield (
+        served,
+        f"/media/drive/{file_id}",
+        (fixtures / "Meet Recordings" / hebrew.NAME).read_bytes(),
+    )
     proc.terminate()
     proc.wait(timeout=10)
     proc.stdout.close()
@@ -47,7 +55,9 @@ def test_range_request_answers_206_with_content_range(media):
 @pytest.mark.parametrize("bad", ["bytes=999999-", "bytes=9-3", "bytes=-", "items=0-5", "bytes=a-b"])
 def test_bad_range_answers_416(media, bad):
     served, path, data = media
-    resp, _ = served.request("GET", path, {"Cookie": f"librarian_token={served.token()}", "Range": bad})
+    resp, _ = served.request(
+        "GET", path, {"Cookie": f"librarian_token={served.token()}", "Range": bad}
+    )
     assert resp.status == 416
     assert resp.getheader("Content-Range") == f"bytes */{len(data)}"
 
@@ -56,4 +66,9 @@ def test_no_cookie_or_wrong_cookie_is_403_and_unknown_recording_404(media):
     served, path, _ = media
     assert served.request("GET", path)[0].status == 403
     assert served.request("GET", path, {"Cookie": "librarian_token=wrong"})[0].status == 403
-    assert served.request("GET", "/media/drive/nope", {"Cookie": f"librarian_token={served.token()}"})[0].status == 404
+    assert (
+        served.request("GET", "/media/drive/nope", {"Cookie": f"librarian_token={served.token()}"})[
+            0
+        ].status
+        == 404
+    )

@@ -14,8 +14,14 @@ OPEN = "SELECT count(*) FROM review_entries WHERE resolved_at IS NULL"
 
 def suggest(ui, title, raw_name, kind="unconfirmed_person"):
     rid = record(ui, title)
-    ui.sql("INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
-           " VALUES ('work', ?, ?, 'owner', ?, ?)", kind, rid, raw_name, STAMP)
+    ui.sql(
+        "INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, created_at)"
+        " VALUES ('work', ?, ?, 'owner', ?, ?)",
+        kind,
+        rid,
+        raw_name,
+        STAMP,
+    )
     return rid
 
 
@@ -56,7 +62,10 @@ def test_count_matches_rows_and_accept_and_reject_settle_the_suggestions(page, u
         dani_rows(page).first.locator("[data-part=review-reject]").click()
     expect(page.locator(ROW)).to_have_count(open_now - 2)
     assert ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'") == [(dani,)]
-    assert ui.sql("SELECT resolution FROM review_entries WHERE raw_name = 'Dani' ORDER BY id") == [("accepted",), ("rejected",)]
+    assert ui.sql("SELECT resolution FROM review_entries WHERE raw_name = 'Dani' ORDER BY id") == [
+        ("accepted",),
+        ("rejected",),
+    ]
 
     page.goto(ui.url)
     expect(row(page, "Send the invoice").locator(MARK)).to_have_count(0)
@@ -140,7 +149,9 @@ def test_split_moves_the_ticked_items_to_a_new_project(page, ui):
     tools.locator("[data-part=split-item] input").first.check()
     with page.expect_response("**/split"):
         tools.locator("[data-part=split-go]").click()
-    assert ui.sql("SELECT count(*) FROM records WHERE title = 'Rollout' AND kind = 'project'") == [(1,)]
+    assert ui.sql("SELECT count(*) FROM records WHERE title = 'Rollout' AND kind = 'project'") == [
+        (1,)
+    ]
 
 
 def test_an_expired_token_shows_an_error_and_changes_nothing(page, ui):
@@ -149,9 +160,16 @@ def test_an_expired_token_shows_an_error_and_changes_nothing(page, ui):
     suggest(ui, "Send the invoice", "Dani")
     [(open_now,)] = ui.sql(OPEN)
     page.goto(ui.url + "/review")
-    page.route("**/api/review/*/accept", lambda route: route.continue_(headers={**route.request.headers, "x-librarian-token": "stale"}))
+    page.route(
+        "**/api/review/*/accept",
+        lambda route: route.continue_(
+            headers={**route.request.headers, "x-librarian-token": "stale"}
+        ),
+    )
 
     dani_rows(page).locator("[data-part=review-accept-new]").click()
 
-    expect(dani_rows(page).locator("[data-part=review-error]")).to_have_text("This page has expired. Reload it.")
+    expect(dani_rows(page).locator("[data-part=review-error]")).to_have_text(
+        "This page has expired. Reload it."
+    )
     assert ui.sql(OPEN) == [(open_now,)]

@@ -1,4 +1,5 @@
-"""A recording Drive has not downloaded yet: its size is large but almost nothing is allocated on disk."""
+"""A recording Drive has not downloaded yet: its size is large but almost nothing is
+allocated on disk."""
 
 import os
 import random
@@ -15,4 +16,6 @@ def build(target):
     flat = target / "Meet Recordings"
     f.write_recording(flat, PARTIAL, [f.segment(0.0, 4.0, "Planning for the quokka launch.", rng)])
     os.truncate(flat / PARTIAL, DECLARED_SIZE)  # sparse: full size, one block allocated
-    f.write_recording(flat, LOCAL, [f.segment(0.0, 3.0, "Retro: the walrus deploy went well.", rng)])
+    f.write_recording(
+        flat, LOCAL, [f.segment(0.0, 3.0, "Retro: the walrus deploy went well.", rng)]
+    )

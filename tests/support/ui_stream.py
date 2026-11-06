@@ -1,4 +1,5 @@
-"""Helpers the stream UI tests share: seed People and Records straight into the Workspace, then open the page."""
+"""Helpers the stream UI tests share: seed People and Records straight into the Workspace,
+then open the page."""
 
 from datetime import datetime
 
@@ -9,15 +10,27 @@ STAMP = "2023-11-01T00:00:00+00:00"
 
 
 def person(ui, name, me=False):
-    ui.sql("INSERT INTO persons (workspace, name, is_me, created_at) VALUES ('work', ?, ?, ?)", name, int(me), STAMP)
+    ui.sql(
+        "INSERT INTO persons (workspace, name, is_me, created_at) VALUES ('work', ?, ?, ?)",
+        name,
+        int(me),
+        STAMP,
+    )
     return ui.sql("SELECT id FROM persons WHERE name = ?", name)[0][0]
 
 
 def record(ui, title, kind="action_item", lifecycle="open", basis="inferred", owner=None):
     ui.sql(
-        "INSERT INTO records (workspace, kind, title, lifecycle, basis, owner_person_id, created_at, updated_at)"
+        "INSERT INTO records"
+        " (workspace, kind, title, lifecycle, basis, owner_person_id, created_at, updated_at)"
         " VALUES ('work', ?, ?, ?, ?, ?, ?, ?)",
-        kind, title, lifecycle, basis, owner, STAMP, STAMP,
+        kind,
+        title,
+        lifecycle,
+        basis,
+        owner,
+        STAMP,
+        STAMP,
     )
     return ui.sql("SELECT id FROM records WHERE title = ?", title)[0][0]
 

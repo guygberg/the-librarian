@@ -27,6 +27,9 @@ def build(target):
     f.write_slack_workspace(target, URL, USERS, CONVERSATIONS)
     history, parent_ts = messages()
     f.write_slack_history(target, "C001", history)
-    replies = [f.slack_message("U001", f"reply {n}", f.ts(NOW - 5 * DAY + n + 1), parent_ts) for n in range(2)]
+    replies = [
+        f.slack_message("U001", f"reply {n}", f.ts(NOW - 5 * DAY + n + 1), parent_ts)
+        for n in range(2)
+    ]
     f.write_slack_replies(target, "C001", parent_ts, [history[-1], *replies])
     f.write_slack_history(target, "C002", [f.slack_message("U001", "not picked", f.ts(NOW - DAY))])

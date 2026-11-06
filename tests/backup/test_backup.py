@@ -4,11 +4,11 @@ import sqlite3
 import tarfile
 
 import pytest
-from support.cli import finish_tty, popen_librarian_tty, run_librarian
-from support.recordings import make_env, run_import
 
 from librarian import db
 from librarian.importer.lock import workspace_lock
+from support.cli import finish_tty, popen_librarian_tty, run_librarian
+from support.recordings import make_env, run_import
 
 
 @pytest.fixture
@@ -55,7 +55,9 @@ def test_round_trip_gives_identical_answers_and_archive_has_the_parts(imported, 
     assert answers(fresh)[0].strip()
 
 
-def test_restore_refuses_non_empty_folder_and_overwrite_needs_typed_confirmation(imported, tmp_path):
+def test_restore_refuses_non_empty_folder_and_overwrite_needs_typed_confirmation(
+    imported, tmp_path
+):
     home, _ = imported
     archive = backup_of(home, tmp_path / "out")
     before = tree(home)
@@ -90,7 +92,9 @@ def test_restore_refuses_archive_with_newer_migration_and_changes_nothing(import
     assert code == 1
 
 
-def test_backup_during_an_import_is_a_consistent_snapshot_and_restore_needs_terminal_and_lock(imported, tmp_path):
+def test_backup_during_an_import_is_a_consistent_snapshot_and_restore_needs_terminal_and_lock(
+    imported, tmp_path
+):
     home, _ = imported
     workspace_dir = home / "workspaces" / "work"
     archive = backup_of(home, tmp_path / "ok")

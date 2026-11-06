@@ -54,7 +54,10 @@ def test_replies_follow_cursors_to_the_end(login):
 
 
 def test_history_returns_one_page_and_api_errors_raise(login):
-    http = Stub(ok(messages=[], response_metadata={"next_cursor": "n"}), (200, {}, {"ok": False, "error": "not_in_channel"}))
+    http = Stub(
+        ok(messages=[], response_metadata={"next_cursor": "n"}),
+        (200, {}, {"ok": False, "error": "not_in_channel"}),
+    )
     client = SlackClient(login, http)
     assert client.history("C1")["response_metadata"]["next_cursor"] == "n"
     with pytest.raises(RuntimeError, match="not_in_channel"):
@@ -63,7 +66,14 @@ def test_history_returns_one_page_and_api_errors_raise(login):
 
 def test_client_can_only_read(login):
     public = {n for n in dir(SlackClient) if not n.startswith("_")}
-    assert public == {"auth_info", "list_users", "list_conversations", "history", "replies", "from_config"}
+    assert public == {
+        "auth_info",
+        "list_users",
+        "list_conversations",
+        "history",
+        "replies",
+        "from_config",
+    }
     assert all(m.split(".")[1] in {"test", "list", "history", "replies"} for m in READ_METHODS)
     with pytest.raises(ValueError, match="not a read method"):
         SlackClient(login, Stub())._call("chat.postMessage", channel="C1", text="x")
@@ -75,5 +85,10 @@ def test_missing_login_is_a_clear_error():
 
 
 def test_permalink_shapes():
-    assert permalink.build("https://a.slack.com/", "C1", "17.000100") == "https://a.slack.com/archives/C1/p17000100"
-    assert permalink.build("https://a.slack.com", "C1", "18.5", "17.1").endswith("p185?thread_ts=17.1&cid=C1")
+    assert (
+        permalink.build("https://a.slack.com/", "C1", "17.000100")
+        == "https://a.slack.com/archives/C1/p17000100"
+    )
+    assert permalink.build("https://a.slack.com", "C1", "18.5", "17.1").endswith(
+        "p185?thread_ts=17.1&cid=C1"
+    )

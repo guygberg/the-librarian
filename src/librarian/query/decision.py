@@ -13,12 +13,24 @@ def _matches(view: dict[str, Any], words: list[str]) -> bool:
     return all(word in text for word in words)
 
 
-def decision(conn: sqlite3.Connection, workspace: str, topic: str, at: datetime | None = None) -> dict[str, Any]:
+def decision(
+    conn: sqlite3.Connection, workspace: str, topic: str, at: datetime | None = None
+) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     words = topic.lower().split()
-    ids = [row[0] for row in conn.execute("SELECT id FROM records WHERE workspace = ? AND kind = 'decision' ORDER BY id", (workspace,))]
-    views = [v for v in (core.current_view(conn, workspace, rid, cfg, at) for rid in ids) if words and _matches(v, words)]
+    ids = [
+        row[0]
+        for row in conn.execute(
+            "SELECT id FROM records WHERE workspace = ? AND kind = 'decision' ORDER BY id",
+            (workspace,),
+        )
+    ]
+    views = [
+        v
+        for v in (core.current_view(conn, workspace, rid, cfg, at) for rid in ids)
+        if words and _matches(v, words)
+    ]
     views.sort(key=lambda v: v.get("last_evidence", ""), reverse=True)
     answer = envelope.build(
         conn,
@@ -27,9 +39,16 @@ def decision(conn: sqlite3.Connection, workspace: str, topic: str, at: datetime 
         views,
         at=at,
         decisions=[
-            {"record_id": v["id"], "title": v["title"], "reasoning": v.get("reasoning", "not found")} for v in views
+            {
+                "record_id": v["id"],
+                "title": v["title"],
+                "reasoning": v.get("reasoning", "not found"),
+            }
+            for v in views
         ],
     )
     if not views:
-        answer["warnings"].insert(0, {"code": "decision_not_found", "message": f"no decision matches {topic!r}"})
+        answer["warnings"].insert(
+            0, {"code": "decision_not_found", "message": f"no decision matches {topic!r}"}
+        )
     return answer

@@ -1,9 +1,10 @@
-"""Claude session fetch stage: each evidence line of a session `.jsonl` becomes a Source item in the store.
+"""Claude session fetch stage: each evidence line of a session `.jsonl` becomes a Source item
+in the store.
 
-Claude Code deletes old sessions, so the filtered text is copied into the store. What is dropped before storing:
-tool calls and results of `librarian` commands, and assistant text after the first `librarian` call of a
-session, so the Librarian's own answers never come back as evidence. Item id is `<session id>/<line number>`;
-the timestamp is part of the stored content.
+Claude Code deletes old sessions, so the filtered text is copied into the store. What is dropped
+before storing: tool calls and results of `librarian` commands, and assistant text after the
+first `librarian` call of a session, so the Librarian's own answers never come back as evidence.
+Item id is `<session id>/<line number>`; the timestamp is part of the stored content.
 """
 
 import json
@@ -26,7 +27,8 @@ def projects_dir() -> Path:
 
 
 def own_project_name() -> str:
-    """Claude names a project folder after its working directory, every non-alphanumeric character as '-'."""
+    """Claude names a project folder after its working directory, every non-alphanumeric
+    character as '-'."""
     return re.sub(r"[^A-Za-z0-9]", "-", str(Path(paths.__file__).resolve().parents[2]))
 
 
@@ -46,7 +48,11 @@ def _blocks(message: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _is_librarian_call(block: dict[str, Any]) -> bool:
     command = (block.get("input") or {}).get("command")
-    return block.get("name") == "Bash" and isinstance(command, str) and bool(_LIBRARIAN_COMMAND.search(command))
+    return (
+        block.get("name") == "Bash"
+        and isinstance(command, str)
+        and bool(_LIBRARIAN_COMMAND.search(command))
+    )
 
 
 class _Session:
@@ -57,7 +63,8 @@ class _Session:
         self.echo_started = False
 
     def evidence(self, line: dict[str, Any]) -> dict[str, Any] | None:
-        """The role, timestamp and text to store for a message line, or None when nothing survives the filter."""
+        """The role, timestamp and text to store for a message line, or None when nothing
+        survives the filter."""
         message = line.get("message")
         role = message.get("role") if isinstance(message, dict) else None
         if role not in ("user", "assistant"):
@@ -75,7 +82,9 @@ class _Session:
                     self.librarian_calls.add(block["id"])
                     self.echo_started = True
             elif kind == "tool_result":
-                if block.get("tool_use_id") not in self.librarian_calls and isinstance(block.get("content"), str):
+                if block.get("tool_use_id") not in self.librarian_calls and isinstance(
+                    block.get("content"), str
+                ):
                     texts.append(block["content"])
             elif kind == "text":
                 if not isinstance(block.get("text"), str):
@@ -87,7 +96,8 @@ class _Session:
 
 
 def _session_items(path: Path, project: str) -> Iterator[tuple[str, str | Exception]]:
-    """(item id, content) for each evidence line; an Exception stands for a line that fails on its own."""
+    """(item id, content) for each evidence line; an Exception stands for a line that fails on
+    its own."""
     session = _Session()
     for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         item = f"{path.stem}/{number}"
@@ -116,7 +126,10 @@ def stage(workspace: str) -> Stage:
         for folder in sorted(p for p in root.iterdir() if p.is_dir() and not _is_own(p.name)):
             for path in sorted(folder.glob("*.jsonl")):
                 for item, content in _session_items(path, folder.name):
-                    if isinstance(content, str) and store.latest_content(conn, workspace, SOURCE, item) == content:
+                    if (
+                        isinstance(content, str)
+                        and store.latest_content(conn, workspace, SOURCE, item) == content
+                    ):
                         continue
                     fetched[item] = (content, folder.name)
                     yield SOURCE, item
@@ -127,6 +140,8 @@ def stage(workspace: str) -> Stage:
         content, project = fetched.pop(item)
         if isinstance(content, Exception):
             raise content
-        store.upsert(conn, workspace, SOURCE, item, content, origin_name=project, origin_kind="session")
+        store.upsert(
+            conn, workspace, SOURCE, item, content, origin_name=project, origin_kind="session"
+        )
 
     return Stage("fetch", process, discover, "fetched")

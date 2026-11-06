@@ -1,4 +1,5 @@
 import pytest
+
 from fixtures.scenarios import projects_stable_ids as s
 from support.api import Api
 from support.recordings import make_env, run_import
@@ -27,7 +28,9 @@ def project(api, name):
     """(the project `librarian project` resolves `name` to, the titles of its Records)"""
     out = api.cli("project", name)
     resolved = out["resolved"]["project"]
-    return resolved and resolved["name"], {r["title"] for r in out["records"]} - {resolved and resolved["name"]}
+    return resolved and resolved["name"], {r["title"] for r in out["records"]} - {
+        resolved and resolved["name"]
+    }
 
 
 def inferred(api):
@@ -55,7 +58,9 @@ def test_rename_keeps_the_old_name_reaching_the_project(api):
 
 
 def test_rename_to_another_projects_name_is_refused(api):
-    status, body = api.post(f"/api/projects/{api.record(ATLAS)}/rename", {"name": "atlas  migrations"})
+    status, body = api.post(
+        f"/api/projects/{api.record(ATLAS)}/rename", {"name": "atlas  migrations"}
+    )
 
     assert status == 409 and "error" in body
     assert api.sql("SELECT title FROM records WHERE id = ?", api.record(ATLAS)) == [(ATLAS,)]
@@ -72,7 +77,11 @@ def test_merge_moves_records_and_names_and_settles_the_suggestion(api):
     assert project(api, ATLAS) == (ATLAS, {"Draft the plan", "Write the notes"})
     assert project(api, ATLASES)[0] == ATLAS  # the old name is an Alias of the survivor
     assert api.show(ATLASES)["lifecycle"] == "superseded"
-    assert not [r for r in api.review()["rows"] if atlases in (r["record"]["id"], (r.get("other") or {}).get("id"))]
+    assert not [
+        r
+        for r in api.review()["rows"]
+        if atlases in (r["record"]["id"], (r.get("other") or {}).get("id"))
+    ]
 
 
 def test_merge_persists_across_a_reimport_that_would_recreate_the_old_name(api):
@@ -80,7 +89,9 @@ def test_merge_persists_across_a_reimport_that_would_recreate_the_old_name(api):
 
     api.reimport()
 
-    assert api.sql("SELECT COUNT(*) FROM records WHERE kind = 'project' AND title IN (?, ?)", ATLAS, ATLASES) == [(2,)]
+    assert api.sql(
+        "SELECT COUNT(*) FROM records WHERE kind = 'project' AND title IN (?, ?)", ATLAS, ATLASES
+    ) == [(2,)]
     assert api.show(ATLASES)["lifecycle"] == "superseded"
     assert project(api, ATLAS) == (ATLAS, {"Draft the plan", "Write the notes"})
     assert project(api, HELIOS)[1] == {"Book the venue"}  # an unrelated project is untouched
@@ -89,14 +100,18 @@ def test_merge_persists_across_a_reimport_that_would_recreate_the_old_name(api):
 def test_the_importer_never_merges_by_itself(api):
     api.reimport()
 
-    assert api.sql("SELECT COUNT(*) FROM records WHERE kind = 'project' AND lifecycle = 'superseded'") == [(0,)]
+    assert api.sql(
+        "SELECT COUNT(*) FROM records WHERE kind = 'project' AND lifecycle = 'superseded'"
+    ) == [(0,)]
     assert api.events("merge") == []
 
 
 def test_split_gives_chosen_records_to_a_new_project(api):
     atlas, plan = api.record(ATLAS), api.record("Draft the plan")
 
-    status, view = api.post(f"/api/projects/{atlas}/split", {"name": "Atlas Planning", "record_ids": [plan]})
+    status, view = api.post(
+        f"/api/projects/{atlas}/split", {"name": "Atlas Planning", "record_ids": [plan]}
+    )
 
     assert (status, view["title"]) == (200, "Atlas Planning")
     assert project(api, "Atlas Planning") == ("Atlas Planning", {"Draft the plan"})
@@ -131,15 +146,35 @@ def test_a_moved_record_stays_moved_after_a_reimport(api):
     ],
 )
 def test_invalid_operations_are_refused_and_write_nothing(api, path, body, status):
-    atlas, plan, notes = api.record(ATLAS), api.record("Draft the plan"), api.record("Write the notes")
+    atlas, plan, notes = (
+        api.record(ATLAS),
+        api.record("Draft the plan"),
+        api.record("Write the notes"),
+    )
     names = {"self": atlas, "plan": plan, "other": [notes], "own": [plan]}
     body = {k: names.get(v, v) if isinstance(v, str) else v for k, v in body.items()}
-    before = [api.sql(q) for q in ("SELECT * FROM records", "SELECT * FROM links", "SELECT * FROM record_events", "SELECT * FROM project_aliases")]
+    before = [
+        api.sql(q)
+        for q in (
+            "SELECT * FROM records",
+            "SELECT * FROM links",
+            "SELECT * FROM record_events",
+            "SELECT * FROM project_aliases",
+        )
+    ]
 
     got, answer = api.post(f"/api/projects/{atlas}/{path}", body)
 
     assert got == status and "error" in answer
-    assert before == [api.sql(q) for q in ("SELECT * FROM records", "SELECT * FROM links", "SELECT * FROM record_events", "SELECT * FROM project_aliases")]
+    assert before == [
+        api.sql(q)
+        for q in (
+            "SELECT * FROM records",
+            "SELECT * FROM links",
+            "SELECT * FROM record_events",
+            "SELECT * FROM project_aliases",
+        )
+    ]
 
 
 def test_an_unknown_project_is_a_404(api):

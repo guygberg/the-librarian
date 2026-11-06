@@ -13,7 +13,10 @@ class CallLog:
     def record(self, engine: str, method: str, **args) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a") as f:
-            f.write(json.dumps({"engine": engine, "method": method, "args": args}, sort_keys=True) + "\n")
+            f.write(
+                json.dumps({"engine": engine, "method": method, "args": args}, sort_keys=True)
+                + "\n"
+            )
 
     def read(self) -> list[dict]:
         if not self.path.exists():

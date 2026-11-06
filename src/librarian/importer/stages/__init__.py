@@ -1,4 +1,5 @@
-"""Stage registry. Later tickets replace the placeholders; tests point LIBRARIAN_STAGES at a module with STAGES."""
+"""Stage registry. Later tickets replace the placeholders; tests point LIBRARIAN_STAGES at a
+module with STAGES."""
 
 import importlib
 import os

@@ -4,9 +4,9 @@ import threading
 from pathlib import Path
 
 import pytest
-from support.cli import run_librarian
 
 from librarian import db
+from support.cli import run_librarian
 
 MIGRATIONS = Path(db.__file__).parent / "migrations"
 
@@ -38,7 +38,9 @@ def test_migrate_creates_db_idempotently_and_status_is_read_only(home):
     again = run_librarian(["migrate"], home)
     assert first.returncode == again.returncode == 0
     assert first.stdout.strip() == again.stdout.strip() == f"version {count}"
-    assert run_librarian(["migrate", "--status"], home).stdout.strip() == f"version {count}, 0 pending"
+    assert (
+        run_librarian(["migrate", "--status"], home).stdout.strip() == f"version {count}, 0 pending"
+    )
     assert not list((home / "workspaces" / "work").glob("backups/*"))
 
 
@@ -49,7 +51,9 @@ def test_core_tables_exist(lib_home):
         "source_items", "source_item_revisions", "records", "links", "evidence",
         "persons", "aliases", "person_events",
     } <= tables  # fmt: skip
-    for table in tables - {t for t in tables if t.startswith("source_search_")}:  # FTS5 shadow tables
+    for table in tables - {
+        t for t in tables if t.startswith("source_search_")
+    }:  # FTS5 shadow tables
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         assert "workspace" in cols, table
 

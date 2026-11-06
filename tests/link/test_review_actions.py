@@ -33,7 +33,11 @@ def test_review_rows_carry_both_sides_evidence_and_the_raw_name_and_the_count_ma
     data = api.review()
     assert data["count"] == len(data["rows"]) == 3
     row = api.row(COLLIDING)
-    assert (row["kind"], row["mark"], row["raw_name"]) == ("unconfirmed_person", "unconfirmed person", "Dana Cohen")
+    assert (row["kind"], row["mark"], row["raw_name"]) == (
+        "unconfirmed_person",
+        "unconfirmed person",
+        "Dana Cohen",
+    )
     assert row["record"]["evidence"]
     assert sorted(c["name"] for c in row["candidates"]) == ["Dana Cohen", "dana  cohen"]
     assert api.row(NEAR)["candidates"] == []
@@ -74,13 +78,16 @@ def test_rejecting_sticks_through_the_next_import(api):
     conn = api.conn()
     with conn:
         review.add(conn, "work", review.UNCONFIRMED_PERSON, api.record(NEAR), "owner", "Dana Cohn")
-    assert [r["record"]["title"] for r in api.review()["rows"] if r["raw_name"] == "Dana Cohn"] == []
+    assert [
+        r["record"]["title"] for r in api.review()["rows"] if r["raw_name"] == "Dana Cohn"
+    ] == []
 
 
 def test_move_alias_reowns_the_record_logs_a_person_event_and_survives_import(api):
     record, old, new = api.record("By id"), api.person("Dana Cohen"), api.person("dana  cohen")
     status, view = api.post(
-        "/api/aliases/move", {"alias": "Dana Cohen", "from_person_id": old, "to_person_id": new, "record_id": record}
+        "/api/aliases/move",
+        {"alias": "Dana Cohen", "from_person_id": old, "to_person_id": new, "record_id": record},
     )
     assert (status, view["owner"]) == (200, "dana  cohen")
     api.reimport()
@@ -92,13 +99,16 @@ def test_move_alias_reowns_the_record_logs_a_person_event_and_survives_import(ap
 def test_split_alias_moves_it_to_a_new_person_and_survives_import(api):
     record, old = api.record("By id"), api.person("Dana Cohen")
     status, view = api.post(
-        "/api/aliases/split", {"alias": "dcohen", "from_person_id": old, "record_id": record, "name": "D. Cohen"}
+        "/api/aliases/split",
+        {"alias": "dcohen", "from_person_id": old, "record_id": record, "name": "D. Cohen"},
     )
     assert (status, view["owner"]) == (200, "D. Cohen")
     api.reimport()
     assert api.show("By id")["owner"] == "D. Cohen"
     assert api.events("split") == ["split"]
-    assert api.sql("SELECT person_id FROM aliases WHERE alias = 'dcohen'") == [(api.person("D. Cohen"),)]
+    assert api.sql("SELECT person_id FROM aliases WHERE alias = 'dcohen'") == [
+        (api.person("D. Cohen"),)
+    ]
 
 
 def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(api):

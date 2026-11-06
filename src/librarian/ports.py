@@ -46,7 +46,10 @@ class Transcriber(Protocol):
 
 class Extractor(Protocol):
     def extract(self, unit_key: str, unit_text: str, candidates: list[dict[str, Any]]) -> str:
-        """Schema-valid JSON text. Validation is the caller's job: this returns whatever the engine said."""
+        """Schema-valid JSON text.
+
+        Validation is the caller's job: this returns whatever the engine said.
+        """
         ...
 
 

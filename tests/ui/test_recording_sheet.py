@@ -10,12 +10,19 @@ THURSDAY_SEGMENT = 2  # after the intro line; starts at UNCERTAIN_START
 
 def open_thursday(page, ui):
     """Point the signup item's Evidence at the doubtful-word segment and open its source sheet."""
-    [(file_id,)] = ui.sql("SELECT substr(stable_id, 1, instr(stable_id, '/') - 1) FROM source_items WHERE source = 'drive' LIMIT 1")
+    [(file_id,)] = ui.sql(
+        "SELECT substr(stable_id, 1, instr(stable_id, '/') - 1) FROM source_items"
+        " WHERE source = 'drive' LIMIT 1"
+    )
     ui.sql(
         "UPDATE evidence SET locator = ?, quote = ?, gloss = 'Meet on Thursday morning',"
-        " revision_id = (SELECT r.id FROM source_item_revisions r JOIN source_items i ON i.id = r.source_item_id WHERE i.stable_id = ?)"
+        " revision_id = (SELECT r.id FROM source_item_revisions r"
+        " JOIN source_items i ON i.id = r.source_item_id WHERE i.stable_id = ?)"
         " WHERE locator = ?",
-        f"drive:{file_id}/{THURSDAY_SEGMENT}", spoken.UNCERTAIN_TEXT, f"{file_id}/{THURSDAY_SEGMENT}", f"drive:{file_id}/1",
+        f"drive:{file_id}/{THURSDAY_SEGMENT}",
+        spoken.UNCERTAIN_TEXT,
+        f"{file_id}/{THURSDAY_SEGMENT}",
+        f"drive:{file_id}/1",
     )
     open_stream(page, ui)
     row(page, hebrew.SIGNUP).locator(".t a").click()
@@ -30,7 +37,10 @@ def test_recording_evidence_opens_a_player_at_the_segment_start(page, ui):
 
     player = page.locator(f"{SHEET} [data-part=player]")
     expect(player).to_have_attribute("src", f"/media/drive/{file_id}")
-    assert page.evaluate("document.querySelector('[data-part=player]').currentTime") == hebrew.UNCERTAIN_START
+    assert (
+        page.evaluate("document.querySelector('[data-part=player]').currentTime")
+        == hebrew.UNCERTAIN_START
+    )
     # the cookie set by the page shell is what lets the media request through
     assert page.request.get(f"{ui.url}/media/drive/{file_id}").status == 200
 

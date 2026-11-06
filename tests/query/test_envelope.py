@@ -3,6 +3,7 @@ import sqlite3
 import time
 
 import pytest
+
 from fixtures.scenarios import payments_cutover as payments
 from support.cli import run_librarian
 from support.jsonschema_lite import errors
@@ -38,15 +39,18 @@ ENVELOPE = {
 
 @pytest.fixture
 def world(tmp_path, home, monkeypatch):
-    """`world(config, asked_at)` imports payments-cutover once; the env to ask with is returned. The import runs at
-    the scenario's own time, since Slack history older than that is not fetched."""
+    """`world(config, asked_at)` imports payments-cutover once; the env to ask with is
+    returned. The import runs at the scenario's own time, since Slack history older than that
+    is not fetched."""
     monkeypatch.setenv("LIBRARIAN_HOME", str(home))
 
     def make(config="", asked_at=payments.NOW):
         env, _ = make_env(tmp_path, home, "payments-cutover", config)
         env["LIBRARIAN_NOW"] = str(payments.NOW)
         (home / "workspaces" / "work").mkdir(parents=True, exist_ok=True)
-        (home / "workspaces" / "work" / "channels.json").write_text(json.dumps({"picked": ["C001"]}))
+        (home / "workspaces" / "work" / "channels.json").write_text(
+            json.dumps({"picked": ["C001"]})
+        )
         code, out = run_import(home, env)
         assert code == 0, out
         return {**env, "LIBRARIAN_NOW": str(asked_at)}
@@ -85,12 +89,18 @@ def test_project_facts_each_carry_an_evidence_locator(world, home):
     answer = ask(home, env, "project", "payments")
     assert answer["resolved"]["project"] == {"id": payments.PROJECT_ID, "name": payments.PROJECT}
     assert answer["records"] and all(
-        any(e["record_id"] == r["id"] and e["locator"] and e["quote"] and e["role"] for e in answer["evidence"])
+        any(
+            e["record_id"] == r["id"] and e["locator"] and e["quote"] and e["role"]
+            for e in answer["evidence"]
+        )
         for r in answer["records"]
     )
     facts = answer["project"]
     assert facts["status"]["value"] == "open" and facts["status"]["evidence"]
-    assert facts["latest_decision"]["title"] == payments.NOV_25 and facts["latest_decision"]["evidence"]
+    assert (
+        facts["latest_decision"]["title"] == payments.NOV_25
+        and facts["latest_decision"]["evidence"]
+    )
     assert facts["main_blocker"]["title"] == payments.BLOCKER and facts["main_blocker"]["evidence"]
     assert [o["name"] for o in facts["owners"]] == ["Raz Peretz"] and facts["owners"][0]["evidence"]
     assert facts["deadlines"] == "not found"
@@ -108,9 +118,14 @@ def test_basis_stale_and_contradictions_are_in_the_json(world, home):
 def test_an_unknown_name_returns_no_candidates_and_a_clear_winner_is_named(world, home):
     env = world()
     nothing = ask(home, env, "project", "zzz")
-    assert nothing["resolved"] == {"project": None, "baseline": None} and nothing["candidates"] == []
+    assert (
+        nothing["resolved"] == {"project": None, "baseline": None} and nothing["candidates"] == []
+    )
     assert nothing["warnings"][0]["code"] == "project_not_found"
-    assert ask(home, env, "project", "Payments Migration")["resolved"]["project"]["id"] == payments.PROJECT_ID
+    assert (
+        ask(home, env, "project", "Payments Migration")["resolved"]["project"]["id"]
+        == payments.PROJECT_ID
+    )
 
 
 def test_two_close_projects_are_candidates_not_a_guess(world, home):
@@ -119,7 +134,8 @@ def test_two_close_projects_are_candidates_not_a_guess(world, home):
     with db:
         db.execute(
             "INSERT INTO records (workspace, kind, title, created_at, updated_at)"
-            " SELECT workspace, kind, 'Payments review', created_at, updated_at FROM records WHERE id = ?",
+            " SELECT workspace, kind, 'Payments review', created_at, updated_at"
+            " FROM records WHERE id = ?",
             (payments.PROJECT_ID,),
         )
     answer = ask(home, env, "project", "payments")
@@ -137,9 +153,14 @@ def test_a_never_imported_source_leads_the_answer(world, home):
 
 
 def test_an_overdue_import_leads_the_answer(world, home):
-    env = world('import_sources = ["slack"]\nsource_overdue_days = 7\n', asked_at=time.time() + 30 * 86_400)
+    env = world(
+        'import_sources = ["slack"]\nsource_overdue_days = 7\n', asked_at=time.time() + 30 * 86_400
+    )
     answer = ask(home, env, "open-items")
-    assert (answer["warnings"][0]["code"], answer["warnings"][0]["source"]) == ("source_overdue", "slack")
+    assert (answer["warnings"][0]["code"], answer["warnings"][0]["source"]) == (
+        "source_overdue",
+        "slack",
+    )
     assert answer["freshness"]["sources"]["slack"]["overdue"] is True
 
 

@@ -2,15 +2,21 @@ import argparse
 
 from librarian import doctor
 
-help = "Check every install piece (read-only) and print each missing one with its fix; exits 1 if any fail"
+help = (
+    "Check every install piece (read-only) and print each missing one with its fix; "
+    "exits 1 if any fail"
+)
 
 DESCRIPTION = f"""\
-Checks: Python, ffmpeg, whisper.cpp (at least {'.'.join(map(str, doctor.MIN_WHISPER_CPP))}, and `--vad` accepted),
-the Whisper and voice-activity models, the `claude` login, the no-training gate, the vendored Slack skill
-folder (config `slack_vendor_dir`, default <data>/vendor/slack) with one Slack read call, and the data folder.
+Checks: Python, ffmpeg, whisper.cpp
+(at least {".".join(map(str, doctor.MIN_WHISPER_CPP))}, and `--vad` accepted),
+the Whisper and voice-activity models, the `claude` login, the no-training gate,
+the vendored Slack skill folder (config `slack_vendor_dir`, default <data>/vendor/slack)
+with one Slack read call, and the data folder.
 
-Models are never downloaded: copy them in by hand. Each model's name, URL and expected SHA-256 are in
-models.manifest.json in the repo; an empty hash is reported as a failure until you run `shasum -a 256` and record it.
+Models are never downloaded: copy them in by hand. Each model's name, URL and
+expected SHA-256 are in models.manifest.json in the repo; an empty hash is reported
+as a failure until you run `shasum -a 256` and record it.
 """
 
 

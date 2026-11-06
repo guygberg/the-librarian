@@ -16,12 +16,19 @@ def centre_id(ui):
 
 
 def link(ui, kind, a, b):
-    ui.sql("INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
-           " VALUES ('work', ?, ?, ?, ?, ?, ?)", kind, *a, *b, STAMP)
+    ui.sql(
+        "INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
+        " VALUES ('work', ?, ?, ?, ?, ?, ?)",
+        kind,
+        *a,
+        *b,
+        STAMP,
+    )
 
 
 def graph_page(page, ui, query=""):
-    """The cutover Record, plus a Person it waits on, a related Record and one more Record two hops out."""
+    """The cutover Record, plus a Person it waits on, a related Record and one more Record two
+    hops out."""
     ui = ui("payments-cutover", payments.NOW)
     item = centre_id(ui)
     raz = person(ui, "Raz")
@@ -48,7 +55,9 @@ def test_opens_at_one_hop_centred_on_the_item(page, ui):
     expected = api_graph(page, item, 1)
     assert len(expected["nodes"]) > 1
     expect(nodes(page)).to_have_count(len(expected["nodes"]))
-    expect(page.locator("[data-part=graph-node].center")).to_have_attribute("data-id", f"record:{item}")
+    expect(page.locator("[data-part=graph-node].center")).to_have_attribute(
+        "data-id", f"record:{item}"
+    )
     expect(page.locator("[data-part=graph-node].center")).to_contain_text(payments.NOV_18[:20])
     expect(nodes(page, 2)).to_have_count(0)
     expect(page.locator("[data-part=hop] >> nth=0")).to_have_class("chip on")
@@ -78,7 +87,9 @@ def test_edge_kind_filter_hides_other_kinds(page, ui):
         page.locator(f"[data-part=kind][data-kind='{kind}']").click()
     shown = {e["kind"] for e in api_graph(page, item, 1, keep)["edges"]}
     assert shown == {keep}
-    expect(page.locator("[data-part=graph-edge]")).to_have_count(len(api_graph(page, item, 1, keep)["edges"]))
+    expect(page.locator("[data-part=graph-edge]")).to_have_count(
+        len(api_graph(page, item, 1, keep)["edges"])
+    )
     assert page.locator(f"[data-part=graph-edge]:not([data-kind='{keep}'])").count() == 0
     assert f"kinds={keep}" in page.url
     # Turning every other kind back on drops the parameter.

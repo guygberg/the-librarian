@@ -17,8 +17,16 @@ STUB = Path(__file__).parent / "stubs" / "claude"
 
 
 def envelope(**over):
-    return json.dumps({"type": "result", "subtype": "success", "is_error": False, "total_cost_usd": 0.01,
-                       "structured_output": {"records": []}, **over})
+    return json.dumps(
+        {
+            "type": "result",
+            "subtype": "success",
+            "is_error": False,
+            "total_cost_usd": 0.01,
+            "structured_output": {"records": []},
+            **over,
+        }
+    )
 
 
 @pytest.fixture
@@ -64,9 +72,16 @@ def test_every_required_flag_goes_out_with_the_unit_on_stdin_and_telemetry_off(s
     for lone in ("--strict-mcp-config", "--safe-mode", "--no-session-persistence"):
         assert lone in argv
     assert "--bare" not in argv
-    assert UNIT_TEXT not in argv and Path(str(argv_file).replace(".argv", ".stdin")).read_text() == UNIT_TEXT
+    assert (
+        UNIT_TEXT not in argv
+        and Path(str(argv_file).replace(".argv", ".stdin")).read_text() == UNIT_TEXT
+    )
     env = Path(str(argv_file).replace(".argv", ".env")).read_text().splitlines()
-    for line in ("DISABLE_TELEMETRY=1", "DISABLE_ERROR_REPORTING=1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"):
+    for line in (
+        "DISABLE_TELEMETRY=1",
+        "DISABLE_ERROR_REPORTING=1",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1",
+    ):
         assert line in env
 
 
@@ -80,25 +95,35 @@ def test_version_is_read_and_a_pin_that_does_not_match_fails(stub, monkeypatch):
 @pytest.mark.parametrize(
     ("answer", "stage", "needle"),
     [
-        (envelope(subtype="error_max_turns", is_error=True, result="ran out of turns"), "result", "error_max_turns"),
+        (
+            envelope(subtype="error_max_turns", is_error=True, result="ran out of turns"),
+            "result",
+            "error_max_turns",
+        ),
         (envelope(structured_output=None), "result", "structured_output"),
         ("Sorry, something broke", "envelope", "not JSON"),
     ],
 )
-def test_a_bad_envelope_fails_the_unit_with_stage_and_error_and_keeps_the_envelope(stub, home, monkeypatch, answer, stage, needle):
+def test_a_bad_envelope_fails_the_unit_with_stage_and_error_and_keeps_the_envelope(
+    stub, home, monkeypatch, answer, stage, needle
+):
     reply, _, _ = stub
     reply(answer)
     monkeypatch.setenv("LIBRARIAN_HOME", str(home))
     conn = db.connect_rw("work")
 
     with pytest.raises(ExtractionFailed) as err:
-        runs.extract_and_record(conn, "work", extractor(), extractor().meta, "u1", UNIT_TEXT, [], set())
+        runs.extract_and_record(
+            conn, "work", extractor(), extractor().meta, "u1", UNIT_TEXT, [], set()
+        )
 
     assert err.value.stage == stage and needle in err.value.error
     [run] = json.loads(run_librarian(["runs", "--json"], home).stdout)
     assert run["envelope"] == answer
     assert run["accepted_records"] == 0
-    assert run["rejected"][0]["piece"] == stage and run["rejected"][0]["reason"] == "extraction_failed"
+    assert (
+        run["rejected"][0]["piece"] == stage and run["rejected"][0]["reason"] == "extraction_failed"
+    )
     assert needle in run["rejected"][0]["detail"]
 
 
@@ -114,11 +139,15 @@ def test_an_accepted_unit_keeps_the_whole_envelope_not_just_the_output(stub, hom
 
 def test_overload_twice_then_success_gives_one_result_after_backing_off(stub, monkeypatch):
     reply, calls, _ = stub
-    overloaded = envelope(subtype="error_during_execution", is_error=True, result="API Error: 529 overloaded")
+    overloaded = envelope(
+        subtype="error_during_execution", is_error=True, result="API Error: 529 overloaded"
+    )
     reply(overloaded, overloaded, envelope())
     sleeps, real_sleep = [], claude_runner.time.sleep
 
-    def sleep(seconds):  # subprocess polling shares time.sleep; only the backoff waits are patched out
+    def sleep(
+        seconds,
+    ):  # subprocess polling shares time.sleep; only the backoff waits are patched out
         sleeps.append(seconds) if seconds >= 1 else real_sleep(seconds)
 
     monkeypatch.setattr(claude_runner.time, "sleep", sleep)
@@ -133,7 +162,9 @@ def test_overload_twice_then_success_gives_one_result_after_backing_off(stub, mo
 def test_overload_that_never_clears_fails_after_the_retry_limit(stub, monkeypatch):
     reply, calls, _ = stub
     reply(envelope(subtype="error_during_execution", is_error=True, result="rate limit reached"))
-    monkeypatch.setattr(claude_runner, "time", type("T", (), {"sleep": staticmethod(lambda s: None)}))
+    monkeypatch.setattr(
+        claude_runner, "time", type("T", (), {"sleep": staticmethod(lambda s: None)})
+    )
 
     with pytest.raises(ExtractionFailed, match="still failing after 3 tries"):
         extractor(claude_retries=2).extract("u1", UNIT_TEXT, [])
@@ -171,18 +202,31 @@ def test_real_engines_import_stores_records_like_the_fake_does(tmp_path, home, s
     reply, calls, _ = stub
     env, fixtures = make_env(tmp_path, home, "base", NOW)
     fake_run = {**env, "LIBRARIAN_ENGINES": "fake"}
-    assert run_import_with(home, fake_run, "--max-calls", "0") == 0  # fetch everything, extract nothing
-    with db.connect_rw("work") as conn:  # drop the picks so the real Slack client stays idle: no network
+    assert (
+        run_import_with(home, fake_run, "--max-calls", "0") == 0
+    )  # fetch everything, extract nothing
+    with db.connect_rw(
+        "work"
+    ) as conn:  # drop the picks so the real Slack client stays idle: no network
         conn.execute("DELETE FROM slack_picks")
     reply(envelope(structured_output=thread_result()))
-    canned(fixtures, THREAD_KEY, result=thread_result())  # unused by the real engine; proves it is not read
+    canned(
+        fixtures, THREAD_KEY, result=thread_result()
+    )  # unused by the real engine; proves it is not read
 
     code, out = run_import(home, {**env, "LIBRARIAN_ENGINES": "real"})
 
     assert code == 0, out
-    assert [show(home, i)["title"] for i in (1, 2, 3)] == ["Atlas", "SQLite with FTS5", "Draft the schema"]
+    assert [show(home, i)["title"] for i in (1, 2, 3)] == [
+        "Atlas",
+        "SQLite with FTS5",
+        "Draft the schema",
+    ]
     assert calls(), "the stub claude was never called"
-    assert any(r["envelope"] == envelope(structured_output=thread_result()) for r in json.loads(run_librarian(["runs", "--json"], home).stdout))
+    assert any(
+        r["envelope"] == envelope(structured_output=thread_result())
+        for r in json.loads(run_librarian(["runs", "--json"], home).stdout)
+    )
 
 
 def run_import_with(home, env, *args):
@@ -192,7 +236,9 @@ def run_import_with(home, env, *args):
     return code
 
 
-@pytest.mark.skipif(os.environ.get("LIBRARIAN_MAC_SMOKE") != "1", reason="real claude runs only on the work Mac")
+@pytest.mark.skipif(
+    os.environ.get("LIBRARIAN_MAC_SMOKE") != "1", reason="real claude runs only on the work Mac"
+)
 def test_mac_smoke_real_claude_returns_a_schema_valid_result():
     cfg = config.load()
     out = ClaudeExtractor(cfg).extract("smoke", "Dana: I will send the rollout plan by Friday.", [])

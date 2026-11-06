@@ -20,28 +20,104 @@ def test_good_result_is_accepted_whole():
 
 
 BAD_RECORDS = [
-    ("invented quote", with_record(1, evidence=[{"locator": "slack:C1/1.0", "quote": "I never said this", "role": "supports"}]), "records[1]", "quote_not_found", "no_evidence"),
-    ("locator not sent", with_record(1, evidence=[{"locator": "slack:C9/9.9", "quote": "send the rollout plan", "role": "supports"}]), "records[1]", "bad_locator", "no_evidence"),
-    ("locator malformed", with_record(1, evidence=[{"locator": "nonsense", "quote": "send the rollout plan", "role": "supports"}]), "records[1]", "bad_locator", "no_evidence"),
-    ("evidence role", with_record(1, evidence=[{"locator": "slack:C1/1.0", "quote": "send the rollout plan", "role": "proves"}]), "records[1]", "bad_enum", "no_evidence"),
+    (
+        "invented quote",
+        with_record(
+            1,
+            evidence=[
+                {"locator": "slack:C1/1.0", "quote": "I never said this", "role": "supports"}
+            ],
+        ),
+        "records[1]",
+        "quote_not_found",
+        "no_evidence",
+    ),
+    (
+        "locator not sent",
+        with_record(
+            1,
+            evidence=[
+                {"locator": "slack:C9/9.9", "quote": "send the rollout plan", "role": "supports"}
+            ],
+        ),
+        "records[1]",
+        "bad_locator",
+        "no_evidence",
+    ),
+    (
+        "locator malformed",
+        with_record(
+            1,
+            evidence=[
+                {"locator": "nonsense", "quote": "send the rollout plan", "role": "supports"}
+            ],
+        ),
+        "records[1]",
+        "bad_locator",
+        "no_evidence",
+    ),
+    (
+        "evidence role",
+        with_record(
+            1,
+            evidence=[
+                {"locator": "slack:C1/1.0", "quote": "send the rollout plan", "role": "proves"}
+            ],
+        ),
+        "records[1]",
+        "bad_enum",
+        "no_evidence",
+    ),
     ("no evidence", with_record(1, evidence=[]), "records[1]", "no_evidence", None),
-    ("id not sent", with_record(0, match={"decision": "same", "id": 99}), "records[0]", "unknown_id", None),
-    ("new with id", with_record(0, match={"decision": "new", "id": 7}), "records[0]", "unknown_id", None),
+    (
+        "id not sent",
+        with_record(0, match={"decision": "same", "id": 99}),
+        "records[0]",
+        "unknown_id",
+        None,
+    ),
+    (
+        "new with id",
+        with_record(0, match={"decision": "new", "id": 7}),
+        "records[0]",
+        "unknown_id",
+        None,
+    ),
     ("bad decision", with_record(0, match={"decision": "maybe"}), "records[0]", "bad_enum", None),
     ("bad kind", with_record(0, kind="epic"), "records[0]", "bad_enum", None),
     ("bad lifecycle", with_record(0, lifecycle="finished"), "records[0]", "bad_enum", None),
     ("bad basis", with_record(0, basis="guessed"), "records[0]", "bad_enum", None),
     ("bad commitment", with_record(1, commitment="vow"), "records[1]", "bad_enum", None),
     ("bad date", with_record(1, stated_deadline="next Friday"), "records[1]", "bad_date", None),
-    ("impossible date", with_record(1, stated_deadline="2026-02-30"), "records[1]", "bad_date", None),
+    (
+        "impossible date",
+        with_record(1, stated_deadline="2026-02-30"),
+        "records[1]",
+        "bad_date",
+        None,
+    ),
     ("bad owner", with_record(1, owner={"slack_user": "dana"}), "records[1]", "bad_shape", None),
-    ("action item without commitment", with_record(1, commitment=None), "records[1]", "bad_shape", None),
-    ("reasoning on a project", with_record(0, reasoning="because"), "records[0]", "bad_shape", None),
+    (
+        "action item without commitment",
+        with_record(1, commitment=None),
+        "records[1]",
+        "bad_shape",
+        None,
+    ),
+    (
+        "reasoning on a project",
+        with_record(0, reasoning="because"),
+        "records[0]",
+        "bad_shape",
+        None,
+    ),
     ("duplicate ref", with_record(1, ref="p1"), "records[1]", "duplicate_ref", None),
 ]
 
 
-@pytest.mark.parametrize(("name", "result", "piece", "reason", "followup"), BAD_RECORDS, ids=[b[0] for b in BAD_RECORDS])
+@pytest.mark.parametrize(
+    ("name", "result", "piece", "reason", "followup"), BAD_RECORDS, ids=[b[0] for b in BAD_RECORDS]
+)
 def test_bad_content_is_rejected_with_a_named_reason(name, result, piece, reason, followup):
     out = run(result)
     reasons = {(r.piece.split(".")[0], r.reason) for r in out.rejections}
@@ -62,7 +138,11 @@ def test_bad_evidence_item_drops_only_that_item():
 
 
 def test_quote_matches_after_whitespace_normalisation():
-    spaced = {"locator": "slack:C1/1.0", "quote": "I will   send the\nrollout plan", "role": "supports"}
+    spaced = {
+        "locator": "slack:C1/1.0",
+        "quote": "I will   send the\nrollout plan",
+        "role": "supports",
+    }
     assert run(with_record(1, evidence=[spaced])).rejections == []
 
 
@@ -92,9 +172,16 @@ def test_link_to_a_rejected_record_is_a_bad_end():
 def test_bad_parent_is_dropped():
     result = good()
     result["records"].append(
-        {"ref": "p2", "match": {"decision": "new"}, "kind": "project", "title": "Sub", "lifecycle": "open",
-         "basis": "inferred", "parent": {"ref": "nowhere"},
-         "evidence": [{"locator": "slack:C1/1.0", "quote": "rollout plan", "role": "supports"}]}
+        {
+            "ref": "p2",
+            "match": {"decision": "new"},
+            "kind": "project",
+            "title": "Sub",
+            "lifecycle": "open",
+            "basis": "inferred",
+            "parent": {"ref": "nowhere"},
+            "evidence": [{"locator": "slack:C1/1.0", "quote": "rollout plan", "role": "supports"}],
+        }
     )
     out = run(result)
     assert [(r.piece, r.reason) for r in out.rejections] == [("records[4].parent", "bad_link_end")]

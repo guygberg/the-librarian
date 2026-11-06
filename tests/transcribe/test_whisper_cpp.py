@@ -5,20 +5,21 @@ import socket
 from pathlib import Path
 
 import pytest
-from support.cli import run_librarian
-from support.recordings import make_env, run_import, search
 
 from librarian import config, transcribe
 from librarian.ports import Segment
 from librarian.transcribe import language
 from librarian.transcribe.whisper_cpp import EngineMissing, WhisperCppTranscriber
+from support.cli import run_librarian
+from support.recordings import make_env, run_import, search
 
 STUBS = Path(__file__).parent / "stubs"
 
 
 @pytest.fixture
 def rig(tmp_path, monkeypatch):
-    """Stub `ffmpeg` and `whisper-cli` on PATH, model files in place, and the config that points at them."""
+    """Stub `ffmpeg` and `whisper-cli` on PATH, model files in place, and the config that
+    points at them."""
     bin_dir, models = tmp_path / "bin", tmp_path / "models"
     bin_dir.mkdir()
     models.mkdir()
@@ -26,7 +27,11 @@ def rig(tmp_path, monkeypatch):
         shutil.copy(STUBS / name, bin_dir / name)
         (bin_dir / name).chmod(0o755)
     cfg = {}
-    for key, name in (("hebrew_model_path", "he.bin"), ("english_model_path", "en.bin"), ("vad_model_path", "vad.bin")):
+    for key, name in (
+        ("hebrew_model_path", "he.bin"),
+        ("english_model_path", "en.bin"),
+        ("vad_model_path", "vad.bin"),
+    ):
         (models / name).write_text("model")
         cfg[key] = str(models / name)
     log = tmp_path / "calls.log"
@@ -41,7 +46,15 @@ def rig(tmp_path, monkeypatch):
     audio.write_text("mp4")
 
     def calls(tool):
-        return [line.split("\t")[1:] for line in log.read_text().splitlines() if line.startswith(tool + "\t")] if log.exists() else []
+        return (
+            [
+                line.split("\t")[1:]
+                for line in log.read_text().splitlines()
+                if line.startswith(tool + "\t")
+            ]
+            if log.exists()
+            else []
+        )
 
     return cfg, env, audio, calls, models
 
@@ -71,10 +84,18 @@ def test_segments_carry_timestamps_metrics_and_real_tokens_only(rig):
     cfg, _, audio, _, _ = rig
     first, second = WhisperCppTranscriber(cfg).transcribe(audio, language.HEBREW_MODEL, "he")
     assert (first.start, first.end, first.text) == (0.0, 4.5, "we agreed on the schema decisions")
-    assert [t.text for t in first.tokens] == [" we", " agreed", " schema"]  # [_BEG_] / [_TT_] markers dropped
+    assert [t.text for t in first.tokens] == [
+        " we",
+        " agreed",
+        " schema",
+    ]  # [_BEG_] / [_TT_] markers dropped
     assert first.tokens[2].p == 0.2
-    assert -1.0 < first.avg_logprob < 0 and first.no_speech_prob == 0.0 and first.compression_ratio > 0
-    assert second.no_speech_prob == 0.7 and second.avg_logprob < -2.9  # ln(0.05): low-confidence input
+    assert (
+        -1.0 < first.avg_logprob < 0 and first.no_speech_prob == 0.0 and first.compression_ratio > 0
+    )
+    assert (
+        second.no_speech_prob == 0.7 and second.avg_logprob < -2.9
+    )  # ln(0.05): low-confidence input
     assert second.text == "תודה"
 
 
@@ -125,19 +146,27 @@ def test_no_network_use_and_no_download_helper(rig, monkeypatch):
 def test_real_engines_through_import_store_the_stubbed_transcript(rig, tmp_path):
     cfg, env, _, calls, _ = rig
     home = tmp_path / "home"
-    fake_env, _ = make_env(tmp_path, home, "base", "".join(f'{k} = "{v}"\n' for k, v in cfg.items()))
+    fake_env, _ = make_env(
+        tmp_path, home, "base", "".join(f'{k} = "{v}"\n' for k, v in cfg.items())
+    )
     run_env = {**env, "LIBRARIAN_ENGINES": "real", "STUB_DETECTED": "en"}
     code, out = run_import(home, run_env)
     # Only the extract stage fails: the real extractor engine is still a placeholder.
     assert code == 1 and "failed at extract" in out and "failed at transcribe" not in out, out
-    assert len(calls("whisper-cli")) == 6  # a detection and a transcription for each of the three recordings
+    assert (
+        len(calls("whisper-cli")) == 6
+    )  # a detection and a transcription for each of the three recordings
     [hit] = search(home, "schema decisions")[:1]
-    content = json.loads(json.loads(run_librarian(["show", hit["locator"]], home).stdout)["revisions"][0]["content"])
+    content = json.loads(
+        json.loads(run_librarian(["show", hit["locator"]], home).stdout)["revisions"][0]["content"]
+    )
     assert (content["start"], content["end"], content["segment"]) == (0.0, 4.5, 1)
     assert search(home, "תודה")
 
 
-@pytest.mark.skipif(os.environ.get("LIBRARIAN_MAC_SMOKE") != "1", reason="needs real whisper.cpp and ffmpeg")
+@pytest.mark.skipif(
+    os.environ.get("LIBRARIAN_MAC_SMOKE") != "1", reason="needs real whisper.cpp and ffmpeg"
+)
 def test_mac_smoke_real_engines_on_a_short_clip():
     clip = Path(os.environ["LIBRARIAN_SMOKE_CLIP"])
     engine = WhisperCppTranscriber(config.load())

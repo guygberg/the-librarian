@@ -5,7 +5,10 @@ from librarian.query import context, core, envelope
 from librarian.slack import permalink
 from librarian.transcribe import confidence
 
-help = "Print one Source item with all its revisions, or one Record by id, as JSON (read-only); the answer envelope sits beside its own fields"
+help = (
+    "Print one Source item with all its revisions, or one Record by id, as JSON (read-only); "
+    "the answer envelope sits beside its own fields"
+)
 
 
 def add_arguments(parser):
@@ -38,7 +41,11 @@ def run(args, ctx):
             return _error("not_found", f"no Record {record_id}")
         with conn:
             wrapped = envelope.build(conn, ctx.workspace, config.load(), [record])
-        print(json.dumps({**wrapped, **record, "evidence": wrapped["evidence"]}, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {**wrapped, **record, "evidence": wrapped["evidence"]}, indent=2, ensure_ascii=False
+            )
+        )
         return 0
     with conn:
         item = store.get_item(conn, ctx.workspace, loc.source, loc.stable_id)
@@ -47,12 +54,18 @@ def run(args, ctx):
     if loc.source == "slack":
         item["permalink"] = permalink.for_item(conn, ctx.workspace, loc.stable_id)
     if loc.source == "drive":
-        item.update(confidence.describe(json.loads(item["revisions"][-1]["content"]), config.load()))
+        item.update(
+            confidence.describe(json.loads(item["revisions"][-1]["content"]), config.load())
+        )
     if loc.part:
         item["part"] = loc.part
     with conn:
         wrapped = envelope.build(
-            conn, ctx.workspace, config.load(), [], context=context.context(conn, ctx.workspace, loc, config.load())
+            conn,
+            ctx.workspace,
+            config.load(),
+            [],
+            context=context.context(conn, ctx.workspace, loc, config.load()),
         )
     print(json.dumps({**wrapped, **item}, indent=2, ensure_ascii=False))
     return 0

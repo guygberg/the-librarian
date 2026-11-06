@@ -1,9 +1,9 @@
 """Candidates sent with a unit, so Claude can say same / updated / new and keep Record ids stable.
 
-Always the list of projects; plus the open Records (and those changed within the stale threshold) of the
-candidate projects: those already linked to earlier items of the same conversation, session or recording,
-and those whose name or Alias appears in the unit's text. The Records are capped so a busy project cannot
-fill the call.
+Always the list of projects; plus the open Records (and those changed within the stale threshold)
+of the candidate projects: those already linked to earlier items of the same conversation, session
+or recording, and those whose name or Alias appears in the unit's text. The Records are capped so
+a busy project cannot fill the call.
 """
 
 import sqlite3
@@ -18,13 +18,19 @@ RECORD_CAP = 60
 _OPEN = ("open", "pending", "suspended")
 
 
-def pick(conn: sqlite3.Connection, workspace: str, unit: Unit, stale_days: int) -> list[dict[str, Any]]:
+def pick(
+    conn: sqlite3.Connection, workspace: str, unit: Unit, stale_days: int
+) -> list[dict[str, Any]]:
     chosen = _same_conversation(conn, workspace, unit) | _named_in(conn, workspace, unit)
     return add_projects(conn, workspace, _project_list(conn, workspace), sorted(chosen), stale_days)
 
 
 def add_projects(
-    conn: sqlite3.Connection, workspace: str, candidates: list[dict[str, Any]], project_ids: list[int], stale_days: int
+    conn: sqlite3.Connection,
+    workspace: str,
+    candidates: list[dict[str, Any]],
+    project_ids: list[int],
+    stale_days: int,
 ) -> list[dict[str, Any]]:
     """`candidates` with the Records of these projects added, within what the cap leaves."""
     out = [{**c, "records_sent": True} if c["id"] in project_ids else c for c in candidates]
@@ -55,14 +61,16 @@ def _project_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, An
     return [
         {"id": record_id, "kind": "project", "title": title, "records_sent": False}
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project' AND lifecycle != 'superseded' ORDER BY id",
+            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project'"
+            " AND lifecycle != 'superseded' ORDER BY id",
             (workspace,),
         )
     ]
 
 
 def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> set[int]:
-    """Projects of Records that cite another item of the conversation, session or recording of this unit."""
+    """Projects of Records citing another item of the conversation, session or recording of this
+    unit."""
     prefixes = {loc.partition("/")[0] + "/" for loc in unit.locators}
     found: set[int] = set()
     for prefix in prefixes:
@@ -78,8 +86,8 @@ def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> 
                 found.update(
                     to_id
                     for (to_id,) in conn.execute(
-                        "SELECT to_id FROM links WHERE type = 'belongs_to' AND from_type = 'record' AND from_id = ?"
-                        " AND to_type = 'record'",
+                        "SELECT to_id FROM links WHERE type = 'belongs_to'"
+                        " AND from_type = 'record' AND from_id = ? AND to_type = 'record'",
                         (record_id,),
                     )
                 )
@@ -95,14 +103,24 @@ def _named_in(conn: sqlite3.Connection, workspace: str, unit: Unit) -> set[int]:
     }
 
 
-def _records_of(conn: sqlite3.Connection, workspace: str, project_id: int, stale_days: int) -> list[dict[str, Any]]:
+def _records_of(
+    conn: sqlite3.Connection, workspace: str, project_id: int, stale_days: int
+) -> list[dict[str, Any]]:
     cutoff = (datetime.now(UTC) - timedelta(days=stale_days)).isoformat()
     marks = ", ".join("?" for _ in _OPEN)
     return [
-        {"id": record_id, "kind": kind, "title": title, "lifecycle": lifecycle, "project": project_id}
+        {
+            "id": record_id,
+            "kind": kind,
+            "title": title,
+            "lifecycle": lifecycle,
+            "project": project_id,
+        }
         for record_id, kind, title, lifecycle in conn.execute(
-            "SELECT r.id, r.kind, r.title, r.lifecycle FROM records r JOIN links l ON l.from_type = 'record'"
-            " AND l.from_id = r.id AND l.type = 'belongs_to' AND l.to_type = 'record' AND l.to_id = ?"
+            "SELECT r.id, r.kind, r.title, r.lifecycle FROM records r"
+            " JOIN links l ON l.from_type = 'record'"
+            " AND l.from_id = r.id AND l.type = 'belongs_to' AND l.to_type = 'record'"
+            " AND l.to_id = ?"
             f" WHERE r.workspace = ? AND (r.lifecycle IN ({marks}) OR r.updated_at >= ?)"
             " ORDER BY r.updated_at DESC, r.id",
             (project_id, workspace, *_OPEN, cutoff),

@@ -44,7 +44,7 @@ def serve(home, monkeypatch):
 def pick(home, ids):
     ws = home / "workspaces" / "work"
     ws.mkdir(parents=True, exist_ok=True)
-    (ws / "channels.json").write_text('{"picked": %s}' % str(ids).replace("'", '"'))
+    (ws / "channels.json").write_text('{"picked": ' + str(ids).replace("'", '"') + "}")
 
 
 @pytest.fixture
@@ -63,10 +63,14 @@ def stub_env(tmp_path, home):
 
 
 def extraction_calls(home):
-    return len([c for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"])
+    return len(
+        [c for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"]
+    )
 
 
-def test_panel_lists_every_part_and_an_import_shows_the_counts_a_cli_import_prints(page, tmp_path, home, serve):
+def test_panel_lists_every_part_and_an_import_shows_the_counts_a_cli_import_prints(
+    page, tmp_path, home, serve
+):
     env, _ = make_env(tmp_path, home, "payments-cutover")
     pick(home, ["C001"])
     cli_home = tmp_path / "cli-home"
@@ -78,21 +82,35 @@ def test_panel_lists_every_part_and_an_import_shows_the_counts_a_cli_import_prin
 
     page.goto(served.url)
     page.locator(PART.format("open-import")).click()
-    for part in ("import-sources", "import-button", "dry-run-button", "slack-picker", "failed-items", "picked-note"):
+    for part in (
+        "import-sources",
+        "import-button",
+        "dry-run-button",
+        "slack-picker",
+        "failed-items",
+        "picked-note",
+    ):
         expect(page.locator(PART.format(part))).to_be_visible()
     expect(page.locator(PART.format("import-source"))).to_have_count(3)
     expect(page.locator(PART.format("picked-note"))).to_contain_text("Only picked conversations")
 
-    # No dry run first: it fetches and transcribes too, which would leave those counters at 0 for the Import.
+    # No dry run first: it fetches and transcribes too, which would leave those counters at 0
+    # for the Import.
     page.locator(PART.format("import-button")).click()
-    expect(page.locator(PART.format("import-progress"))).to_contain_text("Last import finished", timeout=60_000)
+    expect(page.locator(PART.format("import-progress"))).to_contain_text(
+        "Last import finished", timeout=60_000
+    )
     shown = page.locator(PART.format("import-counts")).all_inner_texts()
-    last = {m[1]: m[0] for m in COUNTS.finditer(out.replace("\r", ""))}  # the CLI reprints a line per update
+    last = {
+        m[1]: m[0] for m in COUNTS.finditer(out.replace("\r", ""))
+    }  # the CLI reprints a line per update
     assert sorted(shown) == sorted(last.values())
     assert extraction_calls(home) == extraction_calls(cli_home)
 
 
-def test_a_second_start_is_refused_with_the_running_progress_and_the_stream_still_loads(page, home, stub_env, serve):
+def test_a_second_start_is_refused_with_the_running_progress_and_the_stream_still_loads(
+    page, home, stub_env, serve
+):
     block = Path(stub_env["STUB_BLOCK"])
     block.touch()
     first = popen_librarian_tty(["import"], home, stub_env)
@@ -118,7 +136,9 @@ def test_a_second_start_is_refused_with_the_running_progress_and_the_stream_stil
         finish_tty(first)
 
 
-def test_a_failed_item_shows_stage_and_error_and_the_next_import_retries_only_it(page, home, stub_env, serve):
+def test_a_failed_item_shows_stage_and_error_and_the_next_import_retries_only_it(
+    page, home, stub_env, serve
+):
     served = serve({**stub_env, "STUB_FAIL": "transcribe:b"})
     page.goto(f"{served.url}/import")
     page.locator(PART.format("import-button")).click()
@@ -132,7 +152,10 @@ def test_a_failed_item_shows_stage_and_error_and_the_next_import_retries_only_it
     Path(stub_env["STUB_LOG"]).unlink()
     code, _ = run_import(home, stub_env)
     assert code == 0
-    assert sorted(set(Path(stub_env["STUB_LOG"]).read_text().split()) - {"transcribe", "normalise", "extract", "link"}) == ["b"]
+    assert sorted(
+        set(Path(stub_env["STUB_LOG"]).read_text().split())
+        - {"transcribe", "normalise", "extract", "link"}
+    ) == ["b"]
     page.reload()
     expect(page.locator(PART.format("failed-item"))).to_have_count(0)
 

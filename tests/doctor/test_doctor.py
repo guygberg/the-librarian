@@ -3,12 +3,16 @@ import json
 import socket
 
 import pytest
+
+from librarian import cli
 from support.cli import run_librarian
 from support.recordings import make_env
 
-from librarian import cli
-
-MODELS = {"ivrit-ggml-model.bin": b"hebrew", "ggml-large-v3-turbo.bin": b"english", "ggml-silero-vad.bin": b"vad"}
+MODELS = {
+    "ivrit-ggml-model.bin": b"hebrew",
+    "ggml-large-v3-turbo.bin": b"english",
+    "ggml-silero-vad.bin": b"vad",
+}
 
 
 def stub(path, body):
@@ -24,22 +28,47 @@ def machine(tmp_path):
     env, fixtures = make_env(tmp_path, home, "people_aliases")
     stub(bindir / "ffmpeg", "exit 0")
     stub(bindir / "claude", "exit 0")
-    stub(bindir / "whisper-cli", 'case "$1" in --version) echo "whisper-cli 1.7.6";; *) echo "usage: --vad";; esac')
+    stub(
+        bindir / "whisper-cli",
+        'case "$1" in --version) echo "whisper-cli 1.7.6";; *) echo "usage: --vad";; esac',
+    )
     models = home / "models"
     models.mkdir()
     for name, content in MODELS.items():
         (models / name).write_bytes(content)
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"models": [
-        {"name": n, "what": n, "config_key": k, "url": f"https://example.invalid/{n}", "sha256": hashlib.sha256(MODELS[n]).hexdigest()}
-        for n, k in (("ivrit-ggml-model.bin", "hebrew_model_path"), ("ggml-large-v3-turbo.bin", "english_model_path"),
-                     ("ggml-silero-vad.bin", "vad_model_path"))
-    ]}))
+    manifest.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {
+                        "name": n,
+                        "what": n,
+                        "config_key": k,
+                        "url": f"https://example.invalid/{n}",
+                        "sha256": hashlib.sha256(MODELS[n]).hexdigest(),
+                    }
+                    for n, k in (
+                        ("ivrit-ggml-model.bin", "hebrew_model_path"),
+                        ("ggml-large-v3-turbo.bin", "english_model_path"),
+                        ("ggml-silero-vad.bin", "vad_model_path"),
+                    )
+                ]
+            }
+        )
+    )
     vendor = home / "vendor" / "slack"
     vendor.mkdir(parents=True)
     with (home / "config.toml").open("a") as f:
         f.write(f'models_manifest_path = "{manifest}"\n')
-    return {"home": home, "bin": bindir, "env": {**env, "PATH": str(bindir)}, "vendor": vendor, "manifest": manifest, "fixtures": fixtures}
+    return {
+        "home": home,
+        "bin": bindir,
+        "env": {**env, "PATH": str(bindir)},
+        "vendor": vendor,
+        "manifest": manifest,
+        "fixtures": fixtures,
+    }
 
 
 def doctor(m):
@@ -99,7 +128,13 @@ def test_saved_login_read_call_failing(machine):
 
 def test_gate_unset(machine):
     config = machine["home"] / "config.toml"
-    config.write_text("".join(line for line in config.read_text().splitlines(keepends=True) if "account_type" not in line))
+    config.write_text(
+        "".join(
+            line
+            for line in config.read_text().splitlines(keepends=True)
+            if "account_type" not in line
+        )
+    )
     code, out = doctor(machine)
     assert code == 1
     assert "FAIL  no-training gate" in out and "librarian setup" in out
@@ -113,14 +148,20 @@ def test_claude_not_logged_in(machine):
 
 
 def test_whisper_too_old(machine):
-    stub(machine["bin"] / "whisper-cli", 'case "$1" in --version) echo "whisper-cli 1.7.0";; *) echo "usage: --vad";; esac')
+    stub(
+        machine["bin"] / "whisper-cli",
+        'case "$1" in --version) echo "whisper-cli 1.7.0";; *) echo "usage: --vad";; esac',
+    )
     code, out = doctor(machine)
     assert code == 1
     assert "FAIL  whisper.cpp version" in out and "1.7.0" in out
 
 
 def test_whisper_rejecting_vad(machine):
-    stub(machine["bin"] / "whisper-cli", 'case "$1" in --version) echo "whisper-cli 1.7.6";; *) echo "usage";; esac')
+    stub(
+        machine["bin"] / "whisper-cli",
+        'case "$1" in --version) echo "whisper-cli 1.7.6";; *) echo "usage";; esac',
+    )
     code, out = doctor(machine)
     assert code == 1
     assert "FAIL  whisper.cpp --vad" in out

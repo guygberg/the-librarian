@@ -16,7 +16,10 @@ class FakeSlack:
         return max(0, sum(c["method"] == "auth_info" for c in self._log.read()) - 1)
 
     def _load(self, *parts: str):
-        """Newest `gen-<n>/` copy of the file at or below the current generation, else the base copy."""
+        """Newest `gen-<n>/` copy of the file at or below the current generation.
+
+        Falls back to the base copy.
+        """
         for gen in range(self._generation(), 0, -1):
             path = self._root.joinpath(f"gen-{gen}", *parts)
             if path.exists():

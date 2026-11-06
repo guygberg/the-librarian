@@ -1,4 +1,7 @@
-"""The no-training gate: extraction sends work text to Claude, so it only runs on accounts whose terms exclude training."""
+"""The no-training gate.
+
+Extraction sends work text to Claude, so it only runs on accounts whose terms exclude training.
+"""
 
 from dataclasses import dataclass
 from typing import Any
@@ -17,7 +20,10 @@ class GateStatus:
 def training_gate_status(config: dict[str, Any]) -> GateStatus:
     account = config.get("account_type")
     confirmed = config.get("usage_rules_confirmed")
-    fix = "run `librarian setup` and give a Team or Enterprise account that your work usage rules allow"
+    fix = (
+        "run `librarian setup` and give a Team or Enterprise account "
+        "that your work usage rules allow"
+    )
     if not account or confirmed is None:
         return GateStatus(False, "work account type or usage-rules confirmation is not set", fix)
     if account not in ALLOWED_ACCOUNT_TYPES:

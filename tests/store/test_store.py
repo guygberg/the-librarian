@@ -2,9 +2,9 @@ import json
 import sqlite3
 
 import pytest
-from support.cli import run_librarian
 
 from librarian import db, store
+from support.cli import run_librarian
 
 
 @pytest.fixture
@@ -21,8 +21,12 @@ def show(home, locator):
 
 
 def test_changed_upsert_keeps_both_revisions_and_origin(conn, home):
-    assert store.upsert(conn, "work", "slack", "C1/1.0", "v1", origin_name="eng", origin_kind="channel")
-    assert store.upsert(conn, "work", "slack", "C1/1.0", "v2", origin_name="eng", origin_kind="channel")
+    assert store.upsert(
+        conn, "work", "slack", "C1/1.0", "v1", origin_name="eng", origin_kind="channel"
+    )
+    assert store.upsert(
+        conn, "work", "slack", "C1/1.0", "v2", origin_name="eng", origin_kind="channel"
+    )
     code, item = show(home, "slack:C1/1.0")
     assert code == 0
     assert [r["content"] for r in item["revisions"]] == ["v1", "v2"]
@@ -72,4 +76,7 @@ def test_show_errors_are_envelopes(conn, home):
 def test_show_on_old_schema_says_how_to_update(home):
     code, err = show(home, "slack:C1/1.0")
     assert code == 1 and err["error"]["code"] == "schema_outdated"
-    assert "librarian serve" in err["error"]["message"] and "librarian import" in err["error"]["message"]
+    assert (
+        "librarian serve" in err["error"]["message"]
+        and "librarian import" in err["error"]["message"]
+    )

@@ -53,7 +53,7 @@ def stub_env(tmp_path, home):
 def seed_picks(home, ids):
     ws = home / "workspaces" / "work"
     ws.mkdir(parents=True, exist_ok=True)
-    (ws / "channels.json").write_text('{"picked": %s}' % str(ids).replace("'", '"'))
+    (ws / "channels.json").write_text('{"picked": ' + str(ids).replace("'", '"') + "}")
 
 
 def wait_for(check, what):
@@ -67,7 +67,11 @@ def wait_for(check, what):
 
 def wait_done(api):
     return wait_for(
-        lambda: (p := api.call("GET", "/api/import")[1])["run"] and p["run"]["status"] == "finished" and p,
+        lambda: (
+            (p := api.call("GET", "/api/import")[1])["run"]
+            and p["run"]["status"] == "finished"
+            and p
+        ),
         "the import to finish",
     )
 
@@ -75,8 +79,10 @@ def wait_done(api):
 def cli_counts(out):
     last = {}
     for line in out.splitlines():
-        if m := re.match(r"(\w+): fetched (\d+), transcribed (\d+), extracted (\d+), failed (\d+)", line):
-            last[m[1]] = dict(zip(COUNTERS, map(int, m.groups()[1:])))
+        if m := re.match(
+            r"(\w+): fetched (\d+), transcribed (\d+), extracted (\d+), failed (\d+)", line
+        ):
+            last[m[1]] = dict(zip(COUNTERS, map(int, m.groups()[1:]), strict=True))
     return last
 
 
@@ -96,7 +102,9 @@ def test_started_import_shows_the_same_counts_as_the_cli(tmp_path, home, serve):
 
     assert done["run"]["status"] == "finished" and done["failed"] == []
     assert done["sources"] == cli_counts(out)
-    assert done["calls"] == len([c for c in CallLog(home2 / "workspaces" / "work").read() if c["engine"] == "extractor"])
+    assert done["calls"] == len(
+        [c for c in CallLog(home2 / "workspaces" / "work").read() if c["engine"] == "extractor"]
+    )
     assert set(done["freshness"]["sources"]) == {"slack", "drive", "session"}
     assert done["freshness"]["last_import_finished_at"]
 
@@ -107,10 +115,14 @@ def test_dry_run_returns_the_count_and_makes_no_extraction_call(tmp_path, home, 
     api = serve(env)
     status, body = api.post("/api/import/dry-run")
     assert status == 200 and body["calls"] > 0 and body["sent"] == 0
-    assert [c for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"] == []
+    assert [
+        c for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"
+    ] == []
 
 
-def test_second_start_refused_with_progress_reads_answer_and_kill_frees_the_lock(home, stub_env, serve):
+def test_second_start_refused_with_progress_reads_answer_and_kill_frees_the_lock(
+    home, stub_env, serve
+):
     block = Path(stub_env["STUB_BLOCK"])
     block.touch()
     first = popen_librarian_tty(["import"], home, stub_env)
@@ -128,25 +140,32 @@ def test_second_start_refused_with_progress_reads_answer_and_kill_frees_the_lock
     block.unlink()
 
     status, after_kill = api.call("GET", "/api/import")
-    assert status == 200 and not after_kill["running"] and after_kill["run"]["status"] == "interrupted"
+    assert (
+        status == 200 and not after_kill["running"] and after_kill["run"]["status"] == "interrupted"
+    )
     assert api.post("/api/import/start")[0] == 202
     done = wait_done(api)
     assert done["run"]["status"] == "finished" and done["sources"]["slack"]["fetched"] == 3
 
 
-def test_failed_item_shows_stage_and_error_and_the_next_import_retries_only_it(home, stub_env, serve):
+def test_failed_item_shows_stage_and_error_and_the_next_import_retries_only_it(
+    home, stub_env, serve
+):
     api = serve({**stub_env, "STUB_FAIL": "transcribe:b"})
     assert api.post("/api/import/start")[0] == 202
     done = wait_done(api)
-    assert done["failed"] == [{"source": "slack", "item": "b", "stage": "transcribe", "error": "RuntimeError: boom"}]
+    assert done["failed"] == [
+        {"source": "slack", "item": "b", "stage": "transcribe", "error": "RuntimeError: boom"}
+    ]
     assert done["sources"]["slack"]["failed"] == 1
 
     Path(stub_env["STUB_LOG"]).unlink()
     code, _ = run_import(home, stub_env)
     assert code == 0
-    assert sorted(set(Path(stub_env["STUB_LOG"]).read_text().split()) - {"transcribe", "normalise", "extract", "link"}) == [
-        "b"
-    ]
+    assert sorted(
+        set(Path(stub_env["STUB_LOG"]).read_text().split())
+        - {"transcribe", "normalise", "extract", "link"}
+    ) == ["b"]
     assert api.call("GET", "/api/import")[1]["failed"] == []
 
 
@@ -160,13 +179,17 @@ def test_pick_list_is_shared_with_the_cli_and_says_only_picked_reach_claude(tmp_
 
     ids = [by_name["atlas-dev"]["id"]]
     status, saved = api.post("/api/slack/picks", {"pick": ids})
-    assert status == 200 and [c["name"] for c in saved["conversations"] if c["picked"]] == ["atlas-dev"]
+    assert status == 200 and [c["name"] for c in saved["conversations"] if c["picked"]] == [
+        "atlas-dev"
+    ]
     out = run_librarian(["slack", "pick", "--list"], home, env=env).stdout
     assert "[x] atlas-dev" in out
 
     master = popen_librarian_tty(["slack", "pick"], home, env)
     os.write(master.pty_master, b"1 2\n\n")
     finish_tty(master)
-    cli_picked = {c["name"] for c in api.call("GET", "/api/slack/picks")[1]["conversations"] if c["picked"]}
+    cli_picked = {
+        c["name"] for c in api.call("GET", "/api/slack/picks")[1]["conversations"] if c["picked"]
+    }
     assert cli_picked == {"atlas-dev"} ^ {c["name"] for c in listed["conversations"][:2]}
     assert api.post("/api/slack/picks", {"pick": "x"})[0] == 400

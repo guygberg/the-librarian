@@ -154,7 +154,11 @@ class Handler(BaseHTTPRequestHandler):
         if not path.is_relative_to(STATIC) or not path.is_file():
             return self._json(404, {"error": "not found"})
         media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        self._send(200, path.read_bytes(), f"{media}; charset=utf-8" if media.startswith("text/") else media)
+        self._send(
+            200,
+            path.read_bytes(),
+            f"{media}; charset=utf-8" if media.startswith("text/") else media,
+        )
 
     def _shell(self):
         server = self.server

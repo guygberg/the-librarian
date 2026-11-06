@@ -1,11 +1,12 @@
 """Recording intake from the synced Drive folder.
 
-The fetch stage finds recordings and checks each is fully local; the transcribe stage calls the Transcriber once
-per file hash and stores each segment as a Source item `drive:<hash prefix>/<segment number>`, so Slack and session
-text stays searchable while transcription is pending or failing.
+The fetch stage finds recordings and checks each is fully local; the transcribe stage calls the
+Transcriber once per file hash and stores each segment as a Source item
+`drive:<hash prefix>/<segment number>`, so Slack and session text stays searchable while
+transcription is pending or failing.
 
-Drive's file provider leaves a not-yet-downloaded file with its full size but (almost) no allocated blocks, so the
-size on disk is compared with the size.
+Drive's file provider leaves a not-yet-downloaded file with its full size but (almost) no
+allocated blocks, so the size on disk is compared with the size.
 """
 
 import hashlib
@@ -68,18 +69,23 @@ def _explicit_choice(item: str, overrides: dict[str, str]) -> str | None:
     return language.lookup(overrides, item, title) or language.lookup(flags, item, title)
 
 
-def _reopen_if_params_changed(conn: sqlite3.Connection, workspace: str, item: str, overrides: dict[str, str]) -> None:
-    """The runner skips finished (item, stage) pairs, so a changed language must reopen the stages after fetch."""
+def _reopen_if_params_changed(
+    conn: sqlite3.Connection, workspace: str, item: str, overrides: dict[str, str]
+) -> None:
+    """The runner skips finished (item, stage) pairs, so a changed language must reopen the stages
+    after fetch."""
     explicit = _explicit_choice(item, overrides)
     stored = conn.execute(
-        "SELECT t.params FROM recording_files f JOIN recording_transcripts t USING (workspace, file_hash)"
+        "SELECT t.params FROM recording_files f"
+        " JOIN recording_transcripts t USING (workspace, file_hash)"
         " WHERE f.workspace = ? AND f.path = ?",
         (workspace, item),
     ).fetchone()
     if explicit and stored and stored[0] != language.for_choice(explicit).key:
         with conn:
             conn.execute(
-                "DELETE FROM import_item_stages WHERE workspace = ? AND source = ? AND item = ? AND stage != 'fetch'",
+                "DELETE FROM import_item_stages"
+                " WHERE workspace = ? AND source = ? AND item = ? AND stage != 'fetch'",
                 (workspace, SOURCE, item),
             )
 
@@ -100,17 +106,24 @@ def fetch_stage(workspace: str, overrides: dict[str, str] | None = None) -> Stag
         if not path.is_file():
             raise FileNotFoundError(f"recording {item} is gone from the Drive folder")
         if not _is_local(path):
-            raise OSError(f"recording {item} is not yet local: Drive has not downloaded it; retried next Import")
+            raise OSError(
+                f"recording {item} is not yet local: Drive has not downloaded it; "
+                "retried next Import"
+            )
         with conn:
             conn.execute(
-                "INSERT OR REPLACE INTO recording_files VALUES (?, ?, ?)", (workspace, item, _file_hash(path))
+                "INSERT OR REPLACE INTO recording_files VALUES (?, ?, ?)",
+                (workspace, item, _file_hash(path)),
             )
 
     return Stage("fetch", process, discover, "fetched")
 
 
-def transcribe_stage(workspace: str, transcriber: Transcriber, overrides: dict[str, str] | None = None) -> Stage:
-    """`overrides` are this run's CLI language choices; config `recording_languages` holds the explicit flags."""
+def transcribe_stage(
+    workspace: str, transcriber: Transcriber, overrides: dict[str, str] | None = None
+) -> Stage:
+    """`overrides` are this run's CLI language choices; config `recording_languages` holds the
+    explicit flags."""
     root = drive_dir()
     overrides = overrides or {}
 
@@ -118,10 +131,12 @@ def transcribe_stage(workspace: str, transcriber: Transcriber, overrides: dict[s
         if source != SOURCE:
             return
         file_hash = conn.execute(
-            "SELECT file_hash FROM recording_files WHERE workspace = ? AND path = ?", (workspace, item)
+            "SELECT file_hash FROM recording_files WHERE workspace = ? AND path = ?",
+            (workspace, item),
         ).fetchone()[0]
         done = conn.execute(
-            "SELECT params FROM recording_transcripts WHERE workspace = ? AND file_hash = ?", (workspace, file_hash)
+            "SELECT params FROM recording_transcripts WHERE workspace = ? AND file_hash = ?",
+            (workspace, file_hash),
         ).fetchone()
         meta = parse_name(Path(item).name)
         explicit = _explicit_choice(item, overrides)
@@ -152,7 +167,8 @@ def transcribe_stage(workspace: str, transcriber: Transcriber, overrides: dict[s
             )
         with conn:
             conn.execute(
-                "INSERT OR REPLACE INTO recording_transcripts (workspace, file_hash, params) VALUES (?, ?, ?)",
+                "INSERT OR REPLACE INTO recording_transcripts (workspace, file_hash, params)"
+                " VALUES (?, ?, ?)",
                 (workspace, file_hash, params.key),
             )
 

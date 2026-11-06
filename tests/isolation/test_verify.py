@@ -41,7 +41,12 @@ def test_verify_writes_one_field_per_criterion(home):
 def test_verify_output_holds_no_fixture_text(tmp_path, home):
     for scenario in ("payments-cutover", "slack-hebrew", "onboarding-hebrew"):
         build(tmp_path / scenario, scenario)
-    strings = set().union(*(fixture_strings(tmp_path / s) for s in ("payments-cutover", "slack-hebrew", "onboarding-hebrew")))
+    strings = set().union(
+        *(
+            fixture_strings(tmp_path / s)
+            for s in ("payments-cutover", "slack-hebrew", "onboarding-hebrew")
+        )
+    )
     assert len(strings) > 20
     run_librarian(["verify"], home)
     written = next((home / "verification").glob("*.md")).read_text()

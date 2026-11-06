@@ -1,7 +1,8 @@
 """Which model and language a recording is transcribed with.
 
-Precedence: a CLI override beats an explicit flag (config `recording_languages`), which beats detection from the
-first 30 seconds. Hebrew and mixed recordings use the Hebrew model with language forced to `he`.
+Precedence: a CLI override beats an explicit flag (config `recording_languages`), which beats
+detection from the first 30 seconds. Hebrew and mixed recordings use the Hebrew model with
+language forced to `he`.
 """
 
 from collections.abc import Callable, Mapping
@@ -20,7 +21,10 @@ class Params:
 
     @property
     def key(self) -> str:
-        """What the transcribe-once rule compares: same bytes with the same key are never transcribed again."""
+        """What the transcribe-once rule compares.
+
+        Same bytes with the same key are never transcribed again.
+        """
         return f"{self.model}|{self.language}"
 
 
@@ -47,6 +51,10 @@ def lookup(table: Mapping[str, str], path: str, title: str) -> str | None:
 
 
 def choose(
-    path: str, title: str, overrides: Mapping[str, str], flags: Mapping[str, str], detect: Callable[[], str]
+    path: str,
+    title: str,
+    overrides: Mapping[str, str],
+    flags: Mapping[str, str],
+    detect: Callable[[], str],
 ) -> Params:
     return for_choice(lookup(overrides, path, title) or lookup(flags, path, title) or detect())

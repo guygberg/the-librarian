@@ -46,7 +46,9 @@ def field(body, key, kind, required=True):
     if value is None and not required:
         return None
     if kind is list:
-        if isinstance(value, list) and all(isinstance(v, int) and not isinstance(v, bool) for v in value):
+        if isinstance(value, list) and all(
+            isinstance(v, int) and not isinstance(v, bool) for v in value
+        ):
             return value
         raise Refused(400, f"{key} must be a list of integers")
     if not isinstance(value, kind) or isinstance(value, bool) or value == "":
@@ -55,7 +57,10 @@ def field(body, key, kind, required=True):
 
 
 def mutating(do):
-    """A POST handler: `do(conn, workspace, req)` returns the id whose new current view is the answer."""
+    """A POST handler.
+
+    `do(conn, workspace, req)` returns the id whose new current view is the answer.
+    """
 
     def handler(req):
         with req.rw() as conn:

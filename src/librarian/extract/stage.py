@@ -1,9 +1,9 @@
 """The extract stage: send each changed unit once, store what the validator accepts.
 
-Extraction is per unit but the runner calls `process` per import item, so the first call extracts every
-unit whose text differs from the stored one, newest first, up to `max_calls`; the rest are deferred to
-the next run. `process` then only reports each item's unit: failed re-raises, deferred leaves the item
-pending, anything else is done.
+Extraction is per unit but the runner calls `process` per import item, so the first call extracts
+every unit whose text differs from the stored one, newest first, up to `max_calls`; the rest are
+deferred to the next run. `process` then only reports each item's unit: failed re-raises,
+deferred leaves the item pending, anything else is done.
 """
 
 import hashlib
@@ -19,7 +19,9 @@ from librarian.ports import Extractor
 def stale_units(conn: sqlite3.Connection, workspace: str) -> list[units.Unit]:
     """Units whose text changed since their last successful extraction, newest first."""
     stored = dict(
-        conn.execute("SELECT unit_key, text_hash FROM extracted_units WHERE workspace = ?", (workspace,))
+        conn.execute(
+            "SELECT unit_key, text_hash FROM extracted_units WHERE workspace = ?", (workspace,)
+        )
     )
     distinct = {u.key: u for group in units.build(conn, workspace).values() for u in group}
     stale = [u for u in distinct.values() if stored.get(u.key) != _hash(u)]
@@ -43,18 +45,33 @@ def stage(workspace: str, extractor: Extractor, max_calls: int | None = None) ->
             made += 1
             try:
                 result = runs.extract_and_record(
-                    conn, workspace, source, extractor.meta, unit.key, unit.text, sent, unit.locators
+                    conn,
+                    workspace,
+                    source,
+                    extractor.meta,
+                    unit.key,
+                    unit.text,
+                    sent,
+                    unit.locators,
                 )
                 unsent = candidates.unsent_projects(result.records, sent)
                 if unsent:
-                    # Claude linked to a project whose Records it was not shown: ask once more, as one more call.
+                    # Claude linked to a project whose Records it was not shown: ask once
+                    # more, as one more call.
                     if max_calls is not None and made >= limit:
                         deferred.add(unit.key)
                         continue
                     made += 1
                     sent = candidates.add_projects(conn, workspace, sent, unsent, stale_days)
                     result = runs.extract_and_record(
-                        conn, workspace, extractor, extractor.meta, unit.key, unit.text, sent, unit.locators
+                        conn,
+                        workspace,
+                        extractor,
+                        extractor.meta,
+                        unit.key,
+                        unit.text,
+                        sent,
+                        unit.locators,
                     )
                 persist.persist(conn, workspace, unit.key, _hash(unit), result.records)
             except Exception as exc:
@@ -78,7 +95,8 @@ def stage(workspace: str, extractor: Extractor, max_calls: int | None = None) ->
 
 
 class _Replay:
-    """Hands back an outcome a concurrent engine already produced, so storing stays on one thread."""
+    """Hands back an outcome a concurrent engine already produced, so storing stays on one
+    thread."""
 
     def __init__(self, outcome: str | Exception):
         self._outcome = outcome
@@ -92,13 +110,18 @@ class _Replay:
 def _sources(
     extractor: Extractor, todo: list[units.Unit], pick: Callable[[units.Unit], list[dict]]
 ) -> Iterator[tuple[units.Unit, Extractor, list[dict]]]:
-    """Each unit with what to call for it and the candidates sent. A concurrent engine yields in completion
-    order, so a unit is stored as soon as it is done and an interrupted run keeps everything finished; its
-    candidates are picked up front, and the exact-name project match at storing time keeps them from duplicating."""
+    """Each unit with what to call for it and the candidates sent. A concurrent engine yields in
+    completion order, so a unit is stored as soon as it is done and an interrupted run keeps
+    everything finished; its candidates are picked up front, and the exact-name project match at
+    storing time keeps them from duplicating."""
     stream = getattr(extractor, "extract_stream", None)
     if stream is None:
         for unit in todo:
-            yield unit, extractor, pick(unit)  # picked now, so it sees what the units before it stored
+            yield (
+                unit,
+                extractor,
+                pick(unit),
+            )  # picked now, so it sees what the units before it stored
         return
     by_key = {u.key: (u, pick(u)) for u in todo}
     for key, outcome in stream((u.key, u.text, by_key[u.key][1]) for u in todo):

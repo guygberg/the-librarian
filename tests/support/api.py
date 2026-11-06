@@ -13,7 +13,9 @@ class Api:
         self.headers = {"Content-Type": "application/json", "X-Librarian-Token": served.token()}
 
     def call(self, method, path, body=None, headers=None):
-        resp, data = self.served.request(method, path, headers or self.headers, json.dumps(body) if body else None)
+        resp, data = self.served.request(
+            method, path, headers or self.headers, json.dumps(body) if body else None
+        )
         return resp.status, json.loads(data)
 
     def post(self, path, body=None, headers=None):

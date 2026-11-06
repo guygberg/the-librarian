@@ -1,4 +1,5 @@
-"""One writer per Workspace: an advisory flock the OS drops when the process dies, even on kill -9."""
+"""One writer per Workspace: an advisory flock the OS drops when the process dies, even on
+kill -9."""
 
 import fcntl
 import os
@@ -23,7 +24,9 @@ def workspace_lock(workspace_dir: Path):
         except BlockingIOError:
             raise LockHeld(os.pread(fd, 200, 0).decode().strip()) from None
         os.ftruncate(fd, 0)
-        os.pwrite(fd, f"pid {os.getpid()} started {time.strftime('%Y-%m-%d %H:%M:%S')}\n".encode(), 0)
+        os.pwrite(
+            fd, f"pid {os.getpid()} started {time.strftime('%Y-%m-%d %H:%M:%S')}\n".encode(), 0
+        )
         yield
     finally:
         os.close(fd)

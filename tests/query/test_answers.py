@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 import pytest
+
 from fixtures.scenarios import payments_cutover as payments
 from fixtures.scenarios import project_slack_only as slack_only
 from support.cli import run_librarian
@@ -13,14 +14,17 @@ FAR_FUTURE = "4102444800"  # 2100-01-01
 
 @pytest.fixture
 def world(tmp_path, home, monkeypatch):
-    """`world(scenario, now)` imports the scenario at its own time; the env to ask with is returned."""
+    """`world(scenario, now)` imports the scenario at its own time; the env to ask with is
+    returned."""
     monkeypatch.setenv("LIBRARIAN_HOME", str(home))
 
     def make(scenario="payments-cutover", now=payments.NOW):
         env, _ = make_env(tmp_path, home, scenario)
         env["LIBRARIAN_NOW"] = str(now)
         (home / "workspaces" / "work").mkdir(parents=True, exist_ok=True)
-        (home / "workspaces" / "work" / "channels.json").write_text(json.dumps({"picked": ["C001"]}))
+        (home / "workspaces" / "work" / "channels.json").write_text(
+            json.dumps({"picked": ["C001"]})
+        )
         code, out = run_import(home, env)
         assert code == 0, out
         return env
@@ -76,7 +80,11 @@ def test_changes_shows_the_persons_own_actions_posted_over_http(world, home):
         proc.stdout.close()
     answer = ask(home, env, "changes", "--project", "payments")
     [event] = answer["person_events"]
-    assert (event["record_id"], event["event"], event["change"]) == (blocker, "status_change", {"lifecycle": "done"})
+    assert (event["record_id"], event["event"], event["change"]) == (
+        blocker,
+        "status_change",
+        {"lifecycle": "done"},
+    )
 
 
 def test_changes_with_an_unclear_project_returns_candidates(world, home):
@@ -90,13 +98,16 @@ def test_waiting_names_who_owns_the_next_step(world, home):
     [(blocker,)] = sql(home, "SELECT id FROM records WHERE title = ?", payments.BLOCKER)
     sql(
         home,
-        "INSERT INTO record_events (workspace, record_id, event, detail, at) VALUES ('work', ?, 'status_change', ?, ?)",
+        "INSERT INTO record_events (workspace, record_id, event, detail, at)"
+        " VALUES ('work', ?, 'status_change', ?, ?)",
         blocker,
         json.dumps({"lifecycle": "pending", "waiting_on": "Dana Levi"}),
         "2023-11-14T20:00:00+00:00",
     )
     answer = ask(home, env, "waiting")
-    assert answer["waiting"] == [{"record_id": blocker, "title": payments.BLOCKER, "next_step_owner": "Dana Levi"}]
+    assert answer["waiting"] == [
+        {"record_id": blocker, "title": payments.BLOCKER, "next_step_owner": "Dana Levi"}
+    ]
     assert [r["id"] for r in answer["records"]] == [blocker]
 
 
@@ -105,7 +116,11 @@ def test_decision_gives_the_reasoning_and_its_evidence(world, home):
     [found] = answer["decisions"]
     assert (found["title"], found["reasoning"]) == (payments.WEBHOOK, "agreed in the thread")
     cited = [e for e in answer["evidence"] if e["record_id"] == found["record_id"]]
-    assert cited and cited[0]["locator"].startswith("slack:C001/") and cited[0]["quote"] == "We keep webhook v1"
+    assert (
+        cited
+        and cited[0]["locator"].startswith("slack:C001/")
+        and cited[0]["quote"] == "We keep webhook v1"
+    )
 
 
 def test_decision_with_no_match_says_so(world, home):

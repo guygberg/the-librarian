@@ -2,11 +2,11 @@ import json
 import sqlite3
 
 import pytest
+
 from fixtures.build import build
 from fixtures.scenarios import people_aliases as p
-from support.cli import finish_tty, popen_librarian_tty, run_librarian
-
 from librarian.link import review
+from support.cli import finish_tty, popen_librarian_tty, run_librarian
 
 
 @pytest.fixture
@@ -22,7 +22,11 @@ def imported(tmp_path, home):
     workspace = home / "workspaces" / "work"
     workspace.mkdir(parents=True)
     (workspace / "channels.json").write_text(json.dumps({"picked": ["C001"]}))
-    env = {"LIBRARIAN_ENGINES": "fake", "LIBRARIAN_FIXTURES": str(fixtures), "LIBRARIAN_NOW": str(p.NOW)}
+    env = {
+        "LIBRARIAN_ENGINES": "fake",
+        "LIBRARIAN_FIXTURES": str(fixtures),
+        "LIBRARIAN_NOW": str(p.NOW),
+    }
     code, out = finish_tty(popen_librarian_tty(["import"], home, env))
     assert code == 0, out
     return home
@@ -38,7 +42,11 @@ def shown(home, title):
 
 def test_slack_id_links_to_its_person_without_review(imported):
     record = shown(imported, "By id")
-    assert record["owner"] == "Dana Cohen" and "owner_is_me" not in record and "suggested" not in record
+    assert (
+        record["owner"] == "Dana Cohen"
+        and "owner_is_me" not in record
+        and "suggested" not in record
+    )
 
 
 def test_slack_id_missing_from_users_list_still_links(imported):
@@ -49,7 +57,12 @@ def test_name_matching_two_persons_is_only_suggested(imported):
     record = shown(imported, "By colliding name")
     assert "owner" not in record
     assert record["suggested"] == [
-        {"kind": "unconfirmed_person", "mark": "unconfirmed person", "link": "owner", "raw_name": "Dana Cohen"}
+        {
+            "kind": "unconfirmed_person",
+            "mark": "unconfirmed person",
+            "link": "owner",
+            "raw_name": "Dana Cohen",
+        }
     ]
 
 
@@ -67,7 +80,11 @@ def test_first_person_recording_line_has_unknown_speaker_and_review_entry(import
 @pytest.mark.parametrize("title", ["By Hebrew me-name", "By login name"])
 def test_me_names_and_login_are_flagged_as_own(imported, title):
     record = shown(imported, title)
-    assert record["owner"] == "Omer Katz" and record["owner_is_me"] is True and "suggested" not in record
+    assert (
+        record["owner"] == "Omer Katz"
+        and record["owner_is_me"] is True
+        and "suggested" not in record
+    )
 
 
 def test_review_list_data_holds_exactly_the_unlinked_names(imported):

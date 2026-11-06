@@ -20,7 +20,8 @@ from librarian.slack import permalink, picks
 
 SOURCE = "slack"
 WINDOW_SECONDS = 30 * 24 * 3600
-# Items newer than this are read again each Import to catch edits and deletions; older ones are not re-checked.
+# Items newer than this are read again each Import to catch edits and deletions; older ones are
+# not re-checked.
 RECHECK_SECONDS = 7 * 24 * 3600
 
 
@@ -31,7 +32,8 @@ def _now() -> float:
 def _watermark(conn: sqlite3.Connection, workspace: str, channel: str) -> str:
     """Newest stored ts of the conversation ('' when nothing is stored yet)."""
     row = conn.execute(
-        "SELECT MAX(stable_id) FROM source_items WHERE workspace = ? AND source = ? AND stable_id LIKE ?",
+        "SELECT MAX(stable_id) FROM source_items"
+        " WHERE workspace = ? AND source = ? AND stable_id LIKE ?",
         (workspace, SOURCE, f"{channel}/%"),
     ).fetchone()
     return row[0].split("/", 1)[1] if row[0] else ""
@@ -56,7 +58,9 @@ def _history_before(slack: SlackSource, channel: str, bound: str) -> Iterator[di
     cursor = None
     while True:
         page = slack.history(channel, cursor)
-        yield from (m for m in page.get("messages", []) if isinstance(m.get("ts"), str) and m["ts"] <= bound)
+        yield from (
+            m for m in page.get("messages", []) if isinstance(m.get("ts"), str) and m["ts"] <= bound
+        )
         cursor = (page.get("response_metadata") or {}).get("next_cursor")
         if not cursor:
             return
@@ -65,12 +69,15 @@ def _history_before(slack: SlackSource, channel: str, bound: str) -> Iterator[di
 def _with_replies(
     slack: SlackSource, channel: str, messages: Iterator[dict[str, Any]], threads: set[str]
 ) -> Iterator[dict[str, Any]]:
-    """Each message followed by its thread replies; `threads` collects the parents whose replies were read."""
+    """Each message followed by its thread replies; `threads` collects the parents whose replies
+    were read."""
     for message in messages:
         yield message
         if message.get("thread_ts") == message.get("ts") and message.get("reply_count"):
             threads.add(message["ts"])
-            yield from (r for r in slack.replies(channel, message["ts"]) if r.get("ts") != message["ts"])
+            yield from (
+                r for r in slack.replies(channel, message["ts"]) if r.get("ts") != message["ts"]
+            )
 
 
 def count_older(slack: SlackSource, channel: str) -> int:
@@ -87,21 +94,31 @@ def _content(raw: dict[str, Any]) -> str:
     return json.dumps(raw, ensure_ascii=False, sort_keys=True)
 
 
-def _stored_since(conn: sqlite3.Connection, workspace: str, channel: str, cutoff: str) -> dict[str, dict[str, Any]]:
+def _stored_since(
+    conn: sqlite3.Connection, workspace: str, channel: str, cutoff: str
+) -> dict[str, dict[str, Any]]:
     """Latest stored content of the conversation's items newer than `cutoff`, by item id."""
     rows = conn.execute(
-        "SELECT i.stable_id, r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
+        "SELECT i.stable_id, r.content FROM source_items i"
+        " JOIN source_item_revisions r ON r.source_item_id = i.id"
         " WHERE i.workspace = ? AND i.source = ? AND i.stable_id > ? AND i.stable_id LIKE ?"
-        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions WHERE source_item_id = i.id)",
+        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions"
+        " WHERE source_item_id = i.id)",
         (workspace, SOURCE, f"{channel}/{cutoff}", f"{channel}/%"),
     )
     return {item: json.loads(content) for item, content in rows}
 
 
 def _mark_missing_gone(
-    conn: sqlite3.Connection, workspace: str, channel: str, cutoff: str, seen: set[str], threads: set[str]
+    conn: sqlite3.Connection,
+    workspace: str,
+    channel: str,
+    cutoff: str,
+    seen: set[str],
+    threads: set[str],
 ) -> None:
-    """Items inside the re-check window that Slack no longer returns. Replies count only when their thread was read."""
+    """Items inside the re-check window that Slack no longer returns. Replies count only when
+    their thread was read."""
     for item, message in _stored_since(conn, workspace, channel, cutoff).items():
         parent = message.get("thread_ts")
         if item not in seen and parent in (None, message.get("ts"), *threads):
@@ -124,7 +141,8 @@ def _validate(message: dict[str, Any]) -> None:
 
 
 def _cutoff(conn: sqlite3.Connection, workspace: str, channel: str) -> str:
-    """Where a normal Import starts reading: the last RECHECK_SECONDS of stored items are read again."""
+    """Where a normal Import starts reading: the last RECHECK_SECONDS of stored items are read
+    again."""
     window = _window_start()
     watermark = _watermark(conn, workspace, channel)
     if not watermark:
@@ -133,7 +151,8 @@ def _cutoff(conn: sqlite3.Connection, workspace: str, channel: str) -> str:
 
 
 def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage:
-    """The normal fetch stage, or with `older` set only that conversation's history beyond the 30-day window."""
+    """The normal fetch stage, or with `older` set only that conversation's history beyond the
+    30-day window."""
     fetched: dict[str, tuple[dict[str, Any], dict[str, str]]] = {}
 
     def discover(conn: sqlite3.Connection) -> Iterator[tuple[str, str]]:
@@ -145,12 +164,17 @@ def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage
         permalink.save_workspace_url(conn, workspace, auth["url"])
         people.save_slack_users(conn, workspace, slack.list_users(), auth.get("user_id"))
         conversations = {c["id"]: c for c in slack.list_conversations()}
-        for channel in sorted((wanted & conversations.keys()) if older is None else {older} & wanted):
-            origin = {"name": picks.rows([conversations[channel]], wanted)[0]["name"],
-                      "kind": picks.kind_of(conversations[channel])}
+        for channel in sorted(
+            (wanted & conversations.keys()) if older is None else {older} & wanted
+        ):
+            origin = {
+                "name": picks.rows([conversations[channel]], wanted)[0]["name"],
+                "kind": picks.kind_of(conversations[channel]),
+            }
             cutoff = _cutoff(conn, workspace, channel)
             history = (
-                _history_since(slack, channel, cutoff) if older is None
+                _history_since(slack, channel, cutoff)
+                if older is None
                 else _history_before(slack, channel, _window_start())
             )
             seen: set[str] = set()
@@ -164,7 +188,8 @@ def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage
                 if stored is not None:
                     # Edited: earlier stages already finished this item, so make them run again.
                     conn.execute(
-                        "DELETE FROM import_item_stages WHERE workspace = ? AND source = ? AND item = ?",
+                        "DELETE FROM import_item_stages"
+                        " WHERE workspace = ? AND source = ? AND item = ?",
                         (workspace, SOURCE, item),
                     )
                 fetched[item] = (raw, origin)
@@ -178,8 +203,13 @@ def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage
         raw, origin = fetched.pop(item)
         _validate(raw)
         store.upsert(
-            conn, workspace, SOURCE, item, _content(raw),
-            origin_name=origin["name"], origin_kind=origin["kind"],
+            conn,
+            workspace,
+            SOURCE,
+            item,
+            _content(raw),
+            origin_name=origin["name"],
+            origin_kind=origin["kind"],
         )
 
     return Stage("fetch", process, discover, "fetched")

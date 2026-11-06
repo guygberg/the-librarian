@@ -1,6 +1,7 @@
 """One dated archive of a Workspace: a consistent database snapshot, the Slack list and the config.
 
-Session copies live in the database, so the snapshot carries them. Models and recordings are not included.
+Session copies live in the database, so the snapshot carries them. Models and recordings are not
+included.
 """
 
 import io
@@ -29,7 +30,10 @@ def archive_name(workspace: str) -> str:
 
 
 def _snapshot(source: Path, target: Path) -> int:
-    """Copy via SQLite's backup API (safe while a writer holds the WAL); returns the schema version."""
+    """Copy via SQLite's backup API (safe while a writer holds the WAL).
+
+    Returns the schema version.
+    """
     src = db._open_ro(source)
     dst = sqlite3.connect(target)
     try:
@@ -59,7 +63,10 @@ def create(workspace: str, folder: Path) -> Path:
             info.size = len(manifest)
             info.mtime = time.time()
             tar.addfile(info, io.BytesIO(manifest))
-            for name, path in ((SLACK_LIST, paths.workspace_dir(workspace) / SLACK_LIST), (CONFIG, paths.config_path())):
+            for name, path in (
+                (SLACK_LIST, paths.workspace_dir(workspace) / SLACK_LIST),
+                (CONFIG, paths.config_path()),
+            ):
                 if path.exists():
                     tar.add(path, name)
         partial.rename(target)
@@ -89,7 +96,8 @@ def check_restorable(archive: Path) -> dict:
     latest = db.latest_version()
     if manifest["migration"] > latest:
         raise BackupError(
-            f"archive is at migration {manifest['migration']}, this code only knows {latest}; update Librarian first"
+            f"archive is at migration {manifest['migration']}, "
+            f"this code only knows {latest}; update Librarian first"
         )
     return manifest
 
@@ -102,7 +110,10 @@ def is_empty(workspace: str) -> bool:
 
 
 def restore(workspace: str, archive: Path) -> None:
-    """Replace the Workspace's files with the archive's. The caller holds the lock and has checked emptiness."""
+    """Replace the Workspace's files with the archive's.
+
+    The caller holds the lock and has checked emptiness.
+    """
     check_restorable(archive)
     folder = paths.workspace_dir(workspace)
     folder.mkdir(parents=True, exist_ok=True)

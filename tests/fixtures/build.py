@@ -14,7 +14,8 @@ sys.path.insert(0, str(HERE.parent))  # so scenarios can `import fixtures.format
 SCENARIOS_DIR = HERE / "scenarios"
 
 
-# The spec's fixture set and extras, each with the scenario that provides it (tests/fixtures/test_build.py checks it).
+# The spec's fixture set and extras, each with the scenario that provides it
+# (tests/fixtures/test_build.py checks it).
 MANIFEST = {
     "cross-source project": "base",
     "date disagreement": "payments_cutover",
@@ -49,7 +50,9 @@ def discover(scenarios_dir: Path = SCENARIOS_DIR) -> dict:
 
 def build(target: Path, scenario: str = "base", scenarios_dir: Path = SCENARIOS_DIR) -> None:
     scenarios = discover(scenarios_dir)
-    scenario = scenario.replace("-", "_")  # the UI scenarios are named `payments-cutover`, `onboarding-hebrew`
+    scenario = scenario.replace(
+        "-", "_"
+    )  # the UI scenarios are named `payments-cutover`, `onboarding-hebrew`
     if scenario not in scenarios:
         raise KeyError(f"unknown scenario {scenario!r}; known: {', '.join(scenarios) or 'none'}")
     target.mkdir(parents=True, exist_ok=True)

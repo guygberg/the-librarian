@@ -1,4 +1,5 @@
-"""Base fixture set: English, Hebrew and mixed content; project "Atlas" appears in all three sources."""
+"""Base fixture set: English, Hebrew and mixed content; project "Atlas" appears in all three
+sources."""
 
 import random
 
@@ -17,7 +18,13 @@ CONVERSATIONS = [
     {"id": "C002", "name": "random", "is_channel": True, "is_private": False, "num_members": 40},
     {"id": "G001", "name": "atlas-leads", "is_group": True, "is_private": True, "num_members": 4},
     {"id": "D001", "is_im": True, "is_private": True, "user": "U002", "num_members": 2},
-    {"id": "M001", "name": "mpdm-dana--omer--priya-1", "is_mpim": True, "is_private": True, "num_members": 3},
+    {
+        "id": "M001",
+        "name": "mpdm-dana--omer--priya-1",
+        "is_mpim": True,
+        "is_private": True,
+        "num_members": 3,
+    },
     {"id": "C003", "name": "עברית-צוות", "is_channel": True, "is_private": False, "num_members": 7},
 ]
 PICKED = ["C001", "G001", "D001", "C003"]
@@ -35,7 +42,9 @@ def _slack(target):
         for i in range(230)
     ]
     root = f.ts(T0 + 100 * 60)
-    bulk[100] = f.slack_message("U001", "Should Atlas use SQLite per workspace?", root, thread_ts=root)
+    bulk[100] = f.slack_message(
+        "U001", "Should Atlas use SQLite per workspace?", root, thread_ts=root
+    )
     f.write_slack_history(target, "C001", bulk)
     f.write_slack_replies(
         target,
@@ -43,7 +52,12 @@ def _slack(target):
         root,
         [
             bulk[100],
-            f.slack_message("U003", "Yes, decided: SQLite with FTS5.", f.ts(T0 + 100 * 60 + 30, 1), thread_ts=root),
+            f.slack_message(
+                "U003",
+                "Yes, decided: SQLite with FTS5.",
+                f.ts(T0 + 100 * 60 + 30, 1),
+                thread_ts=root,
+            ),
             f.slack_message(
                 "U002",
                 "מסכים, נתחיל מזה",
@@ -67,10 +81,16 @@ def _slack(target):
             f.slack_message("U001", "Great, see you then. נדבר על Atlas", f.ts(T0 + 6060)),
         ],
     )
-    f.write_slack_history(target, "M001", [f.slack_message("U003", "Lunch on Thursday?", f.ts(T0 + 7000))])
-    f.write_slack_history(target, "C002", [f.slack_message("U003", "Anyone seen the new café?", f.ts(T0 + 8000))])
     f.write_slack_history(
-        target, "C003", [f.slack_message("U002", "שלום לכולם, הפגישה נדחתה ליום רביעי", f.ts(T0 + 9000))]
+        target, "M001", [f.slack_message("U003", "Lunch on Thursday?", f.ts(T0 + 7000))]
+    )
+    f.write_slack_history(
+        target, "C002", [f.slack_message("U003", "Anyone seen the new café?", f.ts(T0 + 8000))]
+    )
+    f.write_slack_history(
+        target,
+        "C003",
+        [f.slack_message("U002", "שלום לכולם, הפגישה נדחתה ליום רביעי", f.ts(T0 + 9000))],
     )
 
 
@@ -81,24 +101,40 @@ def _sessions(target):
         "-home-dana-projects-atlas",
         "11111111-aaaa-4bbb-8ccc-000000000001",
         [
-            f.session_line("user", iso(1), "Why does the Atlas importer re-read old pages?", sessionId="s1"),
+            f.session_line(
+                "user", iso(1), "Why does the Atlas importer re-read old pages?", sessionId="s1"
+            ),
             f.session_line(
                 "assistant",
                 iso(2),
                 [
                     {"type": "text", "text": "Let me check the cursor handling."},
-                    {"type": "tool_use", "id": "toolu_1", "name": "Read", "input": {"file_path": "importer.py"}},
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_1",
+                        "name": "Read",
+                        "input": {"file_path": "importer.py"},
+                    },
                 ],
                 sessionId="s1",
             ),
             f.session_line(
                 "user",
                 iso(3),
-                [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "def import_pages(): ..."}],
+                [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "toolu_1",
+                        "content": "def import_pages(): ...",
+                    }
+                ],
                 sessionId="s1",
             ),
             f.session_line(
-                "assistant", iso(4), [{"type": "text", "text": "The cursor is never saved; add a checkpoint."}], sessionId="s1"
+                "assistant",
+                iso(4),
+                [{"type": "text", "text": "The cursor is never saved; add a checkpoint."}],
+                sessionId="s1",
             ),
         ],
     )
@@ -109,7 +145,10 @@ def _sessions(target):
         [
             f.session_line("user", iso(5), "תכתוב לי פונקציה שמחשבת שטח גינה", sessionId="s2"),
             f.session_line(
-                "assistant", iso(6), [{"type": "text", "text": "Sure: area = width * length."}], sessionId="s2"
+                "assistant",
+                iso(6),
+                [{"type": "text", "text": "Sure: area = width * length."}],
+                sessionId="s2",
             ),
         ],
     )

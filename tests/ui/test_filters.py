@@ -11,7 +11,12 @@ KICKOFF = "Plan the kickoff"
 def link(ui, kind, from_id, to_type, to_id):
     ui.sql(
         "INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
-        " VALUES ('work', ?, 'record', ?, ?, ?, ?)", kind, from_id, to_type, to_id, STAMP,
+        " VALUES ('work', ?, 'record', ?, ?, ?, ?)",
+        kind,
+        from_id,
+        to_type,
+        to_id,
+        STAMP,
     )
 
 
@@ -56,23 +61,30 @@ def test_kind_tabs_switch_in_place_and_done_lists_evidence(page, ui):
     shipped = record(ui, "Ship the report", lifecycle="done")
     [(blocker,)] = ui.sql("SELECT id FROM records WHERE title = ?", payments.BLOCKER)
     ui.sql(
-        "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
-        " SELECT workspace, ?, revision_id, locator, 'sent it on Monday', 'completes', retrieved_at FROM evidence WHERE record_id = ?",
-        shipped, blocker,
+        "INSERT INTO evidence"
+        " (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
+        " SELECT workspace, ?, revision_id, locator, 'sent it on Monday', 'completes',"
+        " retrieved_at FROM evidence WHERE record_id = ?",
+        shipped,
+        blocker,
     )
     open_stream(page, ui)
     tabs = page.locator("[data-part=kind-tab]")
     expect(tabs).to_have_text(["Items", "Decisions", "Blockers", "Questions", "Done"])
 
     tabs.get_by_text("Decisions").click()
-    expect(page.locator("[data-part=item] .t")).to_have_text([payments.NOV_18, payments.NOV_25, payments.WEBHOOK])
+    expect(page.locator("[data-part=item] .t")).to_have_text(
+        [payments.NOV_18, payments.NOV_25, payments.WEBHOOK]
+    )
     tabs.get_by_text("Blockers").click()
     expect(page.locator("[data-part=item] .t")).to_have_text([payments.BLOCKER])
     tabs.get_by_text("Questions").click()
     expect(page.locator("[data-part=empty]")).to_have_text("Nothing here.")
     tabs.get_by_text("Done").click()
     expect(page.locator("[data-part=item] .t")).to_have_text(["Ship the report"])
-    expect(page.locator("[data-part=item] [data-part=evidence]")).to_contain_text("sent it on Monday")
+    expect(page.locator("[data-part=item] [data-part=evidence]")).to_contain_text(
+        "sent it on Monday"
+    )
     assert page.url == ui.url + "/?kind=done"
     tabs.get_by_text("Items").click()
     assert "Ship the report" not in titles(page)
@@ -83,7 +95,13 @@ def test_person_filters_narrow_owner_and_waiting_on_and_there_is_no_person_route
     raz = ui.sql("SELECT id FROM persons WHERE name = 'Raz Peretz'")[0][0]
     me = person(ui, "Dana Levi", me=True)
     record(ui, "Review the budget", owner=raz)
-    link(ui, "waiting_on", record(ui, "Chase the vendor", lifecycle="pending", owner=me), "person", raz)
+    link(
+        ui,
+        "waiting_on",
+        record(ui, "Chase the vendor", lifecycle="pending", owner=me),
+        "person",
+        raz,
+    )
     open_stream(page, ui)
 
     page.locator("[data-part=owner-filter]").select_option("Raz Peretz")

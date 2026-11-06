@@ -18,24 +18,34 @@ def add_arguments(parser):
         action="append",
         default=[],
         metavar="FILE_OR_TITLE=LANG",
-        help="transcribe that recording as he, en or mixed, overriding the flag in config and detection",
+        help=(
+            "transcribe that recording as he, en or mixed, "
+            "overriding the flag in config and detection"
+        ),
     )
     parser.add_argument(
         "--max-calls",
         type=int,
         metavar="N",
-        help="send at most N units to Claude this run, newest first (default: extract_max_calls in config)",
+        help=(
+            "send at most N units to Claude this run, newest first "
+            "(default: extract_max_calls in config)"
+        ),
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="run the local stages and print how many extraction calls an Import would make, sending nothing",
+        help=(
+            "run the local stages and print how many extraction calls an Import would make, "
+            "sending nothing"
+        ),
     )
     parser.add_argument("--older", metavar="CONVERSATION_ID", help=argparse.SUPPRESS)
 
 
 def run(args, ctx):
-    # `serve` starts its Import with no terminal; the person pressed the button, and launch proves it.
+    # `serve` starts its Import with no terminal; the person pressed the button,
+    # and launch proves it.
     if not launch.granted():
         require_terminal()
     try:
@@ -43,7 +53,9 @@ def run(args, ctx):
     except ValueError as err:
         print(f"librarian: {err}")
         return 2
-    return execute(ctx, older=args.older, languages=languages, max_calls=args.max_calls, dry_run=args.dry_run)
+    return execute(
+        ctx, older=args.older, languages=languages, max_calls=args.max_calls, dry_run=args.dry_run
+    )
 
 
 def _before_extract(stages):
@@ -52,9 +64,10 @@ def _before_extract(stages):
 
 
 def count_calls(ctx, languages=None, max_calls=None) -> tuple[int, int]:
-    """Run the local stages and return (extraction calls an Import would make, failed items); sends nothing.
+    """Run the local stages and return (extraction calls an Import would make, failed items).
 
-    The local stages only fetch and transcribe; no Record is written. Raises LockHeld during an Import.
+    Sends nothing. The local stages only fetch and transcribe; no Record is written.
+    Raises LockHeld during an Import.
     """
     if max_calls is None:
         max_calls = ctx.config["extract_max_calls"]
@@ -64,13 +77,18 @@ def count_calls(ctx, languages=None, max_calls=None) -> tuple[int, int]:
             run = runner.start_run(conn, ctx.workspace, os.getpid())
             stages = load_stages(ctx.workspace, None, languages, max_calls)
             failed = runner.run_import(run, _before_extract(stages), lambda _: None)
-            return min(len(extract_stage.stale_units(conn, ctx.workspace)), max(0, max_calls)), failed
+            return min(
+                len(extract_stage.stale_units(conn, ctx.workspace)), max(0, max_calls)
+            ), failed
         finally:
             conn.close()
 
 
 def execute(ctx, older=None, languages=None, max_calls=None, dry_run=False):
-    """One Import under the Workspace lock; `older` limits fetching to that Slack conversation's older history."""
+    """One Import under the Workspace lock.
+
+    `older` limits fetching to that Slack conversation's older history.
+    """
     if max_calls is None:
         max_calls = ctx.config["extract_max_calls"]
     try:
@@ -92,7 +110,8 @@ def execute(ctx, older=None, languages=None, max_calls=None, dry_run=False):
                 if stage.summary:
                     print(stage.summary())
             for stage, error, count in conn.execute(
-                "SELECT stage, error, COUNT(*) FROM import_item_stages WHERE run_id = ? AND status = 'failed'"
+                "SELECT stage, error, COUNT(*) FROM import_item_stages"
+                " WHERE run_id = ? AND status = 'failed'"
                 " GROUP BY stage, error",
                 (run.id,),
             ):

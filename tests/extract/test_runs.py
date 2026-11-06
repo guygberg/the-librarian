@@ -23,8 +23,14 @@ def env(home, fixtures_dir, monkeypatch):
 
 def extract(conn, unit_key):
     return runs.extract_and_record(
-        conn, "work", engines.get_engines().extractor, engines.get_engines().extractor.meta,
-        unit_key, UNIT_TEXT, [{"id": i} for i in CANDIDATE_IDS], LOCATORS,
+        conn,
+        "work",
+        engines.get_engines().extractor,
+        engines.get_engines().extractor.meta,
+        unit_key,
+        UNIT_TEXT,
+        [{"id": i} for i in CANDIDATE_IDS],
+        LOCATORS,
     )
 
 
@@ -56,7 +62,10 @@ def test_runs_command_shows_rejection_counts_and_reasons(env):
     extract(conn, "garbage")
     conn.close()
 
-    assert [(r["unit_key"], r["accepted_records"]) for r in stored_runs(env)] == [("dirty", 3), ("garbage", 0)]
+    assert [(r["unit_key"], r["accepted_records"]) for r in stored_runs(env)] == [
+        ("dirty", 3),
+        ("garbage", 0),
+    ]
     text = run_librarian(["runs"], env).stdout
     assert "dirty" in text and "rejected 1 (1 no_evidence)" in text
     assert "records[1]: no_evidence" in text

@@ -24,7 +24,7 @@ def normalise(text: str) -> str:
 
 
 def index_text(content: str) -> str:
-    """The searchable text of a stored revision: a Slack message's `text`, otherwise the content itself."""
+    """The searchable text of a stored revision: a Slack message's `text`, else the content."""
     try:
         data = json.loads(content)
     except ValueError:
@@ -45,7 +45,9 @@ def _stems(token: str) -> set[str]:
 def _variants(token: str) -> list[str]:
     if not _HEBREW_LETTER.match(token):
         return [token]
-    return sorted({form for stem in _stems(token) for form in (stem, *(p + stem for p in _PREFIXES))})
+    return sorted(
+        {form for stem in _stems(token) for form in (stem, *(p + stem for p in _PREFIXES))}
+    )
 
 
 def _query_groups(query: str) -> list[list[str]]:
@@ -59,7 +61,10 @@ def match_expression(query: str) -> str | None:
 
 
 def matcher(query: str) -> Callable[[str], bool]:
-    """The same matching as `match_expression`, for text held outside the full-text index. An empty query matches nothing."""
+    """The same matching as `match_expression`, for text held outside the full-text index.
+
+    An empty query matches nothing.
+    """
     groups = [set(group) for group in _query_groups(query)]
 
     def matches(text: str) -> bool:

@@ -1,4 +1,7 @@
-"""`librarian project <name>`: resolve one project only when one match is clearly ahead, then report its facts."""
+"""`librarian project <name>`: resolve one project, then report its facts.
+
+It resolves only when one match is clearly ahead.
+"""
 
 import sqlite3
 from datetime import datetime
@@ -28,8 +31,8 @@ def _member_ids(conn: sqlite3.Connection, workspace: str, project_id: int) -> li
     return [
         row[0]
         for row in conn.execute(
-            "SELECT from_id FROM links WHERE workspace = ? AND type = 'belongs_to' AND from_type = 'record'"
-            " AND to_type = 'record' AND to_id = ? ORDER BY from_id",
+            "SELECT from_id FROM links WHERE workspace = ? AND type = 'belongs_to'"
+            " AND from_type = 'record' AND to_type = 'record' AND to_id = ? ORDER BY from_id",
             (workspace, project_id),
         )
     ]
@@ -40,7 +43,8 @@ def _last_activity(conn: sqlite3.Connection, workspace: str, ids: list[int]) -> 
     times = [
         stale.evidence_time(loc, retrieved)
         for loc, retrieved in conn.execute(
-            f"SELECT locator, retrieved_at FROM evidence WHERE workspace = ? AND record_id IN ({marks})",
+            "SELECT locator, retrieved_at FROM evidence"
+            f" WHERE workspace = ? AND record_id IN ({marks})",
             (workspace, *ids),
         )
     ]
@@ -48,8 +52,14 @@ def _last_activity(conn: sqlite3.Connection, workspace: str, ids: list[int]) -> 
 
 
 def _candidate(conn: sqlite3.Connection, workspace: str, project_id: int) -> dict[str, Any]:
-    title, parent_id = conn.execute("SELECT title, parent_id FROM records WHERE id = ?", (project_id,)).fetchone()
-    parent = conn.execute("SELECT title FROM records WHERE id = ?", (parent_id,)).fetchone() if parent_id else None
+    title, parent_id = conn.execute(
+        "SELECT title, parent_id FROM records WHERE id = ?", (project_id,)
+    ).fetchone()
+    parent = (
+        conn.execute("SELECT title FROM records WHERE id = ?", (parent_id,)).fetchone()
+        if parent_id
+        else None
+    )
     ids = [project_id, *_member_ids(conn, workspace, project_id)]
     return {
         "id": project_id,
@@ -60,13 +70,19 @@ def _candidate(conn: sqlite3.Connection, workspace: str, project_id: int) -> dic
 
 
 def resolve(conn: sqlite3.Connection, workspace: str, name: str) -> tuple[int | None, list[int]]:
-    """(winner or None, every candidate best first). An exact name or Alias wins alone; otherwise the winner is
-    the only candidate worth considering."""
+    """(winner or None, every candidate best first).
+
+    An exact name or Alias wins alone; otherwise the winner is the only candidate worth
+    considering.
+    """
     wanted = key(name)
     scores = {
-        project_id: max(_score(wanted, n) for n in known) for project_id, known in projects.names(conn, workspace).items()
+        project_id: max(_score(wanted, n) for n in known)
+        for project_id, known in projects.names(conn, workspace).items()
     }
-    ranked = sorted((pid for pid, s in scores.items() if s >= MIN_SCORE), key=lambda pid: (-scores[pid], pid))
+    ranked = sorted(
+        (pid for pid, s in scores.items() if s >= MIN_SCORE), key=lambda pid: (-scores[pid], pid)
+    )
     exact = [pid for pid in ranked if scores[pid] == 1.0]
     if len(exact) == 1:
         return exact[0], ranked
@@ -85,7 +101,9 @@ def _fact(view: dict[str, Any], **fields: Any) -> dict[str, Any]:
 
 def _owner(view: dict[str, Any]) -> str | None:
     """An action item's owner field, or the person a blocker's owner Link points at."""
-    return view.get("owner") or next((link["to"] for link in view["links"] if link["type"] == "owner"), None)
+    return view.get("owner") or next(
+        (link["to"] for link in view["links"] if link["type"] == "owner"), None
+    )
 
 
 def _latest(views: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -93,8 +111,15 @@ def _latest(views: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, Any]:
-    """Status, owners, deadlines, latest decision and main blocker, each with its Evidence locators or "not found"."""
-    unfinished = [v for v in members if v["lifecycle"] in stale.UNFINISHED and v["kind"] in ("action_item", "blocker")]
+    """Status, owners, deadlines, latest decision and main blocker.
+
+    Each comes with its Evidence locators or "not found".
+    """
+    unfinished = [
+        v
+        for v in members
+        if v["lifecycle"] in stale.UNFINISHED and v["kind"] in ("action_item", "blocker")
+    ]
     owners: dict[str, list[dict[str, Any]]] = {}
     for view in unfinished:
         if name := _owner(view):
@@ -105,27 +130,50 @@ def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, A
     return {
         "status": _fact(project, value=project["lifecycle"]),
         "owners": [
-            {"name": name, "records": [v["id"] for v in views], "evidence": [loc for v in views for loc in _cite(v)]}
+            {
+                "name": name,
+                "records": [v["id"] for v in views],
+                "evidence": [loc for v in views for loc in _cite(v)],
+            }
             for name, views in owners.items()
         ]
         or NOT_FOUND,
-        "deadlines": [_fact(v, title=v["title"], deadline=v["stated_deadline"]) for v in deadlines] or NOT_FOUND,
+        "deadlines": [_fact(v, title=v["title"], deadline=v["stated_deadline"]) for v in deadlines]
+        or NOT_FOUND,
         "latest_decision": _fact(decision, title=decision["title"]) if decision else NOT_FOUND,
         "main_blocker": _fact(blocker, title=blocker["title"]) if blocker else NOT_FOUND,
     }
 
 
 def unresolved(
-    conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], name: str, ranked: list[int], at: datetime, **extra: Any
+    conn: sqlite3.Connection,
+    workspace: str,
+    cfg: dict[str, Any],
+    name: str,
+    ranked: list[int],
+    at: datetime,
+    **extra: Any,
 ) -> dict[str, Any]:
-    """The answer when `name` names no single project: the candidates, led by a warning. `extra` keeps the answer's own keys."""
+    """The answer when `name` names no single project: the candidates, led by a warning.
+
+    `extra` keeps the answer's own keys.
+    """
     found = [_candidate(conn, workspace, pid) for pid in ranked]
     warning = {
         "code": "project_ambiguous" if found else "project_not_found",
-        "message": f"which project is meant by {name!r}?" if found else f"no project matches {name!r}",
+        "message": f"which project is meant by {name!r}?"
+        if found
+        else f"no project matches {name!r}",
     }
     answer = envelope.build(
-        conn, workspace, cfg, [], at=at, resolved={"project": None, "baseline": None}, candidates=found, **extra
+        conn,
+        workspace,
+        cfg,
+        [],
+        at=at,
+        resolved={"project": None, "baseline": None},
+        candidates=found,
+        **extra,
     )
     answer["warnings"].insert(0, warning)
     return answer
@@ -135,10 +183,15 @@ def member_views(
     conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], project_id: int, at: datetime
 ) -> list[dict[str, Any]]:
     """The project's own view first, then its members'."""
-    return [core.current_view(conn, workspace, rid, cfg, at) for rid in [project_id, *_member_ids(conn, workspace, project_id)]]
+    return [
+        core.current_view(conn, workspace, rid, cfg, at)
+        for rid in [project_id, *_member_ids(conn, workspace, project_id)]
+    ]
 
 
-def project(conn: sqlite3.Connection, workspace: str, name: str, at: datetime | None = None) -> dict[str, Any]:
+def project(
+    conn: sqlite3.Connection, workspace: str, name: str, at: datetime | None = None
+) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     winner, ranked = resolve(conn, workspace, name)
@@ -146,4 +199,6 @@ def project(conn: sqlite3.Connection, workspace: str, name: str, at: datetime | 
         return unresolved(conn, workspace, cfg, name, ranked, at, project=NOT_FOUND)
     views = member_views(conn, workspace, cfg, winner, at)
     resolved = {"project": {"id": winner, "name": views[0]["title"]}, "baseline": None}
-    return envelope.build(conn, workspace, cfg, views, at=at, resolved=resolved, project=facts(views[0], views[1:]))
+    return envelope.build(
+        conn, workspace, cfg, views, at=at, resolved=resolved, project=facts(views[0], views[1:])
+    )

@@ -12,7 +12,9 @@ def run_build(*args):
 
 
 def snapshot(root: Path) -> dict:
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    return {
+        str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()
+    }
 
 
 def load(path: Path):
@@ -29,7 +31,12 @@ def test_cli_is_deterministic(tmp_path):
 def test_base_has_slack_replay_shapes(fixtures_dir):
     slack = fixtures_dir / "slack"
     assert load(slack / "auth.test.json")["url"].startswith("https://")
-    kinds = {k for c in load(slack / "conversations.list.json")["channels"] for k in c if k.startswith("is_")}
+    kinds = {
+        k
+        for c in load(slack / "conversations.list.json")["channels"]
+        for k in c
+        if k.startswith("is_")
+    }
     assert {"is_channel", "is_group", "is_im", "is_mpim"} <= kinds
     assert all("num_members" in c for c in load(slack / "conversations.list.json")["channels"])
     assert load(slack / "users.list.json")["members"]
@@ -40,7 +47,9 @@ def test_base_has_slack_replay_shapes(fixtures_dir):
     assert load(slack / "history/C001/page-1.json")["response_metadata"]["next_cursor"] == ""
     msg = first["messages"][0]
     assert {"ts", "user", "text"} <= msg.keys()
-    assert not any("permalink" in m for p in slack.glob("history/*/*.json") for m in load(p)["messages"])
+    assert not any(
+        "permalink" in m for p in slack.glob("history/*/*.json") for m in load(p)["messages"]
+    )
     messages = [m for p in slack.glob("history/*/*.json") for m in load(p)["messages"]]
     assert any("thread_ts" in m for m in messages)
     assert any("files" in m for r in slack.glob("replies/*/*.json") for m in load(r)["messages"])
@@ -53,9 +62,14 @@ def test_base_has_slack_replay_shapes(fixtures_dir):
 def test_base_has_session_shapes(fixtures_dir):
     files = list((fixtures_dir / "claude/projects").glob("*/*.jsonl"))
     assert len({p.parent for p in files}) >= 2
-    lines = [json.loads(l) for p in files for l in p.read_text().splitlines()]
-    assert all({"timestamp", "message"} <= l.keys() and "role" in l["message"] for l in lines)
-    blocks = [b for l in lines if isinstance(l["message"]["content"], list) for b in l["message"]["content"]]
+    lines = [json.loads(ln) for p in files for ln in p.read_text().splitlines()]
+    assert all({"timestamp", "message"} <= ln.keys() and "role" in ln["message"] for ln in lines)
+    blocks = [
+        b
+        for ln in lines
+        if isinstance(ln["message"]["content"], list)
+        for b in ln["message"]["content"]
+    ]
     assert {"tool_use", "tool_result"} <= {b["type"] for b in blocks}
 
 
@@ -69,7 +83,14 @@ def test_base_has_recording_shapes(fixtures_dir):
         for p in placeholders:
             assert name_re.fullmatch(p.name)  # ends in "Recording": no media extension
             seg = load(p.with_name(p.name + ".transcript.json"))["segments"][0]
-            assert {"start", "end", "text", "avg_logprob", "no_speech_prob", "compression_ratio"} <= seg.keys()
+            assert {
+                "start",
+                "end",
+                "text",
+                "avg_logprob",
+                "no_speech_prob",
+                "compression_ratio",
+            } <= seg.keys()
             assert {"text", "p"} <= seg["tokens"][0].keys()
 
 
@@ -91,10 +112,21 @@ def test_hebrew_is_real_with_niqqud(fixtures_dir):
 
 
 SPEC_FIXTURE_SET = [
-    "cross-source project", "date disagreement", "uncertain Hebrew passage", "unnamed first-person speech",
-    "deleted Slack message", "edited Slack message", "ambiguous project name", "stale item", "ownerless item",
-    "failing extractor", "partial file", "Slack history older than 30 days",
-    "replayed conversation list", "project with no recording", "prompt-injection message",
+    "cross-source project",
+    "date disagreement",
+    "uncertain Hebrew passage",
+    "unnamed first-person speech",
+    "deleted Slack message",
+    "edited Slack message",
+    "ambiguous project name",
+    "stale item",
+    "ownerless item",
+    "failing extractor",
+    "partial file",
+    "Slack history older than 30 days",
+    "replayed conversation list",
+    "project with no recording",
+    "prompt-injection message",
 ]
 
 
