@@ -15,13 +15,15 @@ function source(name, state) {
 
 /** The last successful Import per source, shown at the top of every view. */
 export async function render(target) {
-  const { freshness } = await api.get('/api/open-items');
+  const [{ freshness }, { count }] = await Promise.all([api.get('/api/open-items'), api.get('/api/review')]);
   const parts = Object.keys(LABELS)
     .filter((name) => name in freshness.sources)
     .map((name) => source(name, freshness.sources[name]));
   const line = [];
   parts.forEach((part, i) => line.push(i ? ' · ' : 'Updated from ', part));
-  target.replaceChildren(h('a', { href: '/import', 'data-link': true, 'data-part': 'open-import' }, ...line));
+  target.replaceChildren(
+    h('a', { href: '/import', 'data-link': true, 'data-part': 'open-import' }, ...line),
+    ...(count ? [' · ', h('a', { href: '/review', 'data-link': true, 'data-part': 'open-review' }, `${count} to review`)] : []));
 }
 
 /** "Last import 09:12." for the empty state; names the day when it was not today. */

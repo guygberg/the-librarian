@@ -37,14 +37,14 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
 def _candidates(conn: sqlite3.Connection, workspace: str, name: str) -> list[dict[str, Any]]:
     wanted = people.key(name)
     found = {
-        pid: pname
+        pid: (pname, alias)
         for pid, pname, alias in conn.execute(
             "SELECT p.id, p.name, a.alias FROM aliases a JOIN persons p ON p.id = a.person_id WHERE a.workspace = ?",
             (workspace,),
         )
         if not alias.startswith(people.SLACK) and people.key(alias) == wanted
     }
-    return [{"id": pid, "name": pname} for pid, pname in found.items()]
+    return [{"id": pid, "name": pname, "alias": alias} for pid, (pname, alias) in found.items()]
 
 
 def _entry(conn: sqlite3.Connection, workspace: str, entry_id: int) -> tuple[int, str, str, str | None]:

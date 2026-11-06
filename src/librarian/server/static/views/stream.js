@@ -6,6 +6,7 @@ import { dateLine, shortDate } from '../format.js';
 import { justActed } from '../actions.js';
 import { evidenceLine, panel } from './expanded.js';
 import * as relations from './graph.js';
+import { projectTools } from './project-tools.js';
 
 /** What the last action changed (see actions.js), so the matching parts settle on this one render. */
 let acted = null;
@@ -15,7 +16,6 @@ const WAITING = 'waiting_on_others';
 const OTHER = 'other_open';
 
 const UNKNOWN_SPEAKER = 'unknown_speaker';
-const UNCONFIRMED_PERSON = 'unconfirmed_person';
 
 const BASIS = {
   inferred: ['inf', 'Inferred'],
@@ -39,9 +39,7 @@ function warnings(item) {
   if (item.contradictions.length) out.push('Sources disagree');
   if (item.transcription_uncertain) out.push('Transcription uncertain');
   if (item.stale && item.last_evidence) out.push(`Not mentioned since ${shortDate(new Date(item.last_evidence))}`);
-  for (const s of item.suggested ?? []) {
-    if (s.link === 'owner' && [UNKNOWN_SPEAKER, UNCONFIRMED_PERSON].includes(s.kind)) out.push(s.mark);
-  }
+  for (const s of item.suggested ?? []) out.push(s.mark);
   return out;
 }
 
@@ -64,7 +62,7 @@ function row(item, evidence, open) {
 const fact = (label, f) => (f && f !== 'not found' ? h('div', { class: 'm' }, h('span', {}, label), h('span', {}, f.title ?? f.value)) : null);
 
 /** What a selected project stands at, and what changed since the last meeting. */
-async function statusHeader(name) {
+async function statusHeader(name, projects, items) {
   const [{ project, resolved }, changes] = await Promise.all([
     api.get(`/api/project?name=${encodeURIComponent(name)}`),
     api.get(`/api/changes?project=${encodeURIComponent(name)}`),
@@ -72,6 +70,7 @@ async function statusHeader(name) {
   if (!resolved.project) return null;
   return h('div', { class: 'sh', 'data-part': 'status-header' },
     h('div', { class: 't' }, resolved.project.name),
+    projectTools(resolved.project, projects, items),
     fact('Status', project.status),
     fact('Blocker', project.main_blocker),
     fact('Latest decision', project.latest_decision),
@@ -120,8 +119,8 @@ export async function stream() {
   const state = filters.current();
   acted = justActed();
   const [answer, status] = await Promise.all([api.get('/api/open-items?scope=all'), api.get('/api/status')]);
-  const header = state.project ? await statusHeader(state.project) : null;
   const shown = answer.records.filter((r) => filters.matches(r, state));
+  const header = state.project ? await statusHeader(state.project, answer.projects, shown) : null;
   const evidence = state.kind === 'done' ? answer.evidence : [];
   const hasOwner = answer.records.filter((r) => ownerName(r));
   const graphState = state.open && state.tab === 'relations' ? relations.params(state.open) : null;

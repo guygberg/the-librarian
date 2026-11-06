@@ -1,5 +1,6 @@
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
+import { aliasControls } from './alias.js';
 
 export const KINDS = ['belongs_to', 'owner', 'waiting_on', 'blocks', 'supersedes', 'related_to', 'mentions', 'evidence'];
 const NS = 'http://www.w3.org/2000/svg';
@@ -91,8 +92,16 @@ function canvas(graph, open) {
 const chip = (content, to, on, part, extra = {}) =>
   h('a', { href: to, class: on ? 'chip on' : 'chip', 'data-link': true, 'data-part': part, ...extra }, content);
 
+/** A person node's menu: one of its Aliases (the first, until edited) can move to another Person or split off. */
+function personMenu(node, open, people) {
+  const alias = h('input', { type: 'text', value: node.aliases[0] ?? node.title, 'aria-label': 'Alias', 'data-part': 'person-alias' });
+  return h('details', { class: 'pmenu', 'data-part': 'person-menu', 'data-id': node.id },
+    h('summary', {}, node.title),
+    alias, aliasControls({ alias: () => alias.value, from: Number(node.id.split(':')[1]), recordId: open, people }));
+}
+
 /** The Relations tab: the hop control, the edge-kind filters and the graph itself. */
-export function view(graph, open, state) {
+export function view(graph, open, state, people) {
   const link = (change) => filters.href({ open, tab: 'relations', ...change });
   const toggled = (kind) => {
     const kinds = state.kinds.includes(kind) ? state.kinds.filter((k) => k !== kind) : [...state.kinds, kind];
@@ -105,5 +114,6 @@ export function view(graph, open, state) {
     h('div', { class: 'tabs', 'data-part': 'kind-filter' },
       KINDS.map((k) => chip(label(k), link({ kinds: toggled(k) }), state.kinds.includes(k), 'kind', { 'data-kind': k }))),
     canvas(graph, open),
+    graph.nodes.filter((n) => n.type === 'person').map((n) => personMenu(n, open, people)),
     h('small', { class: 'legend', 'data-part': 'graph-legend' }, 'solid = 1 hop · faded = further out · click a node to re-centre'));
 }

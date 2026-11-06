@@ -107,7 +107,7 @@ export function panel(r, tab, ctx) {
     disagreement(r),
     tabs(r, tab),
     tab === 'relations'
-      ? relations.view(ctx.graph, r.id, ctx.graphState)
+      ? relations.view(ctx.graph, r.id, ctx.graphState, ctx.people)
       : r.evidence.map((e) => evidenceLine(e, true, r.id)),
     history(r));
 }
