@@ -54,6 +54,15 @@ def upsert(
         return True
 
 
+def latest_content(conn: sqlite3.Connection, workspace: str, source: str, stable_id: str) -> str | None:
+    row = conn.execute(
+        "SELECT r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
+        " WHERE i.workspace = ? AND i.source = ? AND i.stable_id = ? ORDER BY r.revision DESC LIMIT 1",
+        (workspace, source, stable_id),
+    ).fetchone()
+    return row[0] if row else None
+
+
 def mark_gone(
     conn: sqlite3.Connection, workspace: str, source: str, stable_id: str, gone: bool = True
 ) -> None:

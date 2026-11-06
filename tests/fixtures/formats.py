@@ -37,14 +37,19 @@ def write_slack_workspace(target: Path, url: str, users: list[dict], conversatio
     )
 
 
-def write_slack_history(target: Path, channel: str, messages: list[dict]) -> None:
+def slack_root(target: Path, generation: int = 0) -> Path:
+    """Generation n > 0 is what the fake Slack serves from the (n+1)th Import on; see FakeSlack."""
+    return target / "slack" / (f"gen-{generation}" if generation else "")
+
+
+def write_slack_history(target: Path, channel: str, messages: list[dict], generation: int = 0) -> None:
     """Newest-first pages of at most PAGE_SIZE, chained by cursor like conversations.history."""
     newest_first = sorted(messages, key=lambda m: m["ts"], reverse=True)
     chunks = [newest_first[i : i + PAGE_SIZE] for i in range(0, len(newest_first), PAGE_SIZE)] or [[]]
     for n, chunk in enumerate(chunks):
         more = n + 1 < len(chunks)
         write_json(
-            target / "slack" / "history" / channel / f"page-{n}.json",
+            slack_root(target, generation) / "history" / channel / f"page-{n}.json",
             {
                 "ok": True,
                 "messages": chunk,
@@ -54,9 +59,11 @@ def write_slack_history(target: Path, channel: str, messages: list[dict]) -> Non
         )
 
 
-def write_slack_replies(target: Path, channel: str, thread_ts: str, messages: list[dict]) -> None:
+def write_slack_replies(
+    target: Path, channel: str, thread_ts: str, messages: list[dict], generation: int = 0
+) -> None:
     write_json(
-        target / "slack" / "replies" / channel / f"{thread_ts}.json",
+        slack_root(target, generation) / "replies" / channel / f"{thread_ts}.json",
         {"ok": True, "messages": messages, "has_more": False},
     )
 

@@ -11,7 +11,16 @@ class FakeSlack:
         self._root = fixtures / "slack"
         self._log = log
 
+    def _generation(self) -> int:
+        """Runs started so far, counted by `auth_info` calls (one per Import): 0 on the first."""
+        return max(0, sum(c["method"] == "auth_info" for c in self._log.read()) - 1)
+
     def _load(self, *parts: str):
+        """Newest `gen-<n>/` copy of the file at or below the current generation, else the base copy."""
+        for gen in range(self._generation(), 0, -1):
+            path = self._root.joinpath(f"gen-{gen}", *parts)
+            if path.exists():
+                return json.loads(path.read_text())
         return json.loads(self._root.joinpath(*parts).read_text())
 
     def auth_info(self) -> dict:

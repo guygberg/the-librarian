@@ -19,6 +19,8 @@ from librarian.slack import permalink, picks
 
 SOURCE = "slack"
 WINDOW_SECONDS = 30 * 24 * 3600
+# Items newer than this are read again each Import to catch edits and deletions; older ones are not re-checked.
+RECHECK_SECONDS = 7 * 24 * 3600
 
 
 def _now() -> float:
@@ -48,6 +50,63 @@ def _history_since(slack: SlackSource, channel: str, cutoff: str) -> Iterator[di
             return
 
 
+def _history_before(slack: SlackSource, channel: str, bound: str) -> Iterator[dict[str, Any]]:
+    """Every message at or older than `bound`, paging through the newer ones first."""
+    cursor = None
+    while True:
+        page = slack.history(channel, cursor)
+        yield from (m for m in page.get("messages", []) if isinstance(m.get("ts"), str) and m["ts"] <= bound)
+        cursor = (page.get("response_metadata") or {}).get("next_cursor")
+        if not cursor:
+            return
+
+
+def _with_replies(
+    slack: SlackSource, channel: str, messages: Iterator[dict[str, Any]], threads: set[str]
+) -> Iterator[dict[str, Any]]:
+    """Each message followed by its thread replies; `threads` collects the parents whose replies were read."""
+    for message in messages:
+        yield message
+        if message.get("thread_ts") == message.get("ts") and message.get("reply_count"):
+            threads.add(message["ts"])
+            yield from (r for r in slack.replies(channel, message["ts"]) if r.get("ts") != message["ts"])
+
+
+def count_older(slack: SlackSource, channel: str) -> int:
+    """Dry run for `import-older`: how many messages lie beyond the 30-day window."""
+    older = _history_before(slack, channel, _window_start())
+    return sum(1 for _ in _with_replies(slack, channel, older, set()))
+
+
+def _window_start() -> str:
+    return f"{int(_now() - WINDOW_SECONDS)}.000000"
+
+
+def _content(raw: dict[str, Any]) -> str:
+    return json.dumps(raw, ensure_ascii=False, sort_keys=True)
+
+
+def _stored_since(conn: sqlite3.Connection, workspace: str, channel: str, cutoff: str) -> dict[str, dict[str, Any]]:
+    """Latest stored content of the conversation's items newer than `cutoff`, by item id."""
+    rows = conn.execute(
+        "SELECT i.stable_id, r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
+        " WHERE i.workspace = ? AND i.source = ? AND i.stable_id > ? AND i.stable_id LIKE ?"
+        " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions WHERE source_item_id = i.id)",
+        (workspace, SOURCE, f"{channel}/{cutoff}", f"{channel}/%"),
+    )
+    return {item: json.loads(content) for item, content in rows}
+
+
+def _mark_missing_gone(
+    conn: sqlite3.Connection, workspace: str, channel: str, cutoff: str, seen: set[str], threads: set[str]
+) -> None:
+    """Items inside the re-check window that Slack no longer returns. Replies count only when their thread was read."""
+    for item, message in _stored_since(conn, workspace, channel, cutoff).items():
+        parent = message.get("thread_ts")
+        if item not in seen and parent in (None, message.get("ts"), *threads):
+            store.mark_gone(conn, workspace, SOURCE, item)
+
+
 def _item_id(channel: str, message: dict[str, Any]) -> str:
     if isinstance(message.get("ts"), str):
         return f"{channel}/{message['ts']}"
@@ -63,7 +122,17 @@ def _validate(message: dict[str, Any]) -> None:
             raise ValueError(f"slack message field {field!r} is not text")
 
 
-def stage(workspace: str, slack: SlackSource) -> Stage:
+def _cutoff(conn: sqlite3.Connection, workspace: str, channel: str) -> str:
+    """Where a normal Import starts reading: the last RECHECK_SECONDS of stored items are read again."""
+    window = _window_start()
+    watermark = _watermark(conn, workspace, channel)
+    if not watermark:
+        return window
+    return max(window, min(watermark, f"{int(_now() - RECHECK_SECONDS)}.000000"))
+
+
+def stage(workspace: str, slack: SlackSource, older: str | None = None) -> Stage:
+    """The normal fetch stage, or with `older` set only that conversation's history beyond the 30-day window."""
     fetched: dict[str, tuple[dict[str, Any], dict[str, str]]] = {}
 
     def discover(conn: sqlite3.Connection) -> Iterator[tuple[str, str]]:
@@ -73,18 +142,32 @@ def stage(workspace: str, slack: SlackSource) -> Stage:
             return
         permalink.save_workspace_url(conn, workspace, slack.auth_info()["url"])
         conversations = {c["id"]: c for c in slack.list_conversations()}
-        for channel in sorted(wanted & conversations.keys()):
+        for channel in sorted((wanted & conversations.keys()) if older is None else {older} & wanted):
             origin = {"name": picks.rows([conversations[channel]], wanted)[0]["name"],
                       "kind": picks.kind_of(conversations[channel])}
-            cutoff = max(_watermark(conn, workspace, channel), f"{int(_now() - WINDOW_SECONDS)}.000000")
-            for message in _history_since(slack, channel, cutoff):
-                batch = [message]
-                if message.get("thread_ts") == message.get("ts") and message.get("reply_count"):
-                    batch += [r for r in slack.replies(channel, message["ts"]) if r.get("ts") != message["ts"]]
-                for raw in batch:
-                    item = _item_id(channel, raw)
-                    fetched[item] = (raw, origin)
-                    yield SOURCE, item
+            cutoff = _cutoff(conn, workspace, channel)
+            history = (
+                _history_since(slack, channel, cutoff) if older is None
+                else _history_before(slack, channel, _window_start())
+            )
+            seen: set[str] = set()
+            threads: set[str] = set()
+            for raw in _with_replies(slack, channel, history, threads):
+                item = _item_id(channel, raw)
+                seen.add(item)
+                stored = store.latest_content(conn, workspace, SOURCE, item)
+                if stored == _content(raw):
+                    continue
+                if stored is not None:
+                    # Edited: earlier stages already finished this item, so make them run again.
+                    conn.execute(
+                        "DELETE FROM import_item_stages WHERE workspace = ? AND source = ? AND item = ?",
+                        (workspace, SOURCE, item),
+                    )
+                fetched[item] = (raw, origin)
+                yield SOURCE, item
+            if older is None:
+                _mark_missing_gone(conn, workspace, channel, cutoff, seen, threads)
 
     def process(conn: sqlite3.Connection, source: str, item: str) -> None:
         if item not in fetched:
@@ -92,7 +175,7 @@ def stage(workspace: str, slack: SlackSource) -> Stage:
         raw, origin = fetched.pop(item)
         _validate(raw)
         store.upsert(
-            conn, workspace, SOURCE, item, json.dumps(raw, ensure_ascii=False, sort_keys=True),
+            conn, workspace, SOURCE, item, _content(raw),
             origin_name=origin["name"], origin_kind=origin["kind"],
         )
 

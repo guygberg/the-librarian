@@ -25,11 +25,11 @@ STAGES = [
 ]
 
 
-def load_stages(workspace: str) -> list[Stage]:
+def load_stages(workspace: str, older: str | None = None) -> list[Stage]:
     override = os.environ.get("LIBRARIAN_STAGES")
     if override:
         return importlib.import_module(override).STAGES
     from librarian import engines  # imported here: both modules import Stage from this one
     from librarian.importer import slack_fetch
 
-    return [slack_fetch.stage(workspace, engines.get_engines(workspace).slack), *STAGES[1:]]
+    return [slack_fetch.stage(workspace, engines.get_engines(workspace).slack, older), *STAGES[1:]]

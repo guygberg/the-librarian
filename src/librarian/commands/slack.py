@@ -1,14 +1,18 @@
 from librarian import db, engines
+from librarian.commands import import_
+from librarian.importer import slack_fetch
 from librarian.slack import picks
 from librarian.tty import require_terminal
 
-help = "Choose which Slack conversations are imported"
+help = "Choose which Slack conversations are imported, or fetch older history"
 
 
 def add_arguments(parser):
     sub = parser.add_subparsers(dest="action", required=True)
     pick = sub.add_parser("pick", help="list conversations and edit the picked ones")
     pick.add_argument("--list", action="store_true", help="only print the list (read-only)")
+    older = sub.add_parser("import-older", help="fetch a picked conversation's history beyond 30 days")
+    older.add_argument("conversation", help="picked conversation id or name")
 
 
 def _show(rows):
@@ -27,7 +31,32 @@ def _numbers(answer, count):
     return chosen
 
 
+def _import_older(args, ctx):
+    require_terminal()
+    conn = db.connect_rw(ctx.workspace)
+    picks.seed_once(conn, ctx.workspace, ctx.workspace_dir)
+    slack = engines.get_engines(ctx.workspace).slack
+    picked = picks.picked_ids(conn, ctx.workspace)
+    rows = [r for r in picks.rows(slack.list_conversations(), picked) if r["picked"]]
+    match = [r for r in rows if args.conversation in (r["id"], r["name"])]
+    if not match:
+        raise SystemExit(f"librarian: {args.conversation!r} is not a picked conversation; see `librarian slack pick`")
+    row = match[0]
+    count = slack_fetch.count_older(slack, row["id"])
+    print(f"{row['name']}: {count} messages older than 30 days would be fetched")
+    try:
+        answer = input("Fetch them now? [y/N] ").strip().lower()
+    except EOFError:
+        answer = ""
+    if answer not in ("y", "yes"):
+        print("nothing fetched")
+        return 0
+    return import_.execute(ctx, older=row["id"])
+
+
 def run(args, ctx):
+    if args.action == "import-older":
+        return _import_older(args, ctx)
     if not args.list:
         require_terminal()
     conn = db.connect_rw(ctx.workspace)

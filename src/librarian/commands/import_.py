@@ -15,11 +15,16 @@ def add_arguments(parser):
 
 def run(args, ctx):
     require_terminal()
+    return execute(ctx)
+
+
+def execute(ctx, older=None):
+    """One Import under the Workspace lock; `older` limits fetching to that Slack conversation's older history."""
     try:
         with workspace_lock(ctx.workspace_dir):
             conn = db.connect_rw(ctx.workspace)
             run = runner.start_run(conn, ctx.workspace, os.getpid())
-            stages = load_stages(ctx.workspace)
+            stages = load_stages(ctx.workspace, older)
             status = gate.training_gate_status(ctx.config)
             if not status.allowed:
                 # Everything from extract on sends work text to Claude, so none of it runs.
