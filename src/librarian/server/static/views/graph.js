@@ -77,12 +77,28 @@ function labelSpot(a, b, mid) {
   return [near[0] + (far[0] - near[0]) * 0.65, near[1] + (far[1] - near[1]) * 0.65 - 4];
 }
 
+const LABEL_H = 18;
+const labelBox = ([x, y], content) => {
+  const w = content.length * 7 + 8;
+  return { l: x - w / 2, r: x + w / 2, t: y - LABEL_H + 3, b: y + 3 };
+};
+const collides = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+
+/** Edges converging on one node put their labels in the same place; step a label down until it clears those already placed. */
+function clearSpot(spot, content, placed) {
+  let [x, y] = spot;
+  while (placed.some((box) => collides(box, labelBox([x, y], content)))) y += LABEL_H;
+  placed.push(labelBox([x, y], content));
+  return [x, y];
+}
+
 function canvas(graph, open) {
   const H = height(graph.hops);
   const mid = [W / 2, H / 2];
   const spot = place(graph, mid);
   const hopOf = new Map(graph.nodes.map((n) => [n.id, n.hop]));
   const recentre = (id) => filters.href({ open, tab: 'relations', center: id === `record:${open}` ? null : id });
+  const placed = [];
   const edges = graph.edges.map((e) => {
     const [from, to] = [spot.get(e.from), spot.get(e.to)];
     const [x1, y1] = border(from, to);
@@ -90,7 +106,8 @@ function canvas(graph, open) {
     return svg('g', { class: `edge hop-${Math.max(hopOf.get(e.from), hopOf.get(e.to))}`, 'data-part': 'graph-edge', 'data-kind': e.kind },
       svg('line', { x1, y1, x2, y2, stroke: '#9A95AD', 'stroke-width': 1.5, 'marker-end': 'url(#arrow)' }),
       // Nearer the outer node: edges converge on the centre, so midpoint labels pile up there.
-      text(...labelSpot([x1, y1], [x2, y2], mid), label(e.kind), { fill: '#9A95AD', 'font-size': 12 }));
+      text(...clearSpot(labelSpot([x1, y1], [x2, y2], mid), label(e.kind), placed), label(e.kind),
+        { fill: '#9A95AD', 'font-size': 12, stroke: '#17151f', 'stroke-width': 4, 'paint-order': 'stroke' }));
   });
   const arrow = svg('defs', {}, svg('marker', { id: 'arrow', markerWidth: 8, markerHeight: 8, refX: 7, refY: 4, orient: 'auto' },
     svg('path', { d: 'M0,0 L8,4 L0,8z', fill: '#9A95AD' })));

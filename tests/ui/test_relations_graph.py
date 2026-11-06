@@ -85,6 +85,21 @@ def test_hop_control_adds_nodes_and_fades_outer_hops(page, ui):
     assert float(nodes(page, 1).first.evaluate("el => getComputedStyle(el).opacity")) == 1
 
 
+def test_edge_labels_do_not_overlap_at_two_hops(page, ui):
+    graph_page(page, ui, "&hops=2")
+    boxes = page.locator("[data-part=graph-edge] text").evaluate_all(
+        """els => els.map(el => {
+          const r = el.getBoundingClientRect();
+          return { text: el.textContent, l: r.left, r: r.right, t: r.top, b: r.bottom };
+        })"""
+    )
+    assert len(boxes) > 3
+    for i, a in enumerate(boxes):
+        for b in boxes[i + 1 :]:
+            apart = a["r"] <= b["l"] or b["r"] <= a["l"] or a["b"] <= b["t"] or b["b"] <= a["t"]
+            assert apart, f"labels overlap: {a} {b}"
+
+
 def test_edge_kind_filter_hides_other_kinds(page, ui):
     ui, item = graph_page(page, ui)
     kinds = {e["kind"] for e in api_graph(page, item, 1)["edges"]}
