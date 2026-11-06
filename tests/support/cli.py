@@ -4,11 +4,10 @@ import subprocess
 import sys
 
 
-def run_librarian(args, home, stdin=subprocess.DEVNULL):
-    env = {**os.environ, "LIBRARIAN_HOME": str(home)}
+def run_librarian(args, home, stdin=subprocess.DEVNULL, env=None):
     return subprocess.run(
         [sys.executable, "-m", "librarian", *args],
-        env=env,
+        env={**os.environ, "LIBRARIAN_HOME": str(home), **(env or {})},
         stdin=stdin,
         capture_output=True,
         text=True,
