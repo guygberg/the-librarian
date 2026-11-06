@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any
 
-from librarian import locator
+from librarian import locator, store
 from librarian.query import core
 
 KEYS = ("warnings", "resolved", "records", "evidence", "freshness")
@@ -58,6 +58,7 @@ def evidence_for(conn: sqlite3.Connection, workspace: str, record_ids: list[int]
     if not record_ids:
         return []
     marks = ", ".join("?" * len(record_ids))
+    gone = store.gone_ids(conn, workspace, "slack")
     return [
         {
             "record_id": record_id,
@@ -67,6 +68,7 @@ def evidence_for(conn: sqlite3.Connection, workspace: str, record_ids: list[int]
             "role": role,
             "retrieved_at": retrieved,
             **({"gloss": gloss} if gloss else {}),
+            **({"gone_from_source": True} if store.evidence_is_gone(loc, gone) else {}),
         }
         for record_id, loc, quote, role, retrieved, gloss in conn.execute(
             "SELECT record_id, locator, quote, role, retrieved_at, gloss FROM evidence"

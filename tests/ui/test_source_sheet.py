@@ -32,6 +32,22 @@ def test_slack_quote_opens_the_thread_with_the_evidence_line_and_the_permalink(p
     assert link.get_attribute("target") == "_blank"
 
 
+def test_deleted_slack_message_says_gone_from_slack_in_evidence_and_sheet_and_keeps_the_quote(page, ui):
+    ui = ui("payments-cutover", payments.NOW)
+    [(locator,)] = ui.sql("SELECT locator FROM evidence WHERE record_id = (SELECT id FROM records WHERE title = ?) LIMIT 1", payments.NOV_18)
+    ui.sql("UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?", locator.split(":", 1)[1])
+    stored = ui.sql("SELECT quote FROM evidence WHERE locator = ?", locator)[0][0]
+
+    panel = expand(page, ui, payments.NOV_18)
+    expect(panel.locator("[data-part=gone-from-source]").first).to_have_text("gone from Slack")
+    expect(first_quote(panel)).to_have_text(stored)
+
+    first_quote(panel).click()
+    marked = page.locator(SHEET).locator("[data-part=evidence-line]")
+    expect(marked.locator("[data-part=gone-from-source]")).to_have_text("gone from Slack")
+    expect(marked).to_contain_text(stored.split()[0])
+
+
 def test_session_quote_opens_the_raw_jsonl_passage(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     lines = [{"role": "user", "text": f"line {n}"} for n in (1, 2, 3)]

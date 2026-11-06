@@ -3,6 +3,7 @@
 import sqlite3
 from typing import Any
 
+from librarian import store
 from librarian.link import review
 
 _FIELDS = ("id", "kind", "title", "body", "lifecycle", "basis", "commitment", "stated_deadline", "reasoning")
@@ -42,8 +43,15 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
     if parent_id:
         record["parent"] = {"id": parent_id, "title": _label(conn, "record", parent_id)}
     record["links"] = [link for link in links if link["type"] != "belongs_to"]
+    gone = store.gone_ids(conn, workspace, "slack")
     record["evidence"] = [
-        {"locator": loc, "quote": quote, "role": role, **({"gloss": gloss} if gloss else {})}
+        {
+            "locator": loc,
+            "quote": quote,
+            "role": role,
+            **({"gloss": gloss} if gloss else {}),
+            **({"gone_from_source": True} if store.evidence_is_gone(loc, gone) else {}),
+        }
         for loc, quote, role, gloss in conn.execute(
             "SELECT locator, quote, role, gloss FROM evidence WHERE workspace = ? AND record_id = ? ORDER BY id",
             (workspace, record_id),

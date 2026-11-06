@@ -6,7 +6,7 @@ This module never deletes items or revisions; `mark_gone` only sets a flag. Only
 import hashlib
 import sqlite3
 
-from librarian import textsearch
+from librarian import locator, textsearch
 from librarian.clock import utc_now_iso
 
 
@@ -76,6 +76,19 @@ def mark_gone(
             "UPDATE source_items SET gone = ? WHERE workspace = ? AND source = ? AND stable_id = ?",
             (int(gone), workspace, source, stable_id),
         )
+
+
+def gone_ids(conn: sqlite3.Connection, workspace: str, source: str) -> set[str]:
+    """Stable ids of the source's items that vanished upstream; their revisions and Evidence stay."""
+    rows = conn.execute(
+        "SELECT stable_id FROM source_items WHERE workspace = ? AND source = ? AND gone = 1", (workspace, source)
+    )
+    return {r[0] for r in rows}
+
+
+def evidence_is_gone(loc: str, gone_slack: set[str]) -> bool:
+    parsed = locator.parse(loc)
+    return parsed.source == "slack" and parsed.stable_id in gone_slack
 
 
 def get_item(conn: sqlite3.Connection, workspace: str, source: str, stable_id: str) -> dict | None:

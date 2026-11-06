@@ -51,6 +51,7 @@ function line(item, gloss, people) {
       people ? speakerMenu(item, people) : null,
       h('span', { dir: hebrew ? 'rtl' : 'auto', lang: hebrew ? 'he' : null, class: hebrew ? 'he' : null, 'data-part': 'quote' }, words(item)),
       item.confidence ? h('span', { class: 'tag', 'data-part': 'low-confidence' }, item.confidence.label) : null,
+      item.gone_from_source ? h('span', { class: 'tag', 'data-part': 'gone-from-source' }, 'gone from Slack') : null,
       item.evidence && gloss ? glossLine(item, gloss) : null));
 }
 

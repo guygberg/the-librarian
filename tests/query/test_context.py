@@ -63,6 +63,22 @@ def test_slack_thread_marks_only_the_evidence_message(onboarding):
     assert answer["context"]["items"][0]["text"] == hebrew.LEGAL_TEXT
 
 
+def test_deleted_slack_message_is_flagged_in_the_passage_and_the_record_evidence_and_stays_visible(onboarding):
+    locator = f"slack:C001/{hebrew.LEGAL_AT}"
+    conn = sqlite3.connect(next(onboarding.rglob("*.db")))
+    with conn:
+        conn.execute("UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?", (f"C001/{hebrew.LEGAL_AT}",))
+    [(record_id,)] = conn.execute("SELECT record_id FROM evidence WHERE locator = ?", (locator,)).fetchall()
+
+    _, answer = show(onboarding, locator)
+    [mine] = [i for i in answer["context"]["items"] if i["evidence"]]
+    assert mine["gone_from_source"] is True and mine["text"] == hebrew.LEGAL_TEXT
+
+    _, record = show(onboarding, str(record_id))
+    [shown] = [e for e in record["evidence"] if e["locator"] == locator]
+    assert shown["gone_from_source"] is True and shown["quote"]
+
+
 def test_session_passage_has_the_copied_lines_and_the_raw_view(tmp_path, home):
     fixtures = tmp_path / "fixtures"
     build(fixtures, "session_librarian_echo")

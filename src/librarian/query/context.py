@@ -8,7 +8,7 @@ import json
 import sqlite3
 from typing import Any
 
-from librarian import config, locator
+from librarian import config, locator, store
 from librarian.query import envelope
 from librarian.slack import permalink
 from librarian.transcribe import confidence
@@ -68,9 +68,10 @@ def _slack(conn, workspace, loc, cfg):
         ((sid, m) for sid, m, _ in items if m.get("ts") == root or m.get("thread_ts") == root),
         key=lambda pair: pair[1].get("ts", ""),
     )
+    gone = store.gone_ids(conn, workspace, "slack")
     return [
         {"locator": str(locator.Locator("slack", sid)), "user": m.get("user"), "ts": m.get("ts"), "text": m.get("text", "")}
-        | {"evidence": sid == loc.stable_id}
+        | {"evidence": sid == loc.stable_id, "gone_from_source": sid in gone}
         for sid, m in thread
     ]
 
