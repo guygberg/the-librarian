@@ -1,22 +1,14 @@
 """People: Slack ids link automatically; text names link only on an exact, unique Alias match."""
 
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
 
 from librarian import config
+from librarian.clock import utc_now_iso
 from librarian.link import review
+from librarian.link.names import key
 
 SLACK = "slack:"
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
-
-
-def key(name: str) -> str:
-    """Case and spacing differences are not a different name; anything further apart is."""
-    return " ".join(name.casefold().split())
 
 
 def add_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: str) -> None:
@@ -25,7 +17,7 @@ def add_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: s
 
 def new_person(conn: sqlite3.Connection, workspace: str, name: str, is_me: bool = False) -> int:
     return conn.execute(
-        "INSERT INTO persons (workspace, name, created_at, is_me) VALUES (?, ?, ?, ?)", (workspace, name, _now(), is_me)
+        "INSERT INTO persons (workspace, name, created_at, is_me) VALUES (?, ?, ?, ?)", (workspace, name, utc_now_iso(), is_me)
     ).lastrowid
 
 

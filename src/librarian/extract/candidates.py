@@ -12,6 +12,7 @@ from typing import Any
 
 from librarian.extract.units import Unit
 from librarian.link import projects
+from librarian.link.names import key
 
 RECORD_CAP = 60
 _OPEN = ("open", "pending", "suspended")
@@ -86,11 +87,11 @@ def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> 
 
 
 def _named_in(conn: sqlite3.Connection, workspace: str, unit: Unit) -> set[int]:
-    text = projects.key(unit.text)
+    text = key(unit.text)
     return {
         record_id
         for record_id, known in projects.names(conn, workspace).items()
-        if any(projects.key(name) in text for name in known)
+        if any(key(name) in text for name in known)
     }
 
 

@@ -7,10 +7,8 @@ from librarian.cli import Context
 from librarian.commands import import_
 from librarian.importer import slack_fetch
 from librarian.importer.lock import LockHeld
-from librarian.link import review_actions as actions
 from librarian.server import jobs
-from librarian.server.routes import Route
-from librarian.server.routes.review import _field
+from librarian.server.routes import Refused, Route, field
 from librarian.slack import picks
 
 PICKED_NOTE = "Only picked conversations are fetched and sent to Claude."
@@ -83,8 +81,8 @@ def get_older(req):
 
 def post_older(req):
     try:
-        conversation = _field(req.body, "conversation", str)
-    except actions.Invalid as invalid:
+        conversation = field(req.body, "conversation", str)
+    except Refused as invalid:
         return invalid.status, {"error": invalid.message}
     if req.body.get("confirm") is not True:
         return 400, {"error": "confirm must be true; check the count from GET first"}

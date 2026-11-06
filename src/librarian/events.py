@@ -9,8 +9,9 @@ Every other event is history only until the action that needs it lands.
 
 import json
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
+
+from librarian.clock import utc_now_iso
 
 TYPES = (
     "status_change", "owner_change", "project_move", "accept_suggestion", "reject_suggestion",
@@ -28,7 +29,7 @@ def append(
     with conn:
         return conn.execute(
             "INSERT INTO record_events (workspace, record_id, event, detail, at) VALUES (?, ?, ?, ?, ?)",
-            (workspace, record_id, event, json.dumps(detail or {}), at or datetime.now(UTC).isoformat()),
+            (workspace, record_id, event, json.dumps(detail or {}), at or utc_now_iso()),
         ).lastrowid
 
 

@@ -1,9 +1,9 @@
 """The "last visit" marker: when the person last dismissed the what-changed strip, kept in the Workspace data."""
 
 import json
-from datetime import UTC, datetime
 
 from librarian import paths
+from librarian.clock import utc_now_iso
 from librarian.server.routes import Route
 
 MARKER = "last_visit.json"
@@ -33,7 +33,7 @@ def post_seen(req):
     path = _file(req)
     path.parent.mkdir(parents=True, exist_ok=True)
     # The wall clock, because that is what stamps `records.updated_at` (not the LIBRARIAN_NOW test clock).
-    path.write_text(json.dumps({"at": datetime.now(UTC).isoformat()}))
+    path.write_text(json.dumps({"at": utc_now_iso()}))
     return 200, {"last_visit": json.loads(path.read_text())["at"]}
 
 

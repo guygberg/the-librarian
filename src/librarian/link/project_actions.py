@@ -4,17 +4,13 @@ Each is a Person event on a Record, and the importer never undoes it: a merged p
 survivor, so the old name resolves there, and the importer itself only ever suggests a merge."""
 
 import sqlite3
-from datetime import UTC, datetime
 
 from librarian import events
+from librarian.clock import utc_now_iso
 from librarian.link import projects, review
-from librarian.link.review_actions import Invalid
+from librarian.link.errors import Invalid
 
 BELONGS_TO = "type = 'belongs_to' AND from_type = 'record' AND to_type = 'record'"
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def _need_project(conn: sqlite3.Connection, workspace: str, project_id: int) -> str:
@@ -42,7 +38,7 @@ def _settle(conn: sqlite3.Connection, workspace: str, project_id: int) -> None:
     conn.execute(
         "UPDATE review_entries SET resolved_at = ?, resolution = 'accepted' WHERE workspace = ? AND resolved_at IS NULL"
         " AND kind IN (?, ?, ?) AND ? IN (record_id, COALESCE(other_record_id, record_id))",
-        (_now(), workspace, review.INFERRED_PROJECT, review.SUGGESTED_PROJECT, review.MERGE_PROJECT, project_id),
+        (utc_now_iso(), workspace, review.INFERRED_PROJECT, review.SUGGESTED_PROJECT, review.MERGE_PROJECT, project_id),
     )
 
 
@@ -56,7 +52,7 @@ def confirm(conn: sqlite3.Connection, workspace: str, project_id: int) -> int:
     conn.execute(
         "UPDATE review_entries SET resolved_at = ?, resolution = 'accepted'"
         " WHERE workspace = ? AND kind = ? AND record_id = ? AND resolved_at IS NULL",
-        (_now(), workspace, review.INFERRED_PROJECT, project_id),
+        (utc_now_iso(), workspace, review.INFERRED_PROJECT, project_id),
     )
     events.append(conn, workspace, project_id, "confirm")
     return project_id
@@ -67,7 +63,7 @@ def rename(conn: sqlite3.Connection, workspace: str, project_id: int, name: str)
     old = _need_project(conn, workspace, project_id)
     name = _need_free_name(conn, workspace, name, project_id)
     _alias(conn, workspace, project_id, old)
-    conn.execute("UPDATE records SET title = ?, basis = 'confirmed', updated_at = ? WHERE id = ?", (name, _now(), project_id))
+    conn.execute("UPDATE records SET title = ?, basis = 'confirmed', updated_at = ? WHERE id = ?", (name, utc_now_iso(), project_id))
     events.append(conn, workspace, project_id, "rename", {"from": old, "to": name})
     return project_id
 
@@ -85,7 +81,7 @@ def merge(conn: sqlite3.Connection, workspace: str, project_id: int, into: int) 
     conn.execute(f"UPDATE OR IGNORE links SET to_id = ? WHERE workspace = ? AND {BELONGS_TO} AND to_id = ?", (into, workspace, project_id))
     conn.execute(f"DELETE FROM links WHERE workspace = ? AND {BELONGS_TO} AND to_id = ?", (workspace, project_id))
     conn.execute("UPDATE records SET parent_id = ? WHERE workspace = ? AND parent_id = ? AND id != ?", (into, workspace, project_id, into))
-    conn.execute("UPDATE records SET lifecycle = 'superseded', updated_at = ? WHERE id = ?", (_now(), project_id))
+    conn.execute("UPDATE records SET lifecycle = 'superseded', updated_at = ? WHERE id = ?", (utc_now_iso(), project_id))
     _settle(conn, workspace, project_id)
     events.append(conn, workspace, project_id, "merge", {"into": into, "lifecycle": "superseded"})
     events.append(conn, workspace, into, "merge", {"from": project_id})
@@ -105,7 +101,7 @@ def move(conn: sqlite3.Connection, workspace: str, record_id: int, project_id: i
     conn.execute(
         "INSERT INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
         " VALUES (?, 'belongs_to', 'record', ?, 'record', ?, ?)",
-        (workspace, record_id, project_id, _now()),
+        (workspace, record_id, project_id, utc_now_iso()),
     )
     events.append(conn, workspace, record_id, "project_move", {"project_id": project_id})
 
@@ -125,7 +121,7 @@ def split(conn: sqlite3.Connection, workspace: str, project_id: int, name: str, 
     for record_id in record_ids:
         if not _member(conn, workspace, record_id, project_id):
             raise Invalid(404, f"Record {record_id} does not belong to project {project_id}")
-    now = _now()
+    now = utc_now_iso()
     new = conn.execute(
         "INSERT INTO records (workspace, kind, title, lifecycle, basis, created_at, updated_at)"
         " VALUES (?, 'project', ?, 'open', 'confirmed', ?, ?)",

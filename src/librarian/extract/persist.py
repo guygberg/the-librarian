@@ -1,15 +1,12 @@
 """Store the Records the validator accepted, with their Links and Evidence, in one transaction."""
 
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
+
+from librarian.clock import utc_now_iso
 
 from librarian import locator
 from librarian.link import people, project_actions, projects, review, speaker
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def persist(
@@ -29,7 +26,7 @@ def persist(
         )
         conn.execute(
             "INSERT OR REPLACE INTO extracted_units (workspace, unit_key, text_hash, extracted_at) VALUES (?, ?, ?, ?)",
-            (workspace, unit_key, text_hash, _now()),
+            (workspace, unit_key, text_hash, utc_now_iso()),
         )
         conn.execute("COMMIT")
     except BaseException:
@@ -77,7 +74,7 @@ def _update_record(conn: sqlite3.Connection, workspace: str, record_id: int, rec
         " updated_at = ? WHERE id = ?",
         (
             rec["title"], rec.get("body", ""), rec["lifecycle"], rec["basis"], rec.get("commitment"), person_id,
-            rec.get("stated_deadline"), rec.get("reasoning"), _now(), record_id,
+            rec.get("stated_deadline"), rec.get("reasoning"), utc_now_iso(), record_id,
         ),
     )
     if review_kind:
@@ -97,7 +94,7 @@ def _resolve(conn: sqlite3.Connection, workspace: str, end: dict[str, Any], rec:
 
 
 def _insert_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]) -> int:
-    now = _now()
+    now = utc_now_iso()
     owner = rec.get("owner")
     person_id, review_kind = _owner(conn, workspace, rec)
     record_id = conn.execute(
@@ -136,7 +133,7 @@ def _link_and_cite(conn: sqlite3.Connection, workspace: str, ids: dict[str, int]
         conn.execute(
             "INSERT OR IGNORE INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
             " VALUES (?, ?, 'record', ?, ?, ?, ?)",
-            (workspace, link["type"], record_id, to_type, to_id, _now()),
+            (workspace, link["type"], record_id, to_type, to_id, utc_now_iso()),
         )
     for ev in rec["evidence"]:
         loc = locator.parse(ev["locator"])
@@ -152,7 +149,7 @@ def _link_and_cite(conn: sqlite3.Connection, workspace: str, ids: dict[str, int]
         conn.execute(
             "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role, retrieved_at, gloss)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (workspace, record_id, revision_id, ev["locator"], ev["quote"], ev["role"], _now(), ev.get("gloss")),
+            (workspace, record_id, revision_id, ev["locator"], ev["quote"], ev["role"], utc_now_iso(), ev.get("gloss")),
         )
 
 

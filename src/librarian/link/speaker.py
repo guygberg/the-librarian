@@ -5,12 +5,13 @@ The setting is a row in `segment_speakers` (kept through re-transcription, match
 
 import json
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
 
 from librarian import events, locator, store
+from librarian.clock import utc_now_iso
 from librarian.link import people, review
-from librarian.link.review_actions import Invalid, settle
+from librarian.link.errors import Invalid
+from librarian.link.review_actions import settle
 
 
 def _segment(conn: sqlite3.Connection, workspace: str, locator_text: str) -> dict[str, Any]:
@@ -39,7 +40,7 @@ def set_speaker(conn: sqlite3.Connection, workspace: str, locator_text: str, per
     person_id = person_named(conn, workspace, person) if isinstance(person, str) else person
     if not conn.execute("SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)).fetchone():
         raise Invalid(404, f"no person {person_id}")
-    at = datetime.now(UTC).isoformat()
+    at = utc_now_iso()
     conn.execute(
         'INSERT OR REPLACE INTO segment_speakers (workspace, path, start, "end", person_id, at) VALUES (?, ?, ?, ?, ?, ?)',
         (workspace, segment["path"], segment["start"], segment["end"], person_id, at),

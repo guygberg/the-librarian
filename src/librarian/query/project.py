@@ -7,6 +7,7 @@ from typing import Any
 
 from librarian import config
 from librarian.link import projects
+from librarian.link.names import key
 from librarian.query import core, envelope, stale
 
 NOT_FOUND = "not found"
@@ -15,7 +16,7 @@ WORD_MATCH = 0.9  # the name contains every word asked for: "payments" finds "Pa
 
 
 def _score(wanted: str, name: str) -> float:
-    have, words = projects.key(name), set(projects.key(name).split())
+    have, words = key(name), set(key(name).split())
     if have == wanted:
         return 1.0
     if set(wanted.split()) <= words:
@@ -61,7 +62,7 @@ def _candidate(conn: sqlite3.Connection, workspace: str, project_id: int) -> dic
 def resolve(conn: sqlite3.Connection, workspace: str, name: str) -> tuple[int | None, list[int]]:
     """(winner or None, every candidate best first). An exact name or Alias wins alone; otherwise the winner is
     the only candidate worth considering."""
-    wanted = projects.key(name)
+    wanted = key(name)
     scores = {
         project_id: max(_score(wanted, n) for n in known) for project_id, known in projects.names(conn, workspace).items()
     }

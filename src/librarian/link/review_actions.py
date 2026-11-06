@@ -3,16 +3,13 @@
 Every action appends a Person event to a Record; Aliases live in the `aliases` table, which Import never rewrites."""
 
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
 
 from librarian import events, records
+from librarian.clock import utc_now_iso
 from librarian.link import people, review
-
-
-class Invalid(Exception):
-    def __init__(self, status: int, message: str):
-        self.status, self.message = status, message
+from librarian.link.errors import Invalid
+from librarian.link.names import key
 
 
 def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
@@ -35,14 +32,14 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
 
 
 def _candidates(conn: sqlite3.Connection, workspace: str, name: str) -> list[dict[str, Any]]:
-    wanted = people.key(name)
+    wanted = key(name)
     found = {
         pid: (pname, alias)
         for pid, pname, alias in conn.execute(
             "SELECT p.id, p.name, a.alias FROM aliases a JOIN persons p ON p.id = a.person_id WHERE a.workspace = ?",
             (workspace,),
         )
-        if not alias.startswith(people.SLACK) and people.key(alias) == wanted
+        if not alias.startswith(people.SLACK) and key(alias) == wanted
     }
     return [{"id": pid, "name": pname, "alias": alias} for pid, (pname, alias) in found.items()]
 
@@ -63,7 +60,7 @@ def _entry(conn: sqlite3.Connection, workspace: str, entry_id: int) -> tuple[int
 def settle(conn: sqlite3.Connection, entry_id: int, resolution: str) -> None:
     conn.execute(
         "UPDATE review_entries SET resolved_at = ?, resolution = ? WHERE id = ?",
-        (datetime.now(UTC).isoformat(), resolution, entry_id),
+        (utc_now_iso(), resolution, entry_id),
     )
 
 
@@ -75,18 +72,18 @@ def accept(conn: sqlite3.Connection, workspace: str, entry_id: int, person_id: i
         person_id = people.new_person(conn, workspace, raw_name)
     else:
         _need_person(conn, workspace, person_id)
-    wanted = people.key(raw_name)
+    wanted = key(raw_name)
     for alias_id, alias in conn.execute(
         "SELECT id, alias FROM aliases WHERE workspace = ? AND person_id != ?", (workspace, person_id)
     ).fetchall():
-        if not alias.startswith(people.SLACK) and people.key(alias) == wanted:
+        if not alias.startswith(people.SLACK) and key(alias) == wanted:
             conn.execute("DELETE FROM aliases WHERE id = ?", (alias_id,))
     people.add_alias(conn, workspace, person_id, raw_name)
     if link_type != "owner":
         conn.execute(
             "INSERT OR IGNORE INTO links (workspace, type, from_type, from_id, to_type, to_id, created_at)"
             " VALUES (?, ?, 'record', ?, 'person', ?, ?)",
-            (workspace, link_type, record_id, person_id, datetime.now(UTC).isoformat()),
+            (workspace, link_type, record_id, person_id, utc_now_iso()),
         )
     settle(conn, entry_id, "accepted")
     detail = {"alias": raw_name, "entry": entry_id}

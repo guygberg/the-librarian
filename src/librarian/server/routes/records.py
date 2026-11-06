@@ -1,17 +1,11 @@
 """Record actions: each appends Person events and answers with the Record's new current view. No source is touched."""
 
-from librarian import config, events
+from librarian import events
 from librarian.link import project_actions
-from librarian.query import core
-from librarian.server.routes import Route
+from librarian.server.routes import Refused, Route, field, mutating
 
 WRONG = "marked wrong by me"
 _NOT_FOR_PROJECTS = "not available for a project"
-
-
-class Refused(Exception):
-    def __init__(self, status: int, message: str):
-        self.status, self.message = status, message
 
 
 def _kind(conn, workspace, record_id):
@@ -27,13 +21,6 @@ def _need_item(conn, workspace, record_id) -> None:
         raise Refused(409, _NOT_FOR_PROJECTS)
 
 
-def _int(body, key) -> int:
-    value = body.get(key) if isinstance(body, dict) else None
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise Refused(400, f"{key} must be an integer")
-    return value
-
-
 def _lifecycle(lifecycle):
     def act(conn, workspace, record_id, body):
         events.append(conn, workspace, record_id, "status_change", {"lifecycle": lifecycle})
@@ -44,22 +31,19 @@ def _lifecycle(lifecycle):
 def _owner(conn, workspace, record_id, body):
     if _kind(conn, workspace, record_id) != "action_item":
         raise Refused(409, "only an action item has an owner")
-    person_id = _int(body, "person_id")
+    person_id = field(body, "person_id", int)
     if not conn.execute("SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)).fetchone():
         raise Refused(404, f"no person {person_id}")
     events.append(conn, workspace, record_id, "owner_change", {"person_id": person_id})
 
 
 def _project(conn, workspace, record_id, body):
-    try:
-        project_actions.move(conn, workspace, record_id, _int(body, "project_id"))
-    except project_actions.Invalid as invalid:
-        raise Refused(invalid.status, invalid.message) from invalid
+    project_actions.move(conn, workspace, record_id, field(body, "project_id", int))
 
 
 def _resolve(conn, workspace, record_id, body):
     """`other` is the Record it contradicts. `outcome`: `holds` (the other becomes superseded) or `both_wrong`."""
-    other = _int(body, "other")
+    other = field(body, "other", int)
     outcome = body.get("outcome")
     if outcome not in ("holds", "both_wrong"):
         raise Refused(400, "outcome must be holds or both_wrong")
@@ -91,17 +75,13 @@ ACTIONS = {
 
 
 def act(name):
-    def handler(req):
+    def do(conn, workspace, req):
         record_id = int(req.params["id"])
-        with req.rw() as conn:
-            try:
-                _need_item(conn, req.workspace, record_id)
-                ACTIONS[name](conn, req.workspace, record_id, req.body)
-            except Refused as refused:
-                return refused.status, {"error": refused.message}
-            return 200, core.current_view(conn, req.workspace, record_id, config.load())
+        _need_item(conn, workspace, record_id)
+        ACTIONS[name](conn, workspace, record_id, req.body)
+        return record_id
 
-    return handler
+    return mutating(do)
 
 
 ROUTES = [Route("POST", f"/api/records/<id>/{name}", act(name)) for name in ACTIONS]

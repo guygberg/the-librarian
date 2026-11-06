@@ -1,8 +1,9 @@
 """Review entries: the data behind the Review list (rendered by a later ticket)."""
 
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
+
+from librarian.clock import utc_now_iso
 
 UNCONFIRMED_PERSON = "unconfirmed_person"
 UNKNOWN_SPEAKER = "unknown_speaker"
@@ -33,7 +34,7 @@ def add(
     conn.execute(
         "INSERT INTO review_entries (workspace, kind, record_id, link_type, raw_name, other_record_id, created_at)"
         " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (workspace, kind, record_id, link_type, raw_name, other_record_id, datetime.now(UTC).isoformat()),
+        (workspace, kind, record_id, link_type, raw_name, other_record_id, utc_now_iso()),
     )
 
 

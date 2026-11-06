@@ -3,9 +3,9 @@
 import hashlib
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
+from librarian.clock import utc_now_iso
 from librarian.extract import schema, validate
 from librarian.ports import Extractor
 
@@ -57,7 +57,7 @@ def extract_and_record(
                 schema.schema_hash(),
                 envelope,
                 len(result.records),
-                datetime.now(UTC).isoformat(),
+                utc_now_iso(),
             ),
         ).lastrowid
         conn.executemany(

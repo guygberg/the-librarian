@@ -2,15 +2,13 @@
 
 from librarian import forget, paths
 from librarian.importer.lock import LockHeld, workspace_lock
-from librarian.link import review_actions as actions
-from librarian.server.routes import Route
-from librarian.server.routes.review import _field
+from librarian.server.routes import Refused, Route, field
 
 
 def post(req):
     try:
-        conversation = _field(req.body, "conversation", str)
-    except actions.Invalid as invalid:
+        conversation = field(req.body, "conversation", str)
+    except Refused as invalid:
         return invalid.status, {"error": invalid.message}
     if req.body.get("confirm") is not True:
         return 400, {"error": "confirm must be true; forgetting deletes data"}

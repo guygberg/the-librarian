@@ -4,12 +4,9 @@ import sqlite3
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
+from librarian.link.names import key
+
 NEAR_RATIO = 0.85  # "Atlas Migration" vs "Atlas Migrations" is near; "Atlas" vs "Apollo" is not
-
-
-def key(name: str) -> str:
-    """Case and spacing differences are not a different name; anything further apart is."""
-    return " ".join(name.casefold().split())
 
 
 @dataclass(frozen=True)

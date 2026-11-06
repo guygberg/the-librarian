@@ -5,13 +5,9 @@ This module never deletes items or revisions; `mark_gone` only sets a flag. Only
 
 import hashlib
 import sqlite3
-from datetime import UTC, datetime
 
 from librarian import textsearch
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
+from librarian.clock import utc_now_iso
 
 
 def upsert(
@@ -30,7 +26,7 @@ def upsert(
         conn.execute(
             "INSERT OR IGNORE INTO source_items (workspace, source, stable_id, created_at)"
             " VALUES (?, ?, ?, ?)",
-            (workspace, source, stable_id, _now()),
+            (workspace, source, stable_id, utc_now_iso()),
         )
         item_id = conn.execute(
             "SELECT id FROM source_items WHERE workspace = ? AND source = ? AND stable_id = ?",
@@ -51,7 +47,7 @@ def upsert(
             "INSERT INTO source_item_revisions"
             " (workspace, source_item_id, revision, content_hash, content, fetched_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
-            (workspace, item_id, (last[0] if last else 0) + 1, digest, content, _now()),
+            (workspace, item_id, (last[0] if last else 0) + 1, digest, content, utc_now_iso()),
         )
         text = textsearch.index_text(content)
         conn.execute("DELETE FROM source_search WHERE source_item_id = ?", (item_id,))
