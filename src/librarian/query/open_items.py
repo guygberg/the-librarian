@@ -1,0 +1,83 @@
+"""The one open-items query. `librarian open-items` and `GET /api/open-items` both call `open_items`."""
+
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Any
+
+from librarian import config
+from librarian.link import review
+from librarian.query import core, search, stale
+
+KINDS = ("action_item", "blocker", "open_question")
+NEEDS, WAITING, OTHER = "needs_attention", "waiting_on_others", "other_open"
+GROUPS = (NEEDS, WAITING, OTHER)
+
+
+def week_start(at: datetime) -> datetime:
+    """Sunday 00:00 in `at`'s own zone."""
+    midnight = at.replace(hour=0, minute=0, second=0, microsecond=0)
+    return midnight - timedelta(days=(midnight.weekday() + 1) % 7)
+
+
+def group_of(view: dict[str, Any]) -> str | None:
+    """None for a Record that is not open. Suggested owners never count: only a confirmed or stated owner is an owner."""
+    if view["lifecycle"] not in stale.UNFINISHED:
+        return None
+    owner = view.get("owner")
+    unknown = owner == review.MARKS[review.UNKNOWN_SPEAKER]
+    if not (view.get("owner_is_me") or owner is None or unknown):
+        return OTHER
+    if view["lifecycle"] == "pending":
+        return WAITING
+    if view["lifecycle"] == "open" and not any(
+        s["link"] == "owner" and s["kind"] == review.UNCONFIRMED_PERSON for s in view.get("suggested", [])
+    ):
+        return NEEDS
+    return OTHER
+
+
+def _mark(view: dict[str, Any]) -> str | None:
+    return next((s["mark"] for s in view.get("suggested", []) if s["link"] == "owner"), None)
+
+
+def open_items(conn: sqlite3.Connection, workspace: str, at: datetime | None = None) -> dict[str, Any]:
+    at = at or core.now()
+    cfg = config.load()
+    ids = [
+        row[0]
+        for row in conn.execute(
+            f"SELECT id FROM records WHERE workspace = ? AND kind IN ({', '.join('?' * len(KINDS))}) ORDER BY id",
+            (workspace, *KINDS),
+        )
+    ]
+    since = week_start(at.astimezone())
+    items: list[dict[str, Any]] = []
+    done_this_week = still_open = 0
+    for record_id in ids:
+        view = core.current_view(conn, workspace, record_id, cfg, at)
+        group = group_of(view)
+        owner = view.get("owner")
+        own_or_ownerless = view.get("owner_is_me") or owner is None or owner == review.MARKS[review.UNKNOWN_SPEAKER]
+        if view["kind"] == "action_item" and own_or_ownerless:
+            if group:
+                still_open += 1
+            elif view["lifecycle"] == "done" and datetime.fromisoformat(view["done_at"]) >= since:
+                done_this_week += 1
+        if group:
+            if mark := _mark(view):
+                view["mark"] = mark
+            items.append({**view, "group": group})
+    # Flags raise an item within its group; they never add one.
+    items.sort(key=lambda v: (GROUPS.index(v["group"]), not (v["stale"] or v["contradictions"])))
+    needs = sum(v["group"] == NEEDS for v in items)
+    waiting = sum(v["group"] == WAITING for v in items)
+    return {
+        "headline": {"needs_you": needs, "waiting": waiting, "text": f"{needs} things need you, {waiting} waiting on someone else"},
+        "records": items,
+        "progress": {
+            "done_this_week": done_this_week,
+            "total": done_this_week + still_open,
+            "week_start": since.isoformat(),
+        },
+        "freshness": search.freshness(conn, workspace),
+    }
