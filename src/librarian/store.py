@@ -1,6 +1,6 @@
 """Source item store. Items are keyed by Workspace + source + stable id; edits add revisions.
 
-This module never deletes items or revisions; `mark_gone` only sets a flag.
+This module never deletes items or revisions; `mark_gone` only sets a flag. Only `librarian.forget` deletes them.
 """
 
 import hashlib

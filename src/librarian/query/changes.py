@@ -76,7 +76,7 @@ def changes(conn: sqlite3.Connection, workspace: str, name: str | None = None, a
             (workspace, cutoff, *args),
         )
     ]
-    ids = sorted(imported.keys() | {e["record_id"] for e in person})
+    ids = sorted(imported.keys() | {e["record_id"] for e in person if e["record_id"] is not None})
     views = [core.current_view(conn, workspace, rid, cfg, at) for rid in ids]
     return envelope.build(
         conn,

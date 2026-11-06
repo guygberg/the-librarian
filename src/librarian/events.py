@@ -15,11 +15,12 @@ from typing import Any
 TYPES = (
     "status_change", "owner_change", "project_move", "accept_suggestion", "reject_suggestion",
     "merge", "split", "move_alias", "dismiss", "set_speaker", "resolve_disagreement", "confirm", "rename",
+    "forget_conversation",  # about no Record (record_id NULL): `librarian.forget`
 )
 
 
 def append(
-    conn: sqlite3.Connection, workspace: str, record_id: int, event: str, detail: dict[str, Any] | None = None,
+    conn: sqlite3.Connection, workspace: str, record_id: int | None, event: str, detail: dict[str, Any] | None = None,
     at: str | None = None,
 ) -> int:
     if event not in TYPES:
