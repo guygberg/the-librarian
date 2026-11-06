@@ -3,6 +3,9 @@ import json
 from playwright.sync_api import expect
 from test_expanded import expand
 
+from test_recording_sheet import open_thursday
+
+from fixtures.scenarios import onboarding_hebrew as hebrew
 from fixtures.scenarios import payments_cutover as payments
 from support.ui_stream import STAMP
 
@@ -101,6 +104,29 @@ def test_session_quote_opens_the_raw_jsonl_passage(page, ui):
     expect(raw).to_be_visible()
     for line in lines:
         assert json.dumps(line) in raw.text_content()
+
+
+def test_switching_quote_under_the_same_locator_re_renders_only_the_sheet(page, ui):
+    ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
+    open_thursday(page, ui)
+    ui.sql(
+        "INSERT INTO evidence (workspace, record_id, revision_id, locator, quote, role,"
+        " retrieved_at, gloss)"
+        " SELECT workspace, record_id, revision_id, locator, 'second quote', role,"
+        " retrieved_at, 'Second gloss' FROM evidence WHERE gloss = 'Meet on Thursday morning'"
+    )
+    page.locator("[data-part=close-sheet]").click()
+    page.reload()
+    page.locator("[data-part=item-expanded] [data-part=evidence-quote]").first.click()
+    gloss = page.locator(f"{SHEET} [data-part=evidence-line] [data-part=gloss]")
+    expect(gloss).to_be_visible()
+    first = gloss.text_content()
+    page.evaluate("document.querySelector('[data-part=item-expanded]').dataset.marker = 'same'")
+
+    page.locator("[data-part=item-expanded] [data-part=evidence-quote]").nth(1).dispatch_event("click")
+
+    expect(gloss).not_to_have_text(first)
+    assert page.evaluate("document.querySelector('[data-part=item-expanded]')?.dataset.marker") == "same"
 
 
 def test_reload_restores_the_sheet_and_closing_keeps_the_stream_position(page, ui):
