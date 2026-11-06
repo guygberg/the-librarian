@@ -114,11 +114,25 @@ function groups(items, answer, evidence, open) {
   ];
 }
 
+/** What changed since the person last dismissed this strip; gone for good until something changes again. */
+function changedStrip({ last_visit: last, changed }) {
+  if (!changed) return null;
+  const strip = h('div', { class: 'strip', 'data-part': 'changed-strip' },
+    h('span', {}, last ? `${changed} changed since your last visit` : `${changed} records so far`),
+    h('button', { type: 'button', 'data-part': 'changed-dismiss' }, 'Dismiss'));
+  strip.querySelector('button').addEventListener('click', async () => {
+    await api.post('/api/visit/seen', {});
+    strip.remove();
+  });
+  return strip;
+}
+
 /** The single stream: headline, progress, filters (all in the URL) and the items they leave. */
 export async function stream() {
   const state = filters.current();
   acted = justActed();
-  const [answer, status] = await Promise.all([api.get('/api/open-items?scope=all'), api.get('/api/status')]);
+  const [answer, status, visit] = await Promise.all([
+    api.get('/api/open-items?scope=all'), api.get('/api/status'), api.get('/api/visit')]);
   const shown = answer.records.filter((r) => filters.matches(r, state));
   const header = state.project ? await statusHeader(state.project, answer.projects, shown) : null;
   const evidence = state.kind === 'done' ? answer.evidence : [];
@@ -135,6 +149,7 @@ export async function stream() {
 
   return h('div', {},
     h('div', { class: 'date', 'data-part': 'date-line' }, `${dateLine(new Date())} · ${status.workspace}`),
+    changedStrip(visit),
     headline(answer.headline.text),
     progress(answer.progress),
     filters.chips(answer.projects, state),
