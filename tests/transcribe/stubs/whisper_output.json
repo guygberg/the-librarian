@@ -1,0 +1,24 @@
+{
+  "result": {"language": "he"},
+  "transcription": [
+    {
+      "timestamps": {"from": "00:00:00,000", "to": "00:00:04,500"},
+      "offsets": {"from": 0, "to": 4500},
+      "text": " we agreed on the schema decisions",
+      "tokens": [
+        {"text": "[_BEG_]", "p": 0.99, "offsets": {"from": 0, "to": 0}},
+        {"text": " we", "p": 0.9, "offsets": {"from": 0, "to": 400}},
+        {"text": " agreed", "p": 0.8, "offsets": {"from": 400, "to": 900}},
+        {"text": " schema", "p": 0.2, "offsets": {"from": 900, "to": 1500}},
+        {"text": "[_TT_225]", "p": 0.5, "offsets": {"from": 4500, "to": 4500}}
+      ]
+    },
+    {
+      "timestamps": {"from": "00:00:04,500", "to": "00:00:06,000"},
+      "offsets": {"from": 4500, "to": 6000},
+      "text": " תודה",
+      "no_speech_prob": 0.7,
+      "tokens": [{"text": " תודה", "p": 0.05, "offsets": {"from": 4500, "to": 6000}}]
+    }
+  ]
+}

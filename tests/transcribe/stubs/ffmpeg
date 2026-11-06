@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stub ffmpeg: logs its argument list and writes a placeholder to the last argument (the output WAV).
+{ printf 'ffmpeg'; for a in "$@"; do printf '\t%s' "$a"; last="$a"; done; printf '\n'; } >> "$STUB_LOG"
+for a in "$@"; do last="$a"; done
+echo wav > "$last"

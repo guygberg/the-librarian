@@ -1,0 +1,17 @@
+#!/bin/sh
+# Stub whisper.cpp: logs its argument list, then plays back $STUB_WHISPER_JSON (or a language detection line).
+{ printf 'whisper-cli'; for a in "$@"; do printf '\t%s' "$a"; done; printf '\n'; } >> "$STUB_LOG"
+prefix=""
+detect=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -of) prefix="$2"; shift ;;
+    -dl) detect=1 ;;
+  esac
+  shift
+done
+if [ -n "$detect" ]; then
+  echo "whisper_full_with_state: auto-detected language: ${STUB_DETECTED:-en} (p = 0.97)" >&2
+  exit 0
+fi
+cp "$STUB_WHISPER_JSON" "$prefix.json"

@@ -1,11 +1,11 @@
 import json
 import socket
-from pathlib import Path
 
 import pytest
 
 from librarian import engines
 from librarian.fakes.extractor import ExtractionError
+from librarian.transcribe.whisper_cpp import WhisperCppTranscriber
 
 
 @pytest.fixture
@@ -78,9 +78,8 @@ def test_fake_extractor_canned_bad_and_failing_outputs(env):
 def test_real_engines_are_placeholders(env, monkeypatch):
     monkeypatch.setenv("LIBRARIAN_ENGINES", "real")
     real = engines.get_engines()
+    assert isinstance(real.transcriber, WhisperCppTranscriber)
     with pytest.raises(NotImplementedError, match="not implemented yet"):
-        real.transcriber.transcribe(Path("x"))
-    with pytest.raises(NotImplementedError):
         real.extractor.extract("k", "t", [])
 
 
