@@ -75,12 +75,19 @@ def test_slack_thread_marks_only_the_evidence_message(onboarding):
     assert answer["context"]["items"][0]["text"] == hebrew.LEGAL_TEXT
 
 
-def test_deleted_slack_message_is_flagged_in_the_passage_and_the_record_evidence_and_stays_visible(onboarding):
+def test_deleted_slack_message_is_flagged_in_the_passage_and_the_record_evidence_and_stays_visible(
+    onboarding,
+):
     locator = f"slack:C001/{hebrew.LEGAL_AT}"
     conn = sqlite3.connect(next(onboarding.rglob("*.db")))
     with conn:
-        conn.execute("UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?", (f"C001/{hebrew.LEGAL_AT}",))
-    [(record_id,)] = conn.execute("SELECT record_id FROM evidence WHERE locator = ?", (locator,)).fetchall()
+        conn.execute(
+            "UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?",
+            (f"C001/{hebrew.LEGAL_AT}",),
+        )
+    [(record_id,)] = conn.execute(
+        "SELECT record_id FROM evidence WHERE locator = ?", (locator,)
+    ).fetchall()
 
     _, answer = show(onboarding, locator)
     [mine] = [i for i in answer["context"]["items"] if i["evidence"]]

@@ -80,6 +80,9 @@ def connect_rw(workspace: str, directory: Path = MIGRATIONS_DIR) -> sqlite3.Conn
         _backup(path)
     conn = sqlite3.connect(path, isolation_level=None)
     conn.execute("PRAGMA journal_mode=WAL")
+    # Autocommit means one commit per statement; FULL would fsync each. NORMAL in WAL cannot
+    # corrupt the file, and a re-run of the import redoes anything a power cut dropped.
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     for version, sql_path in pending:
         conn.executescript(

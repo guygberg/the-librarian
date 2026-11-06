@@ -154,7 +154,10 @@ def test_stale_item_stays_stale_after_importing_the_librarian_echo_session(world
         cfg.write(f'claude_projects_dir = "{tmp_path / "fixtures" / "claude" / "projects"}"\n')
     run_import(home, env)
     assert show(home, env, s.VENDOR)["stale"] is True
-    assert show(home, env, s.VENDOR)["last_evidence"] == datetime.fromtimestamp(s.NOW - 28 * s.DAY - 3600, UTC).isoformat()
+    assert (
+        show(home, env, s.VENDOR)["last_evidence"]
+        == datetime.fromtimestamp(s.NOW - 28 * s.DAY - 3600, UTC).isoformat()
+    )
 
 
 @pytest.mark.parametrize(

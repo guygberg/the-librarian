@@ -38,10 +38,19 @@ def test_slack_quote_opens_the_thread_with_the_evidence_line_and_the_permalink(p
     assert link.get_attribute("target") == "_blank"
 
 
-def test_deleted_slack_message_says_gone_from_slack_in_evidence_and_sheet_and_keeps_the_quote(page, ui):
+def test_deleted_slack_message_says_gone_from_slack_in_evidence_and_sheet_and_keeps_the_quote(
+    page, ui
+):
     ui = ui("payments-cutover", payments.NOW)
-    [(locator,)] = ui.sql("SELECT locator FROM evidence WHERE record_id = (SELECT id FROM records WHERE title = ?) LIMIT 1", payments.NOV_18)
-    ui.sql("UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?", locator.split(":", 1)[1])
+    [(locator,)] = ui.sql(
+        "SELECT locator FROM evidence"
+        " WHERE record_id = (SELECT id FROM records WHERE title = ?) LIMIT 1",
+        payments.NOV_18,
+    )
+    ui.sql(
+        "UPDATE source_items SET gone = 1 WHERE source = 'slack' AND stable_id = ?",
+        locator.split(":", 1)[1],
+    )
     stored = ui.sql("SELECT quote FROM evidence WHERE locator = ?", locator)[0][0]
 
     panel = expand(page, ui, payments.NOV_18)

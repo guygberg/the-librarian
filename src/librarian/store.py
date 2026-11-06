@@ -85,9 +85,10 @@ def mark_gone(
 
 
 def gone_ids(conn: sqlite3.Connection, workspace: str, source: str) -> set[str]:
-    """Stable ids of the source's items that vanished upstream; their revisions and Evidence stay."""
+    """Stable ids of the source's items that vanished upstream (revisions and Evidence stay)."""
     rows = conn.execute(
-        "SELECT stable_id FROM source_items WHERE workspace = ? AND source = ? AND gone = 1", (workspace, source)
+        "SELECT stable_id FROM source_items WHERE workspace = ? AND source = ? AND gone = 1",
+        (workspace, source),
     )
     return {r[0] for r in rows}
 
