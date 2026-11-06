@@ -4,9 +4,10 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
 
-from librarian import config
+from librarian import config, locator
 from librarian.link import review
-from librarian.query import core, envelope, stale
+from librarian.query import context, core, envelope, stale
+from librarian.transcribe import confidence
 
 KINDS = ("action_item", "blocker", "open_question")
 NEEDS, WAITING, OTHER = "needs_attention", "waiting_on_others", "other_open"
@@ -40,6 +41,25 @@ def _mark(view: dict[str, Any]) -> str | None:
     return next((s["mark"] for s in view.get("suggested", []) if s["link"] == "owner"), None)
 
 
+def _transcription_uncertain(conn: sqlite3.Connection, workspace: str, record_id: int, cfg: dict[str, Any]) -> bool:
+    """True when the Record cites a recording segment that is low confidence or holds an uncertain word."""
+    for (loc,) in conn.execute(
+        "SELECT locator FROM evidence WHERE workspace = ? AND record_id = ?", (workspace, record_id)
+    ).fetchall():
+        parsed = locator.parse(loc)
+        if parsed.source != "drive":
+            continue
+        row = conn.execute(
+            "SELECT r.content FROM source_items i JOIN source_item_revisions r ON r.source_item_id = i.id"
+            " WHERE i.workspace = ? AND i.source = 'drive' AND i.stable_id = ? ORDER BY r.revision DESC LIMIT 1",
+            (workspace, parsed.stable_id),
+        ).fetchone()
+        segment = context.parse_content(row[0]) if row else {}
+        if segment and confidence.describe(segment, cfg):
+            return True
+    return False
+
+
 def open_items(conn: sqlite3.Connection, workspace: str, at: datetime | None = None) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
@@ -66,7 +86,7 @@ def open_items(conn: sqlite3.Connection, workspace: str, at: datetime | None = N
         if group:
             if mark := _mark(view):
                 view["mark"] = mark
-            items.append({**view, "group": group})
+            items.append({**view, "group": group, "transcription_uncertain": _transcription_uncertain(conn, workspace, record_id, cfg)})
     # Flags raise an item within its group; they never add one.
     items.sort(key=lambda v: (GROUPS.index(v["group"]), not (v["stale"] or v["contradictions"])))
     needs = sum(v["group"] == NEEDS for v in items)

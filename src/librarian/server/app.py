@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import secrets
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -10,7 +11,9 @@ from urllib.parse import urlsplit
 from librarian import db
 from librarian.server import routes, security
 
-SHELL = Path(__file__).parent / "static" / "index.html"
+STATIC = (Path(__file__).parent / "static").resolve()
+STATIC_PREFIX = "/static/"
+SHELL = STATIC / "index.html"
 HOST = "127.0.0.1"
 
 
@@ -85,6 +88,8 @@ class Handler(BaseHTTPRequestHandler):
                 break
 
         if match is None and not url.path.startswith("/api/") and method in ("GET", "HEAD"):
+            if url.path.startswith(STATIC_PREFIX):
+                return self._static(url.path.removeprefix(STATIC_PREFIX))
             return self._shell()
 
         reason = security.check(
@@ -110,6 +115,16 @@ class Handler(BaseHTTPRequestHandler):
         req = Request(server.workspace, method, url.path, url.query, m.groupdict(), body)
         status, payload = route.handler(req)
         self._json(status, payload)
+
+    def _static(self, name):
+        """The UI's own files. They hold no data and no token, so only the Host check applies."""
+        if reason := security.check_host(self.headers, self.server.port):
+            return self._json(403, {"error": reason})
+        path = (STATIC / name).resolve()
+        if not path.is_relative_to(STATIC) or not path.is_file():
+            return self._json(404, {"error": "not found"})
+        media = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        self._send(200, path.read_bytes(), f"{media}; charset=utf-8" if media.startswith("text/") else media)
 
     def _shell(self):
         server = self.server
