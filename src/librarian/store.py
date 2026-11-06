@@ -7,6 +7,8 @@ import hashlib
 import sqlite3
 from datetime import UTC, datetime
 
+from librarian import textsearch
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -50,6 +52,13 @@ def upsert(
             " (workspace, source_item_id, revision, content_hash, content, fetched_at)"
             " VALUES (?, ?, ?, ?, ?, ?)",
             (workspace, item_id, (last[0] if last else 0) + 1, digest, content, _now()),
+        )
+        text = textsearch.index_text(content)
+        conn.execute("DELETE FROM source_search WHERE source_item_id = ?", (item_id,))
+        conn.execute(
+            "INSERT INTO source_search (body, workspace, source, stable_id, source_item_id, original)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (textsearch.normalise(text), workspace, source, stable_id, item_id, text),
         )
         return True
 

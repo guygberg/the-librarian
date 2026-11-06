@@ -49,7 +49,7 @@ def test_core_tables_exist(lib_home):
         "source_items", "source_item_revisions", "records", "links", "evidence",
         "persons", "aliases", "person_events",
     } <= tables  # fmt: skip
-    for table in tables:
+    for table in tables - {t for t in tables if t.startswith("source_search_")}:  # FTS5 shadow tables
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         assert "workspace" in cols, table
 
