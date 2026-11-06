@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from librarian import events, locator, store
-from librarian.link import review
+from librarian.link import people, review
 from librarian.link.review_actions import Invalid, settle
 
 
@@ -24,9 +24,19 @@ def _segment(conn: sqlite3.Connection, workspace: str, locator_text: str) -> dic
     return {**json.loads(content), "locator": f"drive:{loc.stable_id}"}
 
 
-def set_speaker(conn: sqlite3.Connection, workspace: str, locator_text: str, person_id: int) -> list[int]:
-    """Returns the Records whose owner this replaced "unknown speaker" for."""
+def person_named(conn: sqlite3.Connection, workspace: str, name: str) -> int:
+    """The Person a typed name stands for: the one already answering to it, else a new Person with it as Alias."""
+    found = people._by_name(conn, workspace, name)
+    if found is None:
+        found = people.new_person(conn, workspace, name.strip())
+        people.add_alias(conn, workspace, found, name.strip())
+    return found
+
+
+def set_speaker(conn: sqlite3.Connection, workspace: str, locator_text: str, person: int | str) -> list[int]:
+    """`person` is a Person id or a typed name. Returns the Records whose owner this replaced "unknown speaker" for."""
     segment = _segment(conn, workspace, locator_text)
+    person_id = person_named(conn, workspace, person) if isinstance(person, str) else person
     if not conn.execute("SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)).fetchone():
         raise Invalid(404, f"no person {person_id}")
     at = datetime.now(UTC).isoformat()

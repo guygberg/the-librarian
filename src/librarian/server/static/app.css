@@ -47,6 +47,8 @@ details[open] > summary.grp::before { content: '- '; }
 .ln { padding: var(--s2) 10px; border-radius: 6px; line-height: 1.5; display: grid; grid-template-columns: 76px 1fr; gap: var(--s2); }
 .ln.hl { background: var(--hl); }
 .who { color: var(--mut); font-size: 12px; }
+.speaker { display: flex; gap: var(--s2); float: right; font-size: 12px; }
+.speaker input, .speaker select { background: var(--panel); color: var(--mut); border: 1px solid var(--mut); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
 .gloss { font-size: 12px; color: var(--mut); }
 .he { font-family: Heebo, sans-serif; }
 mark.unc { background: transparent; color: inherit; border-bottom: 2px dotted currentColor; }

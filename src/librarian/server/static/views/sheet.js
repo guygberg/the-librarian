@@ -28,11 +28,27 @@ function glossLine(item, gloss) {
     h('span', { class: 'tag', 'data-part': 'gloss-label' }, gloss.label));
 }
 
-function line(item, gloss) {
+/** Who said a recording line: pick a Person, or type a name (it becomes an Alias). The server rewrites the owner of
+ * every Record built from the line; drawing the page again shows it. */
+function speakerMenu(item, people) {
+  const set = async (body) => {
+    await api.post('/api/speaker', { locator: item.locator, ...body });
+    window.librarianNavigate(location.pathname + location.search);
+  };
+  const pick = h('select', { 'data-part': 'speaker-pick', 'aria-label': 'Set speaker' },
+    h('option', { value: '' }, 'Set speaker'), people.map((p) => h('option', { value: p.id }, p.name)));
+  pick.addEventListener('change', () => pick.value && set({ person_id: Number(pick.value) }));
+  const typed = h('input', { type: 'text', placeholder: 'or type a name', 'aria-label': 'Speaker name', 'data-part': 'speaker-name' });
+  typed.addEventListener('keydown', (e) => e.key === 'Enter' && typed.value.trim() && set({ name: typed.value.trim() }));
+  return h('span', { class: 'speaker', 'data-part': 'speaker-menu' }, pick, typed);
+}
+
+function line(item, gloss, people) {
   const hebrew = HEBREW.test(item.text);
   return h('div', { class: item.evidence ? 'ln hl' : 'ln', 'data-part': item.evidence ? 'evidence-line' : 'source-line' },
     h('span', { class: 'who' }, who(item)),
     h('span', {},
+      people ? speakerMenu(item, people) : null,
       h('span', { dir: hebrew ? 'rtl' : 'auto', lang: hebrew ? 'he' : null, class: hebrew ? 'he' : null, 'data-part': 'quote' }, words(item)),
       item.confidence ? h('span', { class: 'tag', 'data-part': 'low-confidence' }, item.confidence.label) : null,
       item.evidence && gloss ? glossLine(item, gloss) : null));
@@ -68,6 +84,7 @@ export async function render(host) {
   const { open, tab, source } = filters.current();
   if (!source) return host.replaceChildren();
   const { context: found } = await api.get(`/api/context?locator=${encodeURIComponent(source)}`);
+  const people = found.source === 'drive' ? (await api.get('/api/open-items?scope=all')).people : null;
   const raw = h('pre', { class: 'raw', 'data-part': 'raw-passage', hidden: true },
     found.items.map((i) => i.raw).filter(Boolean).join('\n'));
   const close = filters.href({ open, tab: tab === 'relations' ? tab : null });
@@ -75,7 +92,7 @@ export async function render(host) {
     h('div', { class: 'wrap' },
       h('a', { href: close, class: 'chip', 'data-link': true, 'data-part': 'close-sheet' }, 'Close'),
       h('b', {}, SOURCES[found.source] ?? found.source), ` · ${found.locator}`,
-      h('div', { class: 'passage' }, found.items.map((i) => line(i, found.glosses[0]))),
+      h('div', { class: 'passage' }, found.items.map((i) => line(i, found.glosses[0], people))),
       original(found, raw),
       raw)));
 }
