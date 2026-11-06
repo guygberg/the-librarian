@@ -48,6 +48,10 @@ details[open] > summary.grp::before { content: '- '; }
 .ln.hl { background: var(--hl); }
 .who { color: var(--mut); font-size: 12px; }
 .gloss { font-size: 12px; color: var(--mut); }
+.he { font-family: Heebo, sans-serif; }
+mark.unc { background: transparent; color: inherit; border-bottom: 2px dotted currentColor; }
+.tag { margin-inline-start: var(--s2); padding: 0 6px; border: 1px solid var(--mut); border-radius: 8px; font-size: 11px; color: var(--mut); }
+.sheet video { display: block; width: 100%; max-height: 220px; margin-top: var(--s3); }
 .sheet a[data-part=open-original] { color: var(--acc); font-size: 12px; }
 .raw { font: 12px var(--mono); white-space: pre-wrap; word-break: break-all; color: var(--mut); }
 .fact { font-size: 16px; margin: 0 0 var(--s1); }

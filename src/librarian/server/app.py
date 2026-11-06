@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from librarian import db
-from librarian.server import routes, security
+from librarian.server import ranges, routes, security
 
 STATIC = (Path(__file__).parent / "static").resolve()
 STATIC_PREFIX = "/static/"
@@ -114,7 +114,37 @@ class Handler(BaseHTTPRequestHandler):
         route, m = match
         req = Request(server.workspace, method, url.path, url.query, m.groupdict(), body)
         status, payload = route.handler(req)
+        if isinstance(payload, routes.File):
+            return self._file(payload)
         self._json(status, payload)
+
+    def _file(self, file: routes.File):
+        size = file.path.stat().st_size
+        try:
+            span = ranges.parse(self.headers.get("Range"), size)
+        except ranges.Unsatisfiable:
+            return self._send(416, b"", "text/plain", [("Content-Range", f"bytes */{size}")])
+        start, end = span or (0, size - 1)
+        headers = [("Accept-Ranges", "bytes")]
+        if span:
+            headers.append(("Content-Range", f"bytes {start}-{end}/{size}"))
+        self.send_response(206 if span else 200)
+        self.send_header("Content-Type", file.content_type)
+        self.send_header("Content-Length", str(max(end - start + 1, 0)))
+        for key, value in headers:
+            self.send_header(key, value)
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        with file.path.open("rb") as handle:
+            handle.seek(start)
+            left = end - start + 1
+            try:
+                while left > 0 and (chunk := handle.read(min(left, 1 << 16))):
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # the player seeked away
 
     def _static(self, name):
         """The UI's own files. They hold no data and no token, so only the Host check applies."""

@@ -1,21 +1,55 @@
 import * as api from '../api.js';
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
+import { position } from '../format.js';
 
 const SOURCES = { slack: 'Slack', session: 'Session', drive: 'Recording' };
 
-const who = (item) => item.user ?? item.role ?? item.start ?? '';
+const HEBREW = /[֐-׿]/;
+
+const who = (item) => item.user ?? item.role ?? (item.start === undefined ? '' : position(item.start));
+
+/** The text with each uncertain span (character offsets from the server) dotted-underlined. */
+function words(item) {
+  const out = [];
+  let at = 0;
+  for (const { start, end } of item.uncertain_words ?? []) {
+    out.push(item.text.slice(at, start), h('mark', { class: 'unc', 'data-part': 'uncertain-underline' }, item.text.slice(start, end)));
+    at = end;
+  }
+  return [...out, item.text.slice(at)];
+}
+
+/** The English gloss under a quote: labelled machine translation, and it names the words transcription doubted. */
+function glossLine(item, gloss) {
+  const doubted = (item.uncertain_words ?? []).map((w) => `“${w.text}”`).join(', ');
+  return h('div', { class: 'gloss', 'data-part': 'gloss' }, gloss.gloss,
+    doubted ? ` (uncertain: ${doubted})` : null,
+    h('span', { class: 'tag', 'data-part': 'gloss-label' }, gloss.label));
+}
 
 function line(item, gloss) {
+  const hebrew = HEBREW.test(item.text);
   return h('div', { class: item.evidence ? 'ln hl' : 'ln', 'data-part': item.evidence ? 'evidence-line' : 'source-line' },
     h('span', { class: 'who' }, who(item)),
     h('span', {},
-      h('span', { dir: 'auto' }, item.text),
-      item.evidence && gloss ? h('div', { class: 'gloss', 'data-part': 'gloss' }, gloss.gloss) : null));
+      h('span', { dir: hebrew ? 'rtl' : 'auto', lang: hebrew ? 'he' : null, class: hebrew ? 'he' : null, 'data-part': 'quote' }, words(item)),
+      item.confidence ? h('span', { class: 'tag', 'data-part': 'low-confidence' }, item.confidence.label) : null,
+      item.evidence && gloss ? glossLine(item, gloss) : null));
+}
+
+/** A recording's original is the file itself, in a player already at the Evidence segment. The browser sends the
+ * page's cookie with the media request, since a media element cannot carry the token header. */
+function player(found) {
+  const [fileId] = found.locator.slice('drive:'.length).split('/');
+  const video = h('video', { controls: true, preload: 'metadata', src: `/media/drive/${encodeURIComponent(fileId)}`, 'data-part': 'player' });
+  video.currentTime = found.items.find((i) => i.evidence).start;
+  return video;
 }
 
 /** "Open original": Slack opens the message itself; a session shows the copied `.jsonl` lines. */
 function original(found, raw) {
+  if (found.source === 'drive') return player(found);
   if (found.permalink) {
     return h('a', { href: found.permalink, target: '_blank', rel: 'noopener', 'data-part': 'open-original' }, 'Open original ↗');
   }

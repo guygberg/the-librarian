@@ -6,9 +6,18 @@ import pkgutil
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 # Extra modules (comma-separated) let a test register a route without touching this package.
 EXTRA_MODULES_ENV = "LIBRARIAN_ROUTE_MODULES"
+
+
+@dataclass(frozen=True)
+class File:
+    """A handler's answer that is a file on disk, sent with Range support instead of as JSON."""
+
+    path: Path
+    content_type: str
 
 
 @dataclass(frozen=True)
