@@ -14,6 +14,26 @@ sys.path.insert(0, str(HERE.parent))  # so scenarios can `import fixtures.format
 SCENARIOS_DIR = HERE / "scenarios"
 
 
+# The spec's fixture set and extras, each with the scenario that provides it (tests/fixtures/test_build.py checks it).
+MANIFEST = {
+    "cross-source project": "base",
+    "date disagreement": "payments_cutover",
+    "uncertain Hebrew passage": "onboarding_hebrew",
+    "unnamed first-person speech": "people_aliases",
+    "deleted Slack message": "slack_deleted_message",
+    "edited Slack message": "slack_edited_message",
+    "ambiguous project name": "projects_stable_ids",
+    "stale item": "stale_and_ownerless",
+    "ownerless item": "onboarding_hebrew",
+    "failing extractor": "extractor_failure",
+    "partial file": "recording_partial",
+    "Slack history older than 30 days": "slack_history_older",
+    "replayed conversation list": "slack_conversation_list",
+    "project with no recording": "project_slack_only",
+    "prompt-injection message": "slack_prompt_injection",
+}
+
+
 def discover(scenarios_dir: Path = SCENARIOS_DIR) -> dict:
     found = {}
     for path in sorted(scenarios_dir.glob("*.py")):
@@ -29,6 +49,7 @@ def discover(scenarios_dir: Path = SCENARIOS_DIR) -> dict:
 
 def build(target: Path, scenario: str = "base", scenarios_dir: Path = SCENARIOS_DIR) -> None:
     scenarios = discover(scenarios_dir)
+    scenario = scenario.replace("-", "_")  # the UI scenarios are named `payments-cutover`, `onboarding-hebrew`
     if scenario not in scenarios:
         raise KeyError(f"unknown scenario {scenario!r}; known: {', '.join(scenarios) or 'none'}")
     target.mkdir(parents=True, exist_ok=True)

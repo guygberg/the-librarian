@@ -90,6 +90,28 @@ def test_hebrew_is_real_with_niqqud(fixtures_dir):
     assert "\\u05" not in text  # stored as real characters, not escapes
 
 
+SPEC_FIXTURE_SET = [
+    "cross-source project", "date disagreement", "uncertain Hebrew passage", "unnamed first-person speech",
+    "deleted Slack message", "edited Slack message", "ambiguous project name", "stale item", "ownerless item",
+    "failing extractor", "partial file", "Slack history older than 30 days",
+    "replayed conversation list", "project with no recording", "prompt-injection message",
+]
+
+
+def test_every_item_of_the_spec_fixture_set_has_a_scenario():
+    from fixtures.build import MANIFEST, discover
+
+    missing = [item for item in SPEC_FIXTURE_SET if item not in MANIFEST]
+    assert not missing, f"no scenario for: {missing}"
+    assert not [s for s in MANIFEST.values() if s not in discover()]
+
+
+def test_ui_scenarios_build_under_their_hyphenated_names(tmp_path):
+    for name in ("payments-cutover", "onboarding-hebrew"):
+        assert run_build(str(tmp_path / name), "--scenario", name).returncode == 0
+        assert snapshot(tmp_path / name)
+
+
 def test_scenario_discovery_and_unknown_name(tmp_path):
     scenarios = tmp_path / "scn"
     scenarios.mkdir()
