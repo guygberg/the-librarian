@@ -58,7 +58,10 @@ def test_payments_cutover_has_both_dates_contradicting_with_evidence_and_rejects
     assert nov_18["evidence"][0]["quote"] == "the cutover is Nov 18"
     assert [rid for (rid,) in rows(home, "SELECT id FROM records WHERE title IN (?, ?)", *payments.UNCITED)] == []
     [blocker] = rows(home, "SELECT id FROM records WHERE kind = 'blocker'")
-    assert [(link["type"], link["to"]) for link in show(home, env, blocker[0])["links"]] == [("owner", "Raz Peretz")]
+    assert [(link["type"], link["to"]) for link in show(home, env, blocker[0])["links"]] == [
+        ("owner", "Raz Peretz"),
+        ("blocks", payments.PROJECT),
+    ]
 
     runs = run_librarian(["runs"], home, env=env).stdout
     assert "rejected 2 (2 no_evidence)" in runs

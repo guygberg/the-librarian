@@ -68,6 +68,10 @@ def test_every_answer_command_returns_the_envelope(world, home):
         "project": ask(home, env, "project", "payments"),
         "unknown project": ask(home, env, "project", "zzz"),
         "search": ask(home, env, "search", "webhook"),
+        "changes": ask(home, env, "changes", "--project", "payments"),
+        "waiting": ask(home, env, "waiting"),
+        "decision": ask(home, env, "decision", "webhook"),
+        "blocked": ask(home, env, "blocked"),
         "show record": ask(home, env, "show", str(payments.PROJECT_ID)),
         "show source item": ask(home, env, "show", slack_locator),
     }

@@ -114,21 +114,35 @@ def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, A
     }
 
 
+def unresolved(
+    conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], name: str, ranked: list[int], at: datetime, **extra: Any
+) -> dict[str, Any]:
+    """The answer when `name` names no single project: the candidates, led by a warning. `extra` keeps the answer's own keys."""
+    found = [_candidate(conn, workspace, pid) for pid in ranked]
+    warning = {
+        "code": "project_ambiguous" if found else "project_not_found",
+        "message": f"which project is meant by {name!r}?" if found else f"no project matches {name!r}",
+    }
+    answer = envelope.build(
+        conn, workspace, cfg, [], at=at, resolved={"project": None, "baseline": None}, candidates=found, **extra
+    )
+    answer["warnings"].insert(0, warning)
+    return answer
+
+
+def member_views(
+    conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], project_id: int, at: datetime
+) -> list[dict[str, Any]]:
+    """The project's own view first, then its members'."""
+    return [core.current_view(conn, workspace, rid, cfg, at) for rid in [project_id, *_member_ids(conn, workspace, project_id)]]
+
+
 def project(conn: sqlite3.Connection, workspace: str, name: str, at: datetime | None = None) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     winner, ranked = resolve(conn, workspace, name)
     if winner is None:
-        found = [_candidate(conn, workspace, pid) for pid in ranked]
-        warning = {
-            "code": "project_ambiguous" if found else "project_not_found",
-            "message": f"which project is meant by {name!r}?" if found else f"no project matches {name!r}",
-        }
-        answer = envelope.build(
-            conn, workspace, cfg, [], at=at, resolved={"project": None, "baseline": None}, candidates=found, project=NOT_FOUND
-        )
-        answer["warnings"].insert(0, warning)
-        return answer
-    views = [core.current_view(conn, workspace, rid, cfg, at) for rid in [winner, *_member_ids(conn, workspace, winner)]]
+        return unresolved(conn, workspace, cfg, name, ranked, at, project=NOT_FOUND)
+    views = member_views(conn, workspace, cfg, winner, at)
     resolved = {"project": {"id": winner, "name": views[0]["title"]}, "baseline": None}
     return envelope.build(conn, workspace, cfg, views, at=at, resolved=resolved, project=facts(views[0], views[1:]))

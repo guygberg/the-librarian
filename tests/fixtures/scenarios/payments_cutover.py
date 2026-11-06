@@ -68,7 +68,8 @@ def build(target):
         _record("p", "project", PROJECT, slack[0], "the cutover is Nov 18"),
         _record("d1", "decision", NOV_18, slack[0], "the cutover is Nov 18", links=belongs),
         _record("d2", "decision", WEBHOOK, slack[1], "We keep webhook v1", links=belongs),
-        _record("b", "blocker", BLOCKER, slack[2], "blocked on the bank sandbox credentials", links=[*belongs, {"type": "owner", "to": {"slack_user": "U002"}}]),
+        _record("b", "blocker", BLOCKER, slack[2], "blocked on the bank sandbox credentials", links=[*belongs, {"type": "owner", "to": {"slack_user": "U002"}},
+                                                                        {"type": "blocks", "to": {"ref": "p"}}]),
         _uncited("u1", UNCITED[0]),
         _uncited("u2", UNCITED[1]),
     ]
