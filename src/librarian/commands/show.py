@@ -1,6 +1,7 @@
 import json
 
 from librarian import db, locator, store
+from librarian.slack import permalink
 
 help = "Print one Source item with all its revisions as JSON (read-only)"
 
@@ -29,6 +30,8 @@ def run(args, ctx):
         item = store.get_item(conn, ctx.workspace, loc.source, loc.stable_id)
     if item is None:
         return _error("not_found", f"no Source item {loc.source}:{loc.stable_id}")
+    if loc.source == "slack":
+        item["permalink"] = permalink.for_item(conn, ctx.workspace, loc.stable_id)
     if loc.part:
         item["part"] = loc.part
     print(json.dumps(item, indent=2, ensure_ascii=False))

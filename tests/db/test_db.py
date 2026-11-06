@@ -1,11 +1,14 @@
 import hashlib
 import sqlite3
 import threading
+from pathlib import Path
 
 import pytest
 from support.cli import run_librarian
 
 from librarian import db
+
+MIGRATIONS = Path(db.__file__).parent / "migrations"
 
 
 @pytest.fixture
@@ -26,15 +29,16 @@ def digest(path):
 
 
 def test_migrate_creates_db_idempotently_and_status_is_read_only(home):
+    count = len(list(MIGRATIONS.glob("*.sql")))
     out = run_librarian(["migrate", "--status"], home)
-    assert out.stdout.strip() == "version 0, 3 pending"
+    assert out.stdout.strip() == f"version 0, {count} pending"
     assert not (home / "workspaces" / "work" / "librarian.db").exists()
 
     first = run_librarian(["migrate"], home)
     again = run_librarian(["migrate"], home)
     assert first.returncode == again.returncode == 0
-    assert first.stdout.strip() == again.stdout.strip() == "version 3"
-    assert run_librarian(["migrate", "--status"], home).stdout.strip() == "version 3, 0 pending"
+    assert first.stdout.strip() == again.stdout.strip() == f"version {count}"
+    assert run_librarian(["migrate", "--status"], home).stdout.strip() == f"version {count}, 0 pending"
     assert not list((home / "workspaces" / "work").glob("backups/*"))
 
 

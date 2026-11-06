@@ -19,7 +19,7 @@ def run(args, ctx):
         with workspace_lock(ctx.workspace_dir):
             conn = db.connect_rw(ctx.workspace)
             run = runner.start_run(conn, ctx.workspace, os.getpid())
-            stages = load_stages()
+            stages = load_stages(ctx.workspace)
             status = gate.training_gate_status(ctx.config)
             if not status.allowed:
                 # Everything from extract on sends work text to Claude, so none of it runs.

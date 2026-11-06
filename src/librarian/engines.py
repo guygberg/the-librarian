@@ -9,6 +9,7 @@ from librarian.fakes.extractor import FakeExtractor
 from librarian.fakes.slack import FakeSlack
 from librarian.fakes.transcriber import FakeTranscriber
 from librarian.ports import Engines
+from librarian.slack.client import SlackClient
 
 
 class _NotImplementedYet:
@@ -36,7 +37,9 @@ def call_log(workspace: str) -> CallLog:
 def get_engines(workspace: str = paths.DEFAULT_WORKSPACE) -> Engines:
     mode = os.environ.get("LIBRARIAN_ENGINES") or config.load().get("engines", "real")
     if mode == "real":
-        return Engines(_NotImplementedYet("slack"), _NotImplementedYet("transcriber"), _NotImplementedYet("extractor"))
+        return Engines(
+            SlackClient.from_config(config.load()), _NotImplementedYet("transcriber"), _NotImplementedYet("extractor")
+        )
     if mode != "fake":
         raise ValueError(f"LIBRARIAN_ENGINES must be 'fake' or 'real', got {mode!r}")
     log, fixtures = call_log(workspace), fixtures_dir()

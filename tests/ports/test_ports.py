@@ -1,5 +1,6 @@
 import json
 import socket
+from pathlib import Path
 
 import pytest
 
@@ -78,7 +79,7 @@ def test_real_engines_are_placeholders(env, monkeypatch):
     monkeypatch.setenv("LIBRARIAN_ENGINES", "real")
     real = engines.get_engines()
     with pytest.raises(NotImplementedError, match="not implemented yet"):
-        real.slack.list_conversations()
+        real.transcriber.transcribe(Path("x"))
     with pytest.raises(NotImplementedError):
         real.extractor.extract("k", "t", [])
 
