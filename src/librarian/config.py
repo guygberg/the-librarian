@@ -12,6 +12,7 @@ DEFAULTS: dict[str, Any] = {
     "low_confidence_no_speech_prob": 0.6,
     "low_confidence_compression_ratio": 2.4,
     "uncertain_word_p": 0.5,
+    "extract_max_calls": 200,
 }
 
 

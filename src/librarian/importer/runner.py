@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from librarian.importer import progress
-from librarian.importer.stages import Stage
+from librarian.importer.stages import Deferred, Stage
 
 
 def _now() -> str:
@@ -71,6 +71,8 @@ def _pending(run: Run, names: list[str]) -> list[tuple[str, str]]:
 def _attempt(run: Run, stage: Stage, source: str, item: str) -> None:
     try:
         stage.process(run.conn, source, item)
+    except Deferred:
+        return
     except Exception as exc:
         _record(run, stage, source, item, "failed", f"{type(exc).__name__}: {exc}")
         progress.bump(run, source, "failed")

@@ -7,6 +7,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 
+class Deferred(Exception):
+    """Raised by `process` to leave an item for the next run: not done, not failed."""
+
+
 @dataclass(frozen=True)
 class Stage:
     name: str
@@ -14,6 +18,7 @@ class Stage:
     # Only the first stage introduces items; the rest work on items the earlier stages finished.
     discover: Callable[[sqlite3.Connection], Iterable[tuple[str, str]]] = lambda conn: ()
     counter: str | None = field(default=None)
+    summary: Callable[[], str] | None = None  # a line to print when the import ends
 
 
 STAGES = [
@@ -25,7 +30,12 @@ STAGES = [
 ]
 
 
-def load_stages(workspace: str, older: str | None = None, languages: dict[str, str] | None = None) -> list[Stage]:
+def load_stages(
+    workspace: str,
+    older: str | None = None,
+    languages: dict[str, str] | None = None,
+    max_calls: int | None = None,
+) -> list[Stage]:
     override = os.environ.get("LIBRARIAN_STAGES")
     if override:
         return importlib.import_module(override).STAGES
@@ -36,7 +46,7 @@ def load_stages(workspace: str, older: str | None = None, languages: dict[str, s
     got = engines.get_engines(workspace)
     slack = slack_fetch.stage(workspace, got.slack, older)
     transcribe = recordings.transcribe_stage(workspace, got.transcriber, languages)
-    rest = [STAGES[2], extract.stage(workspace, got.extractor), *STAGES[4:]]
+    rest = [STAGES[2], extract.stage(workspace, got.extractor, max_calls), *STAGES[4:]]
     if older is not None:
         return [slack, transcribe, *rest]
     fetch = _fetch(

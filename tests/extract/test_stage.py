@@ -166,3 +166,52 @@ def test_units_group_threads_channel_days_and_transcript_windows(home, monkeypat
     assert sorted(keys) == sorted([
         f"slack-thread-C1-{day}.000000", "slack-day-C1-2023-11-14", "drive-abc-1", "drive-abc-2", "drive-abc-3",
     ])
+
+
+def extractor_keys(home):
+    return [c["args"]["unit_key"] for c in CallLog(home / "workspaces" / "work").read() if c["engine"] == "extractor"]
+
+
+def import_with(home, env, *flags):
+    code, out = finish_tty(popen_librarian_tty(["import", *flags], home, env))
+    return code, out.replace("\r", "")
+
+
+def test_cap_stops_cleanly_newest_first_and_the_next_run_continues(home, base):
+    env, _ = base
+
+    code, out = import_with(home, env, "--max-calls", "1")
+    assert code == 0, out
+    assert extractor_keys(home) == [DAY_KEY]  # its latest message is newer than the thread root
+    assert "1 calls made, 1 units remaining" in out
+
+    code, out = import_with(home, env, "--max-calls", "1")
+    assert code == 0, out
+    assert extractor_keys(home) == [DAY_KEY, THREAD_KEY]
+    assert "1 calls made, 0 units remaining" in out
+
+
+def test_dry_run_counts_the_calls_a_real_run_makes_and_sends_nothing(home, base):
+    env, _ = base
+
+    code, out = import_with(home, env, "--dry-run")
+    assert code == 0, out
+    assert "dry run: 2 extraction calls would be made" in out
+    assert extractor_keys(home) == []
+    assert run_librarian(["show", "1"], home).returncode == 1
+
+    assert run_import(home, env)[0] == 0
+    assert len(extractor_keys(home)) == 2
+
+
+def test_an_edit_costs_one_call_and_an_unchanged_rerun_none(tmp_path, home):
+    env, _ = make_env(tmp_path, home, "slack_edited_message", 1_700_000_000)
+
+    assert run_import(home, env)[0] == 0
+    assert len(extractor_keys(home)) == 1
+
+    assert run_import(home, env)[0] == 0  # the second generation carries the edit
+    assert len(extractor_keys(home)) == 2
+
+    assert run_import(home, env)[0] == 0
+    assert len(extractor_keys(home)) == 2

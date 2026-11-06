@@ -22,12 +22,14 @@ class Unit:
     key: str
     lines: list[str] = field(default_factory=list)
     locators: set[str] = field(default_factory=set)
+    newest: float = 0  # latest item timestamp; items without one count as oldest
 
     @property
     def text(self) -> str:
         return "\n".join(self.lines)
 
-    def add(self, source: str, stable_id: str, speaker: str, text: str) -> None:
+    def add(self, source: str, stable_id: str, speaker: str, text: str, ts: float = 0) -> None:
+        self.newest = max(self.newest, ts)
         locator = f"{source}:{stable_id}"
         self.lines.append(f"[{locator}] {speaker}: {text}")
         self.locators.add(locator)
@@ -57,24 +59,28 @@ def build(conn: sqlite3.Connection, workspace: str) -> dict[tuple[str, str], lis
             channel = stable_id.split("/")[0]
             root = content.get("thread_ts")
             key = f"slack-thread-{channel}-{root}" if root else f"slack-day-{channel}-{_day(content.get('ts'))}"
-            put(key, ("slack", stable_id)).add(source, stable_id, content.get("user", "?"), content.get("text", ""))
+            put(key, ("slack", stable_id)).add(source, stable_id, content.get("user", "?"), content.get("text", ""), _ts(content))
         elif source == "session":
             sessions.setdefault(content["session_id"], []).append((stable_id, content))
         elif source == "drive":
             file_hash = stable_id.split("/")[0]
             key = f"drive-{file_hash}-{int(content['start'] // WINDOW_SECONDS) + 1}"
-            put(key, (RECORDING_SOURCE, origin)).add(source, stable_id, "", content["text"])
+            put(key, (RECORDING_SOURCE, origin)).add(source, stable_id, "", content["text"], _ts(content))
     for session_id, lines in sessions.items():
         for number, (stable_id, content) in enumerate(lines):
             key = f"session-{session_id}-{number // SESSION_WINDOW + 1}"
-            put(key, ("session", stable_id)).add("session", stable_id, content["role"], content["text"])
+            put(key, ("session", stable_id)).add("session", stable_id, content["role"], content["text"], _ts(content))
     return {member: sorted(by_key.values(), key=lambda u: u.key) for member, by_key in members.items()}
 
 
 def _order(row: tuple[str, str, str, dict]) -> tuple:
     """Chronological inside each source; items of different units may interleave, which is harmless."""
     source, _, _, content = row
-    return source, float(content.get("ts") or 0), content.get("line", 0), content.get("segment", 0)
+    return source, _ts(content), content.get("line", 0), content.get("segment", 0)
+
+
+def _ts(content: dict) -> float:
+    return float(content.get("ts") or 0)
 
 
 def _day(ts: str | None) -> str:
