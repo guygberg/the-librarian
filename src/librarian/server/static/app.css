@@ -43,6 +43,7 @@ details[open] > summary.grp::before { content: '- '; }
 .open { margin-top: var(--s3); }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 70vh; overflow-y: auto; background: var(--panel); border-top: 1px solid var(--acc); padding: var(--s5) var(--s6) 26px; box-shadow: 0 -20px 50px #0008; }
 .sheet [data-part=close-sheet] { float: right; }
+.sheet .sub { font: 11px var(--mono); color: var(--mut); }
 .passage { margin: var(--s3) 0; }
 .ln { padding: var(--s2) 10px; border-radius: 6px; line-height: 1.5; display: grid; grid-template-columns: 76px 1fr; gap: var(--s2); }
 .ln.hl { background: var(--hl); }
