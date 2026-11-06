@@ -11,9 +11,12 @@ const BASIS = {
 
 const day = (iso) => shortDate(new Date(iso));
 
-export function evidenceLine(e, withRole = false) {
+/** The quote opens its source in the sheet; `open` is the expanded Record to return to, if any. */
+export function evidenceLine(e, withRole = false, open = null) {
+  const tab = open && filters.current().tab === 'relations' ? 'relations' : null;
   return h('div', { class: 'evb', 'data-part': 'evidence' },
-    h('small', {}, withRole ? `${e.locator} · ${e.role}` : e.locator), e.quote);
+    h('small', {}, withRole ? `${e.locator} · ${e.role}` : e.locator),
+    h('a', { href: filters.href({ open, tab, source: e.locator }), 'data-link': true, 'data-part': 'evidence-quote' }, e.quote));
 }
 
 function lifecycle(r) {
@@ -53,7 +56,7 @@ function disagreement(r) {
     h('p', { class: 'w' }, 'Sources disagree'),
     [r, ...r.contradictions].map((side) => h('div', { class: 'side', 'data-part': 'side' },
       h('a', { href: filters.href({ open: side.id }), 'data-link': true }, side.title),
-      side.evidence.map((e) => evidenceLine(e, true)),
+      side.evidence.map((e) => evidenceLine(e, true, r.id)),
       button('act-holds', 'This one holds', resolve(side.id, side === r ? rival.id : r.id, 'holds')))),
     button('act-both-wrong', 'Both are wrong', resolve(r.id, rival.id, 'both_wrong')));
 }
@@ -104,6 +107,6 @@ export function panel(r, tab, ctx) {
     tabs(r, tab),
     tab === 'relations'
       ? h('p', { class: 'empty small', 'data-part': 'relations-placeholder' }, 'Relations are not shown here yet.')
-      : r.evidence.map((e) => evidenceLine(e, true)),
+      : r.evidence.map((e) => evidenceLine(e, true, r.id)),
     history(r));
 }

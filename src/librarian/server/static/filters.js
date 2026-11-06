@@ -10,14 +10,16 @@ export function current() {
   return {
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
+    source: q.get('source'),
   };
 }
 
 /** The URL for the current filters with `change` applied; a null value clears that filter. The expanded item and
- * its tab are not carried over: changing a filter collapses it. */
-export function href({ open = null, tab = null, ...change }) {
+ * its tab are not carried over: changing a filter collapses it. The source sheet (`source`, an Evidence locator)
+ * is only ever the one asked for. */
+export function href({ open = null, tab = null, source = null, ...change }) {
   const q = new URLSearchParams();
-  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null })) {
+  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source })) {
     if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
   }
   return `${open ? `/items/${open}` : '/'}${q.size ? `?${q}` : ''}`;

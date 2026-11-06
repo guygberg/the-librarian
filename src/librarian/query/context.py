@@ -10,6 +10,7 @@ from typing import Any
 
 from librarian import config, locator
 from librarian.query import envelope
+from librarian.slack import permalink
 from librarian.transcribe import confidence
 
 SESSION_LINES = 5  # each side of the evidence line
@@ -151,7 +152,10 @@ def context(conn: sqlite3.Connection, workspace: str, loc: locator.Locator, cfg:
     items = passage(conn, workspace, loc, cfg) if passage else None
     if items is None:
         return None
-    return {"locator": str(loc), "source": loc.source, "items": items, "glosses": _glosses(conn, workspace, loc)}
+    found = {"locator": str(loc), "source": loc.source, "items": items, "glosses": _glosses(conn, workspace, loc)}
+    if loc.source == "slack":
+        found["permalink"] = permalink.for_item(conn, workspace, loc.stable_id)
+    return found
 
 
 def answer(conn: sqlite3.Connection, workspace: str, text: str) -> tuple[int, dict[str, Any]]:
