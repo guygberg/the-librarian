@@ -12,7 +12,9 @@ HERE = str(Path(__file__).parent)
 
 
 @pytest.fixture
-def stub_env(tmp_path):
+def stub_env(tmp_path, home):
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "config.toml").write_text('account_type = "team"\nusage_rules_confirmed = true\n')
     items = tmp_path / "items.txt"
     items.write_text("slack/a slack/b slack/c")
     return {

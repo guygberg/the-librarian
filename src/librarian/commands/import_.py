@@ -1,6 +1,6 @@
 import os
 
-from librarian import db
+from librarian import db, gate
 from librarian.importer import progress, runner
 from librarian.importer.lock import LockHeld, workspace_lock
 from librarian.importer.stages import load_stages
@@ -19,8 +19,17 @@ def run(args, ctx):
         with workspace_lock(ctx.workspace_dir):
             conn = db.connect_rw(ctx.workspace)
             run = runner.start_run(conn, ctx.workspace, os.getpid())
-            failed = runner.run_import(run, load_stages(), print)
+            stages = load_stages()
+            status = gate.training_gate_status(ctx.config)
+            if not status.allowed:
+                # Everything from extract on sends work text to Claude, so none of it runs.
+                names = [s.name for s in stages]
+                stages = stages[: names.index("extract")] if "extract" in names else stages
+            failed = runner.run_import(run, stages, print)
             print(f"import finished, {failed} failed")
+            if not status.allowed:
+                print(f"librarian: extraction skipped, {status.reason}; {status.fix}")
+                return 1
             return 1 if failed else 0
     except LockHeld as held:
         print(f"librarian: another import is running ({held.holder})")
