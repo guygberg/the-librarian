@@ -32,9 +32,9 @@ class BadGraphRequest(ValueError):
 
 def parse_center(text: str) -> Node:
     kind, _, number = text.rpartition(":")
-    if number.isdigit() and kind in ("", "record", "person"):
+    if number.isdigit() and kind in ("", "record", "person", "source_item"):
         return (kind or "record", int(number))
-    raise BadGraphRequest(f"bad center {text!r}: expected record:<id> or person:<id>")
+    raise BadGraphRequest(f"bad center {text!r}: expected record:<id>, person:<id> or source_item:<id>")
 
 
 def _edges(
@@ -61,6 +61,16 @@ def _edges(
             pair = (("record", record_id), ("person", person_id))
             if pair not in have:
                 edges.append(("owner", *pair))
+    if "evidence" in kinds:  # a Record's Evidence rows are its edges to the Source items they quote
+        have = {(a, b) for t, a, b in edges if t == "evidence"}
+        for record_id, source_id in conn.execute(
+            "SELECT DISTINCT e.record_id, v.source_item_id FROM evidence e JOIN source_item_revisions v ON v.id = e.revision_id"
+            " WHERE e.workspace = ? ORDER BY e.id",
+            (workspace,),
+        ):
+            pair = (("record", record_id), ("source_item", source_id))
+            if pair not in have:
+                edges.append(("evidence", *pair))
     return edges
 
 
@@ -91,13 +101,16 @@ def _label(conn: sqlite3.Connection, workspace: str, node: Node) -> dict[str, An
     return {"title": f"{row[0]}:{row[1]}"} if row else {}
 
 
-def _evidence(conn: sqlite3.Connection, workspace: str, record_id: int) -> list[dict[str, Any]]:
+def _evidence(conn: sqlite3.Connection, workspace: str, record_id: int, source_id: int | None = None) -> list[dict[str, Any]]:
+    """A Record's Evidence, or only what it quotes from one Source item."""
     return [
         {"locator": loc, "quote": quote, "role": role}
         for loc, quote, role in conn.execute(
-            "SELECT locator, quote, role FROM evidence"
-            " WHERE workspace = ? AND record_id = ? ORDER BY id",
-            (workspace, record_id),
+            "SELECT e.locator, e.quote, e.role"
+            " FROM evidence e JOIN source_item_revisions v ON v.id = e.revision_id"
+            " WHERE e.workspace = ? AND e.record_id = ?"
+            " AND (? IS NULL OR v.source_item_id = ?) ORDER BY e.id",
+            (workspace, record_id, source_id, source_id),
         )
     ]
 
@@ -131,13 +144,18 @@ def neighbourhood(
             suggested = review.for_record(conn, workspace, node[1])
             if suggested:
                 entry["suggested"] = suggested
+        if node[0] == "source_item":  # the quote the nearest Record takes from it
+            quotes = [q["quote"] for k, a, b in edges if k == "evidence" and b == node and a in distance
+                      for q in _evidence(conn, workspace, a[1], node[1])]
+            if quotes:
+                entry["quote"] = quotes[0]
         nodes.append(entry)
     out_edges = [
         {
             "kind": kind,
             "from": f"{a[0]}:{a[1]}",
             "to": f"{b[0]}:{b[1]}",
-            "evidence": _evidence(conn, workspace, a[1]) if a[0] == "record" else [],
+            "evidence": _evidence(conn, workspace, a[1], b[1] if b[0] == "source_item" else None) if a[0] == "record" else [],
         }
         for kind, a, b in edges
         if a in distance and b in distance

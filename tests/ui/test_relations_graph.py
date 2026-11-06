@@ -46,6 +46,13 @@ def nodes(page, hop=None):
     return page.locator("[data-part=graph-node]" + (f".hop-{hop}" if hop else ""))
 
 
+def kind_chip(page, kind):
+    details = page.locator("[data-part=kind-filter]")
+    if details.get_attribute("open") is None:
+        details.locator("summary").click()
+    return page.locator(f"[data-part=kind][data-kind='{kind}']")
+
+
 def api_graph(page, item, hops, kinds=""):
     return page.evaluate(FETCH, f"/api/graph?center=record:{item}&hops={hops}&kinds={kinds}")
 
@@ -84,7 +91,7 @@ def test_edge_kind_filter_hides_other_kinds(page, ui):
     assert len(kinds) > 1
     keep = sorted(kinds)[0]
     for kind in sorted(kinds - {keep}):
-        page.locator(f"[data-part=kind][data-kind='{kind}']").click()
+        kind_chip(page, kind).click()
     shown = {e["kind"] for e in api_graph(page, item, 1, keep)["edges"]}
     assert shown == {keep}
     expect(page.locator("[data-part=graph-edge]")).to_have_count(
@@ -94,7 +101,7 @@ def test_edge_kind_filter_hides_other_kinds(page, ui):
     assert f"kinds={keep}" in page.url
     # Turning every other kind back on drops the parameter.
     for kind in sorted(kinds - {keep}):
-        page.locator(f"[data-part=kind][data-kind='{kind}']").click()
+        kind_chip(page, kind).click()
     assert "kinds=" not in page.url or all(k in page.url for k in kinds)
 
 
@@ -117,7 +124,9 @@ def test_clicking_a_node_recentres_and_reload_restores_the_view(page, ui):
 
 def test_reload_restores_edge_kind_filter(page, ui):
     ui, item = graph_page(page, ui)
-    page.locator("[data-part=kind][data-kind='evidence']").click()
+    expect(page.locator("[data-part=graph-edge][data-kind='evidence']").first).to_be_visible()
+    expect(page.locator("[data-part=graph-node].source_item").first).to_contain_text('"')
+    kind_chip(page, "evidence").click()
     expect(page.locator("[data-part=kind][data-kind='evidence']")).to_have_class("chip")
     url = page.url
     page.reload()
