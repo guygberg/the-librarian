@@ -85,9 +85,21 @@ def connect_rw(workspace: str, directory: Path = MIGRATIONS_DIR) -> sqlite3.Conn
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     for version, sql_path in pending:
-        conn.executescript(
-            f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};\nCOMMIT;"
-        )
+        # Table rebuilds require temporarily disabling enforcement outside the transaction.
+        # Validate all references before committing, then restore enforcement for normal writes.
+        conn.execute("PRAGMA foreign_keys=OFF")
+        try:
+            conn.executescript(f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};")
+            if violations := conn.execute("PRAGMA foreign_key_check").fetchall():
+                raise sqlite3.IntegrityError(
+                    f"migration {version}: invalid references {violations}"
+                )
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            conn.close()
+            raise
+        conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 

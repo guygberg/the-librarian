@@ -52,7 +52,7 @@ def _store_record(
         if decision == "updated":
             _update_record(conn, workspace, rec["match"]["id"], rec)
         return rec["match"]["id"]
-    if rec["kind"] != "project":
+    if not (rec.get("is_tag") or rec.get("kind") == "project"):
         return _insert_record(conn, workspace, rec)
     found = projects.match(conn, workspace, rec["title"])
     if found.exact is not None:
@@ -80,7 +80,7 @@ def _suggest_projects(
     not linked."""
     for link in rec.get("links", []):
         for other in near.get(link["to"].get("ref"), ()) if link["type"] == "belongs_to" else ():
-            title = conn.execute("SELECT title FROM records WHERE id = ?", (other,)).fetchone()[0]
+            title = conn.execute("SELECT title FROM items WHERE id = ?", (other,)).fetchone()[0]
             review.add(
                 conn, workspace, review.SUGGESTED_PROJECT, record_id, "belongs_to", title, other
             )
@@ -91,9 +91,10 @@ def _update_record(
 ) -> None:
     person_id, review_kind = _owner(conn, workspace, rec)
     conn.execute(
-        "UPDATE records SET title = CASE WHEN kind = 'project' THEN title ELSE ? END, body = ?,"
+        "UPDATE items SET title = CASE WHEN id IN (SELECT item_id FROM tags)"
+        " THEN title ELSE ? END, body = ?,"
         " lifecycle = ?, basis = CASE WHEN basis = 'confirmed' THEN basis ELSE ? END,"
-        " commitment = ?, owner_person_id = COALESCE(?, owner_person_id), stated_deadline = ?,"
+        " owner_person_id = COALESCE(?, owner_person_id), stated_deadline = ?,"
         " reasoning = ?,"
         " updated_at = ? WHERE id = ?",
         (
@@ -101,7 +102,6 @@ def _update_record(
             rec.get("body", ""),
             rec["lifecycle"],
             rec["basis"],
-            rec.get("commitment"),
             person_id,
             rec.get("stated_deadline"),
             rec.get("reasoning"),
@@ -138,17 +138,15 @@ def _insert_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]
     owner = rec.get("owner")
     person_id, review_kind = _owner(conn, workspace, rec)
     record_id = conn.execute(
-        "INSERT INTO records (workspace, kind, title, body, lifecycle, basis, commitment,"
+        "INSERT INTO items (workspace, title, body, lifecycle, basis,"
         " owner_person_id, stated_deadline, reasoning, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             workspace,
-            rec["kind"],
             rec["title"],
             rec.get("body", ""),
             rec["lifecycle"],
             rec["basis"],
-            rec.get("commitment"),
             person_id,
             rec.get("stated_deadline"),
             rec.get("reasoning"),
@@ -156,6 +154,8 @@ def _insert_record(conn: sqlite3.Connection, workspace: str, rec: dict[str, Any]
             now,
         ),
     ).lastrowid
+    if rec.get("is_tag") or rec.get("kind") == "project":
+        conn.execute("INSERT INTO tags (item_id, workspace) VALUES (?, ?)", (record_id, workspace))
     if review_kind:
         review.add(conn, workspace, review_kind, record_id, "owner", owner.get("name"))
     return record_id
@@ -171,7 +171,7 @@ def _link_and_cite(
     record_id = ids[rec["ref"]]
     if "parent" in rec:
         conn.execute(
-            "UPDATE records SET parent_id = ? WHERE id = ?",
+            "UPDATE items SET parent_id = ? WHERE id = ?",
             (_record_end(ids, rec["parent"]), record_id),
         )
     for link in rec.get("links", []):

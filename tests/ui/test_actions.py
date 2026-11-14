@@ -3,7 +3,7 @@ from playwright.sync_api import expect
 
 from fixtures.scenarios import payments_cutover as payments
 from support.recordings import run_import
-from support.ui_stream import open_stream, person, record, row
+from support.ui_stream import open_item, open_stream, person, record, row
 
 
 def panel_of(page, ui, item):
@@ -25,25 +25,28 @@ def test_mark_done_updates_the_counts_and_the_item_appears_under_done_with_histo
     before = ui.answer("open-items")
     expect(page.locator("[data-part=headline]")).to_have_text(before["headline"]["text"])
 
-    row(page, "Send the invoice").locator(".t a").click()
-    page.locator("[data-part=act-done]").click()
+    panel = open_item(page, "Send the invoice")
+    panel.locator("[data-part=act-done]").click()
 
+    # The item's page settles once, and says it is done.
+    expect(panel).to_have_class("detail settle")
+    expect(panel.locator("[data-part=lifecycle]")).to_contain_text("Done")
+    expect(panel.locator("[data-part=act-reopen]")).to_be_visible()
     after = ui.answer("open-items")
     assert after["headline"]["needs_you"] == before["headline"]["needs_you"] - 1
-    expect(page.locator("[data-part=headline]")).to_have_text(after["headline"]["text"])
     expect(page.locator(".barl")).to_have_text(
         f"{after['progress']['done_this_week']} of {after['progress']['total']}"
         " items finished this week"
     )
-    expect(page.locator("[data-part=headline]")).to_have_class("settle")
-    expect(page.locator("[data-part=lifecycle]")).to_contain_text("Done")
-    expect(page.locator("[data-part=act-reopen]")).to_be_visible()
+    # The headline is the Items page's subtitle; back on the list it has the new counts.
+    panel.locator("[data-part=back-to-items]").click()
+    expect(page.locator("[data-part=headline]")).to_have_text(after["headline"]["text"])
+    expect(row(page, "Send the invoice")).to_have_count(0)
 
     page.goto(f"{ui.url}/items?kind=done")
-    done = row(page, "Send the invoice")
-    expect(done).to_be_visible()
-    done.locator(".t a").click()
-    assert "status change" in page.locator("[data-part=event]").first.text_content()
+    expect(row(page, "Send the invoice")).to_be_visible()
+    panel = open_item(page, "Send the invoice")
+    expect(panel.locator("[data-part=event]").first).to_contain_text("status change")
     assert item == int(page.url.split("/items/")[1].split("?")[0])
 
 
@@ -58,9 +61,20 @@ def test_reopen_owner_and_project_show_in_history_and_survive_reload_and_import(
     expect(page.locator("[data-part=lifecycle]")).to_contain_text("Done")
     page.locator("[data-part=act-reopen]").click()
     expect(page.locator("[data-part=lifecycle]")).to_have_text("Open")
-    page.locator("[data-part=act-owner]").select_option(label="Raz Peretz")
-    page.locator("[data-part=act-project]").select_option(label=payments.PROJECT)
-    expect(page.locator("[data-part=act-project]")).to_have_value(str(project))
+    dialog = page.locator("[data-part=dialog]")
+    page.locator("[data-part=assign]").click()
+    dialog.locator("[data-part=act-owner]").select_option(label="Raz Peretz")
+    dialog.locator("[data-part=form-save]").click()
+    expect(dialog).to_be_hidden()
+    expect(page.locator("[data-part=owner]")).to_have_text("Raz Peretz")
+    page.locator("[data-part=more-actions]").click()
+    dialog.locator("[data-part=act-project]").select_option(label=payments.PROJECT)
+    expect(dialog).to_be_hidden()
+    expect(page.locator("[data-part=detail-project]")).to_have_text([payments.PROJECT])
+    page.locator("[data-part=more-actions]").click()
+    expect(dialog.locator("[data-part=act-project]")).to_have_value(str(project))
+    page.keyboard.press("Escape")
+    expect(dialog).to_be_hidden()
 
     def check():
         current = panel_of(page, ui, item)
@@ -68,8 +82,7 @@ def test_reopen_owner_and_project_show_in_history_and_survive_reload_and_import(
         [view] = [r for r in ui.answer("open-items")["records"] if r["id"] == item]
         assert (view["owner"], [p["id"] for p in view["projects"]]) == ("Raz Peretz", [project])
         events = [
-            e.strip()
-            for e in current.locator("[data-part=event] span:first-child").all_text_contents()
+            e.strip() for e in current.locator("[data-part=event] strong").all_text_contents()
         ]
         assert events[-4:] == ["status change", "status change", "owner change", "project move"]
 
@@ -98,9 +111,7 @@ def test_resolving_the_date_disagreement(page, ui, outcome):
         panel.locator("[data-part=act-both-wrong]").click()
 
     expect(page.locator("[data-part=disagreement]")).to_have_count(0)
-    expect(
-        page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]"))
-    ).to_have_class("it settle")
+    expect(page.locator("[data-part=item-expanded]")).to_have_class("detail settle")
     expect(page.locator("[data-part=warning]", has_text="Sources disagree")).to_have_count(0)
 
     for record_id, expected in (

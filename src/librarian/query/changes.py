@@ -59,7 +59,7 @@ def changes(
         scope = [winner, *project._member_ids(conn, workspace, winner)]
         resolved["project"] = {
             "id": winner,
-            "name": conn.execute("SELECT title FROM records WHERE id = ?", (winner,)).fetchone()[0],
+            "name": conn.execute("SELECT title FROM items WHERE id = ?", (winner,)).fetchone()[0],
         }
     meeting = last_meeting(conn, workspace, scope)
     if meeting:
@@ -81,7 +81,9 @@ def changes(
     imported = {
         row[0]: "created" if row[1] >= cutoff else "updated"
         for row in conn.execute(
-            "SELECT id, created_at FROM records WHERE workspace = ? AND updated_at >= ?"
+            "SELECT id, created_at FROM items WHERE workspace = ? AND updated_at >= ?"
+            " AND NOT EXISTS (SELECT 1 FROM record_events e WHERE e.record_id = items.id"
+            " AND e.workspace = items.workspace AND e.event = 'create')"
             f"{sql} ORDER BY id",
             (workspace, cutoff, *args),
         )

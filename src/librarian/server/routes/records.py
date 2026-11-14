@@ -12,18 +12,14 @@ WRONG = "marked wrong by me"
 _NOT_FOR_PROJECTS = "not available for a project"
 
 
-def _kind(conn, workspace, record_id):
-    row = conn.execute(
-        "SELECT kind FROM records WHERE workspace = ? AND id = ?", (workspace, record_id)
-    ).fetchone()
-    return row[0] if row else None
-
-
 def _need_item(conn, workspace, record_id) -> None:
-    kind = _kind(conn, workspace, int(record_id))
-    if kind is None:
-        raise Refused(404, f"no Record {record_id}")
-    if kind == "project":
+    if not conn.execute(
+        "SELECT 1 FROM items WHERE workspace = ? AND id = ?", (workspace, int(record_id))
+    ).fetchone():
+        raise Refused(404, f"no item {record_id}")
+    if conn.execute(
+        "SELECT 1 FROM tags WHERE workspace = ? AND item_id = ?", (workspace, int(record_id))
+    ).fetchone():
         raise Refused(409, _NOT_FOR_PROJECTS)
 
 
@@ -35,11 +31,9 @@ def _lifecycle(lifecycle):
 
 
 def _owner(conn, workspace, record_id, body):
-    if _kind(conn, workspace, record_id) != "action_item":
-        raise Refused(409, "only an action item has an owner")
     person_id = field(body, "person_id", int)
     if not conn.execute(
-        "SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)
+        "SELECT 1 FROM people WHERE workspace = ? AND id = ?", (workspace, person_id)
     ).fetchone():
         raise Refused(404, f"no person {person_id}")
     events.append(conn, workspace, record_id, "owner_change", {"person_id": person_id})
@@ -47,6 +41,15 @@ def _owner(conn, workspace, record_id, body):
 
 def _project(conn, workspace, record_id, body):
     project_actions.move(conn, workspace, record_id, field(body, "project_id", int))
+
+
+def _unproject(conn, workspace, record_id, body):
+    conn.execute(
+        "DELETE FROM links WHERE workspace = ? AND type = 'belongs_to'"
+        " AND from_type = 'record' AND to_type = 'record' AND from_id = ?",
+        (workspace, record_id),
+    )
+    events.append(conn, workspace, record_id, "project_move", {"project_id": None})
 
 
 def _resolve(conn, workspace, record_id, body):
@@ -93,6 +96,7 @@ ACTIONS = {
     "reopen": _lifecycle("open"),
     "owner": _owner,
     "project": _project,
+    "unproject": _unproject,
     "resolve": _resolve,
 }
 
@@ -107,4 +111,8 @@ def act(name):
     return mutating(do)
 
 
-ROUTES = [Route("POST", f"/api/records/<id>/{name}", act(name)) for name in ACTIONS]
+ROUTES = [
+    Route("POST", f"/api/{resource}/<id>/{name}", act(name))
+    for resource in ("items", "records")
+    for name in ACTIONS
+]

@@ -34,7 +34,7 @@ class Api:
         return self.sql("SELECT id FROM records WHERE title = ?", title)[0][0]
 
     def person(self, name):
-        return self.sql("SELECT id FROM persons WHERE name = ?", name)[0][0]
+        return self.sql("SELECT id FROM people WHERE name = ?", name)[0][0]
 
     def row(self, title):
         [row] = [r for r in self.review()["rows"] if r["record"]["title"] == title]

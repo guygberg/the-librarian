@@ -7,7 +7,7 @@ from support.ui_stream import STAMP, open_stream, person, record, row
 
 ROW = "[data-part=review-row]"
 MARK = "[data-part=warning]"
-COUNT = "[data-part=open-review]"
+COUNT = "[data-part=review-total]"
 ATLAS, ATLASES = "Atlas Migration", "Atlas Migrations"
 OPEN = "SELECT count(*) FROM review_entries WHERE resolved_at IS NULL"
 
@@ -27,7 +27,11 @@ def suggest(ui, title, raw_name, kind="unconfirmed_person"):
 
 def people(ui):
     dani = person(ui, "Dani Cohen")
-    ui.sql("INSERT INTO aliases (workspace, person_id, alias) VALUES ('work', ?, 'Dani')", dani)
+    ui.sql(
+        "UPDATE people SET aliases = json_insert(aliases, '$[#]', 'Dani')"
+        " WHERE workspace = 'work' AND id = ?",
+        dani,
+    )
     return dani, person(ui, "Dana Levi")
 
 
@@ -50,8 +54,10 @@ def test_count_matches_rows_and_accept_and_reject_settle_the_suggestions(page, u
     page.goto(ui.url + "/items")
     expect(row(page, "Send the invoice").locator(MARK)).to_have_text(["unconfirmed person"])
 
-    expect(page.locator(COUNT)).to_have_text(f"{open_now} to review")
-    page.locator(COUNT).click()
+    # The Review entry of the sidebar carries the count, and opens the page.
+    expect(page.locator(COUNT)).to_have_text(str(open_now))
+    page.locator("#nav button.nav", has=page.locator(COUNT)).click()
+    expect(page).to_have_url(ui.url + "/review")
     expect(page.locator(ROW)).to_have_count(open_now)
     expect(page.locator("[data-part=review-count]")).to_have_text(f"{open_now} to review")
 
@@ -61,11 +67,15 @@ def test_count_matches_rows_and_accept_and_reject_settle_the_suggestions(page, u
     with page.expect_response("**/reject"):
         dani_rows(page).first.locator("[data-part=review-reject]").click()
     expect(page.locator(ROW)).to_have_count(open_now - 2)
-    assert ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'") == [(dani,)]
+    assert ui.sql("SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dani'") == [
+        (dani,)
+    ]
     assert ui.sql("SELECT resolution FROM review_entries WHERE raw_name = 'Dani' ORDER BY id") == [
         ("accepted",),
         ("rejected",),
     ]
+    expect(page.locator("[data-part=review-count]")).to_have_text(f"{open_now - 2} to review")
+    expect(page.locator(COUNT)).to_have_text(str(open_now - 2))
 
     page.goto(ui.url + "/items")
     expect(row(page, "Send the invoice").locator(MARK)).to_have_count(0)
@@ -79,12 +89,14 @@ def test_a_review_row_moves_or_splits_the_alias(page, ui):
 
     with page.expect_response("**/aliases/move"):
         dani_rows(page).locator("[data-part=alias-move]").select_option(label="Dana Levi")
-    assert ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'") == [(dana,)]
+    assert ui.sql("SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dani'") == [
+        (dana,)
+    ]
     expect(dani_rows(page).locator("[data-part=candidate]")).to_contain_text("Dana Levi")
 
     with page.expect_response("**/aliases/split"):
         dani_rows(page).locator("[data-part=alias-split]").click()
-    [(new,)] = ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'")
+    [(new,)] = ui.sql("SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dani'")
     assert new not in (dani, dana)
 
 
@@ -99,15 +111,18 @@ def test_the_person_node_menu_in_relations_moves_and_splits_an_alias(page, ui):
     expect(menu.locator("[data-part=person-alias]")).to_have_value("Dani")
     with page.expect_response("**/aliases/move"):
         menu.locator("[data-part=alias-move]").select_option(label="Dana Levi")
-    assert ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'") == [(dana,)]
+    assert ui.sql("SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dani'") == [
+        (dana,)
+    ]
 
-    ui.sql("UPDATE aliases SET person_id = ? WHERE alias = 'Dani'", dani)
+    ui.sql("UPDATE people SET aliases = '[]' WHERE id = ?", dana)
+    ui.sql("UPDATE people SET aliases = json_array('Dani') WHERE id = ?", dani)
     page.goto(f"{ui.url}/items/{rid}?tab=relations")
     menu = page.locator("[data-part=person-menu]", has_text="Dani Cohen")
     menu.locator("summary").click()
     with page.expect_response("**/aliases/split"):
         menu.locator("[data-part=alias-split]").click()
-    [(new,)] = ui.sql("SELECT person_id FROM aliases WHERE alias = 'Dani'")
+    [(new,)] = ui.sql("SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dani'")
     assert new not in (dani, dana)
 
 
@@ -130,11 +145,11 @@ def test_project_confirm_rename_and_merge_from_the_status_header(page, ui):
     tools.locator("[data-part=project-name]").fill("Atlas Cloud")
     with page.expect_response("**/rename"):
         tools.locator("[data-part=project-rename]").click()
-    expect(page.locator("[data-part=status-header] .t").first).to_have_text("Atlas Cloud")
+    expect(page.locator("[data-part=status-header] h3")).to_have_text("Atlas Cloud")
 
     with page.expect_response("**/merge"):
         page.locator("[data-part=project-merge]").select_option(label=ATLASES)
-    expect(page.locator("[data-part=status-header] .t").first).to_have_text(ATLASES)
+    expect(page.locator("[data-part=status-header] h3")).to_have_text(ATLASES)
     code, out = run_import(ui.home, ui.env)
     assert code == 0, out
     assert ui.sql("SELECT lifecycle FROM records WHERE title = 'Atlas Cloud'") == [("superseded",)]

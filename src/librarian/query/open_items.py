@@ -3,6 +3,7 @@
 `librarian open-items` and `GET /api/open-items` both call `open_items`.
 """
 
+import json
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
@@ -12,7 +13,6 @@ from librarian.link import review
 from librarian.query import context, core, envelope, stale
 from librarian.transcribe import confidence
 
-KINDS = ("action_item", "blocker", "open_question")
 NEEDS, WAITING, OTHER = "needs_attention", "waiting_on_others", "other_open"
 GROUPS = (NEEDS, WAITING, OTHER)
 
@@ -84,13 +84,12 @@ def open_items(
     """
     at = at or core.now()
     cfg = config.load()
-    kinds = (*KINDS, "decision") if everything else KINDS
     ids = [
         row[0]
         for row in conn.execute(
-            "SELECT id FROM records WHERE workspace = ?"
-            f" AND kind IN ({', '.join('?' * len(kinds))}) ORDER BY id",
-            (workspace, *kinds),
+            "SELECT id FROM items WHERE workspace = ?"
+            " AND id NOT IN (SELECT item_id FROM tags WHERE workspace = ?) ORDER BY id",
+            (workspace, workspace),
         )
     ]
     since = week_start(at.astimezone())
@@ -98,14 +97,14 @@ def open_items(
     done_this_week = still_open = 0
     for record_id in ids:
         view = core.current_view(conn, workspace, record_id, cfg, at)
-        group = group_of(view) if view["kind"] in KINDS else None
+        group = group_of(view)
         owner = view.get("owner")
         own_or_ownerless = (
             view.get("owner_is_me")
             or owner is None
             or owner == review.MARKS[review.UNKNOWN_SPEAKER]
         )
-        if view["kind"] == "action_item" and own_or_ownerless:
+        if own_or_ownerless and not view.get("parent_id"):
             if group:
                 still_open += 1
             elif view["lifecycle"] == "done" and datetime.fromisoformat(view["done_at"]) >= since:
@@ -129,8 +128,8 @@ def open_items(
             not (v["stale"] or v["contradictions"]),
         )
     )
-    needs = sum(v["group"] == NEEDS for v in items)
-    waiting = sum(v["group"] == WAITING for v in items)
+    needs = sum(v["group"] == NEEDS and not v.get("parent_id") for v in items)
+    waiting = sum(v["group"] == WAITING and not v.get("parent_id") for v in items)
     return envelope.build(
         conn,
         workspace,
@@ -159,19 +158,42 @@ def open_items(
 def _people(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     """Every Person, for choosing an owner and for the People page."""
     return [
-        {"id": row[0], "name": row[1], "is_me": bool(row[2])}
+        {
+            "id": row[0],
+            "name": row[1],
+            "is_me": bool(row[2]),
+            "aliases": json.loads(row[3]),
+            "slack_id": row[4],
+            "email": row[5],
+            "role": row[6],
+            "department": row[7],
+            "favorite": bool(row[8]),
+        }
         for row in conn.execute(
-            "SELECT id, name, is_me FROM persons WHERE workspace = ? ORDER BY id", (workspace,)
+            "SELECT id, name, is_me, aliases, slack_id, email, role, department, favorite"
+            " FROM people"
+            " WHERE workspace = ? ORDER BY id",
+            (workspace,),
         )
     ]
 
 
 def _projects(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     return [
-        {"id": row[0], "title": row[1], "basis": row[2], "body": row[3]}
+        {
+            **{"id": row[0], "title": row[1], "basis": row[2], "body": row[3]},
+            "favorite": bool(row[4]),
+            "color": row[5],
+            **{
+                k: v
+                for k, v in core.current_view(conn, workspace, row[0], config.load()).items()
+                if k in ("title", "body")
+            },
+        }
         for row in conn.execute(
-            "SELECT id, title, basis, body FROM records"
-            " WHERE workspace = ? AND kind = 'project' ORDER BY id",
+            "SELECT i.id, i.title, i.basis, i.body, t.favorite, t.color FROM items i"
+            " JOIN tags t ON t.item_id = i.id AND t.workspace = i.workspace"
+            " WHERE i.workspace = ? ORDER BY i.id",
             (workspace,),
         )
     ]

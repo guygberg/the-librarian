@@ -7,14 +7,23 @@ from fixtures.scenarios import onboarding_hebrew as hebrew
 from fixtures.scenarios import payments_cutover as payments
 from support.ui_stream import STAMP, open_stream, person, record, row
 
+TITLES = "[data-part=item] [data-part=item-title]"
 
-def test_header_groups_and_other_open_expands_in_place(page, ui):
+
+def test_header_groups_and_other_open_follows_the_first_two_groups(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     me = person(ui, "Dana Levi", me=True)
-    raz = ui.sql("SELECT id FROM persons WHERE name = 'Raz Peretz'")[0][0]
+    raz = ui.sql("SELECT id FROM people WHERE name = 'Raz Peretz'")[0][0]
     record(ui, "Send the invoice", owner=me)
     record(ui, "Chase the vendor", lifecycle="pending", owner=me)
-    record(ui, "Review the budget", owner=raz)
+    for title in (
+        "Review the budget",
+        "Book the room",
+        "Order the cake",
+        "Print the agenda",
+        "File the notes",
+    ):
+        record(ui, title, owner=raz)
     answer = ui.answer("open-items")
 
     open_stream(page, ui)
@@ -30,21 +39,43 @@ def test_header_groups_and_other_open_expands_in_place(page, ui):
         f"{progress['done_this_week']} of {progress['total']} items finished this week"
     )
 
-    headings = [t.strip() for t in page.locator("[data-part=group]").all_text_contents()]
-    assert headings == ["Needs attention", "Waiting on others", "Other open"]
-    order = page.locator("[data-part=item] .t").all_text_contents()
-    assert order[:3] == [r["title"] for r in answer["records"] if r["group"] != "other_open"]
+    # One table, ranked: what needs you, then what waits on others, then the other open work.
+    expect(page.locator("[data-part=kind-tab]")).to_have_text(
+        ["All items 8", "Needs you 2", "Waiting on others 1", "Completed"]
+    )
+    expect(page.locator("[data-part=kind-tab].active")).to_have_text("All items 8")
+    ranked = [
+        r["title"]
+        for group in ("needs_attention", "waiting_on_others", "other_open")
+        for r in answer["records"]
+        if r["group"] == group
+    ]
+    assert len(ranked) == 8
+    assert page.locator(TITLES).all_text_contents() == ranked[:7]
+    pills = page.locator("[data-part=item] [data-part=row-lifecycle]").all_text_contents()
+    assert pills == ["Needs you", "Needs you", "Waiting", "Open", "Open", "Open", "Open"]
 
-    budget = row(page, "Review the budget")
-    expect(budget).to_be_hidden()
-    page.get_by_text("Other open").click()
-    expect(budget).to_be_visible()
+    # The table shows seven rows; the rest of the other open work is one page on.
+    last = row(page, ranked[7])
+    expect(last).to_have_count(0)
+    expect(page.locator("[data-part=page-range]")).to_have_text("Showing 1–7 of 8 items")
+    page.locator("[data-part=page-next]").click()
+    expect(page.locator(TITLES)).to_have_text(ranked[7:])
+    expect(last.locator("[data-part=row-lifecycle]")).to_have_text("Open")
+    assert page.url == ui.url + "/items?page=2"
+
+    # A group tab leaves the other open work out altogether.
+    page.locator("[data-part=kind-tab]", has_text="Needs you").click()
+    expect(page.locator(TITLES)).to_have_text(ranked[:2])
+    assert page.url == ui.url + "/items?group=needs"
+    page.locator("[data-part=kind-tab]", has_text="All items").click()
+    expect(page.locator("[data-part=item]")).to_have_count(7)
     assert page.url == ui.url + "/items"
 
 
 def test_basis_markers_and_warnings(page, ui):
     ui = ui("onboarding-hebrew", hebrew.NOW, hebrew.CONFIG)
-    ui.sql("UPDATE persons SET is_me = 1 WHERE name = 'Dana Levi'")
+    ui.sql("UPDATE people SET is_me = 1 WHERE name = 'Dana Levi'")
     ui.sql("UPDATE records SET basis = 'confirmed' WHERE title = ?", hebrew.SIGNUP)
     ui.sql("UPDATE records SET basis = 'inferred' WHERE title = ?", hebrew.LEGAL)
     signup, legal = (
@@ -87,7 +118,7 @@ def test_basis_markers_and_warnings(page, ui):
     )
 
     page.goto(ui.url + "/items")
-    headline =page.locator("[data-part=headline]")
+    headline = page.locator("[data-part=headline]")
     expect(headline).to_be_visible()
     expect(headline).to_have_text(re.compile(r"^3 things need you, "))
     expect(headline.locator("em")).to_have_text("need you")
@@ -122,31 +153,47 @@ def test_basis_markers_and_warnings(page, ui):
     )
     unconfirmed = row(page, "Book the venue")
     expect(unconfirmed.locator("[data-part=warning]")).to_have_text(["unconfirmed person"])
-    expect(unconfirmed).not_to_contain_text("Needs attention")
+    expect(unconfirmed.locator("[data-part=row-lifecycle]")).to_have_text("Open")
 
 
-def test_freshness_line_is_on_every_route_and_navigation_keeps_the_page(page, ui):
+def test_freshness_is_on_every_route_and_navigation_keeps_the_page(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     open_stream(page, ui)
     freshness = page.locator("[data-part=freshness]")
-    expect(freshness).to_contain_text("Updated from slack")
-    expect(freshness).to_contain_text("claude sessions never imported")
-    expect(freshness).to_contain_text("recordings")
+    line = page.locator("[data-part=freshness-line]")
+
+    def shows_freshness():
+        expect(freshness).to_be_visible()
+        expect(freshness.locator("[data-source=slack]")).to_contain_text("Slack")
+        session = freshness.locator("[data-source=session]")
+        expect(session).to_contain_text("Claude sessions")
+        expect(session).to_contain_text("never imported")
+        expect(freshness.locator("[data-source=drive]")).to_contain_text("Recordings")
+        # The same thing as one line, which a phone shows in place of the sidebar.
+        expect(line).to_contain_text("Updated from slack")
+        expect(line).to_contain_text("claude sessions never imported")
+        expect(line).to_contain_text("recordings")
+
+    shows_freshness()
 
     page.evaluate("window.librarianNavigate('/nowhere')")
     expect(page).to_have_url(ui.url + "/nowhere")
     expect(page.locator("[data-part=headline]")).to_have_count(0)
-    expect(freshness).to_contain_text("Updated from slack")
+    shows_freshness()
 
     page.go_back()
     expect(page.locator("[data-part=headline]")).to_be_visible()
     page.goto(ui.url + "/nowhere")
-    expect(page.locator("[data-part=freshness]")).to_contain_text("Updated from slack")
+    shows_freshness()
+
+    freshness.locator("[data-source=slack]").click()
+    expect(page).to_have_url(ui.url + "/import")
+    shows_freshness()
 
 
 def test_static_files_are_served_from_the_static_folder_only(ui):
     served = ui("payments-cutover", payments.NOW).served
-    resp, body = served.request("GET", "/static/views/stream.js")
+    resp, body = served.request("GET", "/static/views/items.js")
     assert resp.status == 200 and resp.getheader("Content-Type").startswith("text/javascript")
     assert "__TOKEN__" not in body
     assert served.request("GET", "/static/../app.py")[0].status == 404
@@ -162,8 +209,10 @@ def test_empty_state_is_calm_and_names_the_last_import(page, ui):
 
     page.clock.set_fixed_time(imported)
     page.goto(ui.url + "/items")
-    empty =page.locator("[data-part=empty]")
-    expect(empty).to_have_text(f"Nothing needs you today. Last import {imported:%H:%M}.")
+    empty = page.locator("[data-part=empty]")
+    expect(empty.locator("h2")).to_have_text(
+        f"Nothing needs you today. Last import {imported:%H:%M}."
+    )
     body = page.locator("body").inner_text().lower()
     assert not re.search(r"confetti|badge|streak|points|congrat", body)
     assert page.locator("audio, video, canvas").count() == 0

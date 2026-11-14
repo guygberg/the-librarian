@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from playwright.sync_api import expect
@@ -5,7 +6,8 @@ from playwright.sync_api import expect
 from fixtures.scenarios import payments_cutover as payments
 
 REFERENCE = Path(__file__).parents[2] / "docs" / "reference" / "mission-control-lime.html"
-NAV = "#nav a"
+NAV = "#nav button.nav"
+LIGHT = re.compile(r"(^|\s)light(\s|$)")
 
 
 def test_reference_is_preserved_in_the_repository():
@@ -16,7 +18,10 @@ def test_reference_is_preserved_in_the_repository():
 def test_nav_lists_the_five_pages_and_each_route_loads(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     page.goto(ui.url)
-    expect(page.locator(NAV)).to_have_text(["Today", "Items", "People", "Projects", "Review"])
+    # The Review entry also carries the count of what awaits review.
+    expect(page.locator(NAV)).to_have_text(
+        ["Today", "Items", "People", "Projects", re.compile(r"^Review\d+$")]
+    )
     for label in ["People", "Projects", "Review", "Items"]:
         path = "/" + label.lower()
         page.locator(NAV, has_text=label).click()
@@ -32,9 +37,9 @@ def test_theme_toggle_switches_and_remembers(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     page.goto(ui.url)
     page.locator("[data-part=theme-toggle]").click()
-    expect(page.locator("body")).to_have_class("light")
+    expect(page.locator("body")).to_have_class(LIGHT)
     page.reload()
-    expect(page.locator("body")).to_have_class("light")
+    expect(page.locator("body")).to_have_class(LIGHT)
 
 
 def test_phone_drawer_opens_from_the_menu_and_closes_on_navigation(page, ui):

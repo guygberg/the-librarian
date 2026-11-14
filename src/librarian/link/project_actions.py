@@ -1,8 +1,6 @@
 """What a person does to a project: confirm, rename, merge, split, move a Record.
 
-Each is a Person event on a Record, and the importer never undoes it: a merged project's names
-become Aliases of the survivor, so the old name resolves there, and the importer itself only ever
-suggests a merge."""
+Each correction is recorded in item history. Tags match by their current names only."""
 
 import sqlite3
 
@@ -16,7 +14,8 @@ BELONGS_TO = "type = 'belongs_to' AND from_type = 'record' AND to_type = 'record
 
 def _need_project(conn: sqlite3.Connection, workspace: str, project_id: int) -> str:
     row = conn.execute(
-        "SELECT title, lifecycle FROM records WHERE workspace = ? AND id = ? AND kind = 'project'",
+        "SELECT title, lifecycle FROM items WHERE workspace = ? AND id = ?"
+        " AND id IN (SELECT item_id FROM tags)",
         (workspace, project_id),
     ).fetchone()
     if row is None:
@@ -52,16 +51,9 @@ def _settle(conn: sqlite3.Connection, workspace: str, project_id: int) -> None:
     )
 
 
-def _alias(conn: sqlite3.Connection, workspace: str, project_id: int, alias: str) -> None:
-    conn.execute(
-        "INSERT OR IGNORE INTO project_aliases (workspace, record_id, alias) VALUES (?, ?, ?)",
-        (workspace, project_id, alias),
-    )
-
-
 def confirm(conn: sqlite3.Connection, workspace: str, project_id: int) -> int:
     _need_project(conn, workspace, project_id)
-    conn.execute("UPDATE records SET basis = 'confirmed' WHERE id = ?", (project_id,))
+    conn.execute("UPDATE items SET basis = 'confirmed' WHERE id = ?", (project_id,))
     conn.execute(
         "UPDATE review_entries SET resolved_at = ?, resolution = 'accepted'"
         " WHERE workspace = ? AND kind = ? AND record_id = ? AND resolved_at IS NULL",
@@ -72,12 +64,11 @@ def confirm(conn: sqlite3.Connection, workspace: str, project_id: int) -> int:
 
 
 def rename(conn: sqlite3.Connection, workspace: str, project_id: int, name: str) -> int:
-    """The old title stays as an Alias, so the old name still reaches the project."""
+    """Change the current tag title; retain the old title in the event history."""
     old = _need_project(conn, workspace, project_id)
     name = _need_free_name(conn, workspace, name, project_id)
-    _alias(conn, workspace, project_id, old)
     conn.execute(
-        "UPDATE records SET title = ?, basis = 'confirmed', updated_at = ? WHERE id = ?",
+        "UPDATE items SET title = ?, basis = 'confirmed', updated_at = ? WHERE id = ?",
         (name, utc_now_iso(), project_id),
     )
     events.append(conn, workspace, project_id, "rename", {"from": old, "to": name})
@@ -85,24 +76,11 @@ def rename(conn: sqlite3.Connection, workspace: str, project_id: int, name: str)
 
 
 def merge(conn: sqlite3.Connection, workspace: str, project_id: int, into: int) -> int:
-    """`project_id` goes into `into`: its Records, its title and its Aliases become the
-    survivor's."""
+    """Move linked items into the surviving tag and retire the old tag."""
     if project_id == into:
         raise Invalid(400, "a project cannot be merged into itself")
-    title = _need_project(conn, workspace, project_id)
+    _need_project(conn, workspace, project_id)
     _need_project(conn, workspace, into)
-    aliases = [
-        a
-        for (a,) in conn.execute(
-            "SELECT alias FROM project_aliases WHERE workspace = ? AND record_id = ?",
-            (workspace, project_id),
-        )
-    ]
-    conn.execute(
-        "DELETE FROM project_aliases WHERE workspace = ? AND record_id = ?", (workspace, project_id)
-    )
-    for alias in [title, *aliases]:
-        _alias(conn, workspace, into, alias)
     conn.execute(
         f"UPDATE OR IGNORE links SET to_id = ? WHERE workspace = ? AND {BELONGS_TO} AND to_id = ?",
         (into, workspace, project_id),
@@ -112,11 +90,11 @@ def merge(conn: sqlite3.Connection, workspace: str, project_id: int, into: int) 
         (workspace, project_id),
     )
     conn.execute(
-        "UPDATE records SET parent_id = ? WHERE workspace = ? AND parent_id = ? AND id != ?",
+        "UPDATE items SET parent_id = ? WHERE workspace = ? AND parent_id = ? AND id != ?",
         (into, workspace, project_id, into),
     )
     conn.execute(
-        "UPDATE records SET lifecycle = 'superseded', updated_at = ? WHERE id = ?",
+        "UPDATE items SET lifecycle = 'superseded', updated_at = ? WHERE id = ?",
         (utc_now_iso(), project_id),
     )
     _settle(conn, workspace, project_id)
@@ -174,10 +152,11 @@ def split(
             raise Invalid(404, f"Record {record_id} does not belong to project {project_id}")
     now = utc_now_iso()
     new = conn.execute(
-        "INSERT INTO records (workspace, kind, title, lifecycle, basis, created_at, updated_at)"
-        " VALUES (?, 'project', ?, 'open', 'confirmed', ?, ?)",
+        "INSERT INTO items (workspace, title, lifecycle, basis, created_at, updated_at)"
+        " VALUES (?, ?, 'open', 'confirmed', ?, ?)",
         (workspace, name, now, now),
     ).lastrowid
+    conn.execute("INSERT INTO tags (item_id, workspace) VALUES (?, ?)", (new, workspace))
     for record_id in record_ids:
         move(conn, workspace, record_id, new)
     events.append(

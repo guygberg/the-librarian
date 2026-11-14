@@ -22,7 +22,8 @@ def decision(
     ids = [
         row[0]
         for row in conn.execute(
-            "SELECT id FROM records WHERE workspace = ? AND kind = 'decision' ORDER BY id",
+            "SELECT id FROM items WHERE workspace = ? AND reasoning IS NOT NULL"
+            " AND id NOT IN (SELECT item_id FROM tags) ORDER BY id",
             (workspace,),
         )
     ]

@@ -21,6 +21,9 @@ from librarian.extract.runs import RunMeta
 
 PROMPT = (
     "Extract work-memory Records from the Slack, Claude or recording text on stdin. "
+    "Use is_tag=true only for grouping labels/projects; other records are items. "
+    "Use parent for genuine sub-items, not for tag membership; use belongs_to for tags. "
+    "Do not classify items by type or commitment. "
     "Follow the JSON schema exactly. Quote Evidence verbatim from the text; "
     "return no Records when nothing qualifies."
 )

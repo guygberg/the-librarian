@@ -53,10 +53,10 @@ def _last_activity(conn: sqlite3.Connection, workspace: str, ids: list[int]) -> 
 
 def _candidate(conn: sqlite3.Connection, workspace: str, project_id: int) -> dict[str, Any]:
     title, parent_id = conn.execute(
-        "SELECT title, parent_id FROM records WHERE id = ?", (project_id,)
+        "SELECT title, parent_id FROM items WHERE id = ?", (project_id,)
     ).fetchone()
     parent = (
-        conn.execute("SELECT title FROM records WHERE id = ?", (parent_id,)).fetchone()
+        conn.execute("SELECT title FROM items WHERE id = ?", (parent_id,)).fetchone()
         if parent_id
         else None
     )
@@ -115,18 +115,16 @@ def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, A
 
     Each comes with its Evidence locators or "not found".
     """
-    unfinished = [
-        v
-        for v in members
-        if v["lifecycle"] in stale.UNFINISHED and v["kind"] in ("action_item", "blocker")
-    ]
+    unfinished = [v for v in members if v["lifecycle"] in stale.UNFINISHED and not v["is_tag"]]
     owners: dict[str, list[dict[str, Any]]] = {}
     for view in unfinished:
         if name := _owner(view):
             owners.setdefault(name, []).append(view)
     deadlines = [v for v in members if v.get("stated_deadline")]
-    decision = _latest([v for v in members if v["kind"] == "decision"])
-    blocker = _latest([v for v in unfinished if v["kind"] == "blocker"])
+    decision = _latest([v for v in members if v.get("reasoning")])
+    blocker = _latest(
+        [v for v in unfinished if any(link["type"] == "blocks" for link in v["links"])]
+    )
     return {
         "status": _fact(project, value=project["lifecycle"]),
         "owners": [

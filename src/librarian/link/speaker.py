@@ -48,7 +48,7 @@ def set_speaker(
     segment = _segment(conn, workspace, locator_text)
     person_id = person_named(conn, workspace, person) if isinstance(person, str) else person
     if not conn.execute(
-        "SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)
+        "SELECT 1 FROM people WHERE workspace = ? AND id = ?", (workspace, person_id)
     ).fetchone():
         raise Invalid(404, f"no person {person_id}")
     at = utc_now_iso()
@@ -66,7 +66,7 @@ def set_speaker(
         " AND r.resolved_at IS NULL",
         (workspace, segment["locator"], segment["locator"] + "#%", review.UNKNOWN_SPEAKER),
     ).fetchall():
-        conn.execute("UPDATE records SET owner_person_id = ? WHERE id = ?", (person_id, record_id))
+        conn.execute("UPDATE items SET owner_person_id = ? WHERE id = ?", (person_id, record_id))
         settle(conn, entry_id, "accepted")
         events.append(
             conn,

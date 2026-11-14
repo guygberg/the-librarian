@@ -49,7 +49,7 @@ def test_core_tables_exist(lib_home):
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {
         "source_items", "source_item_revisions", "records", "links", "evidence",
-        "persons", "aliases", "person_events",
+        "people", "person_events",
     } <= tables  # fmt: skip
     for table in tables - {
         t for t in tables if t.startswith("source_search_")
@@ -91,7 +91,7 @@ def test_read_only_helper_cannot_write(lib_home):
     db.connect_rw("work").close()
     conn = db.connect_ro("work")
     with pytest.raises(sqlite3.OperationalError):
-        conn.execute("INSERT INTO persons (workspace, name, created_at) VALUES ('work','a','t')")
+        conn.execute("INSERT INTO people (workspace, name, created_at) VALUES ('work','a','t')")
 
 
 def test_read_only_helper_raises_schema_outdated_without_touching_file(lib_home, tmp_path):
@@ -114,11 +114,11 @@ def test_wal_reader_reads_while_writer_holds_transaction(lib_home):
     writer = db.connect_rw("work")
     assert writer.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     writer.execute("BEGIN")
-    writer.execute("INSERT INTO persons (workspace, name, created_at) VALUES ('work','a','t')")
+    writer.execute("INSERT INTO people (workspace, name, created_at) VALUES ('work','a','t')")
     result = []
     t = threading.Thread(
         target=lambda: result.append(
-            db.connect_ro("work").execute("SELECT count(*) FROM persons").fetchone()[0]
+            db.connect_ro("work").execute("SELECT count(*) FROM people").fetchone()[0]
         )
     )
     t.start()
@@ -133,15 +133,30 @@ def test_workspaces_use_separate_files(lib_home):
     assert db.db_path("work") != db.db_path("other")
     assert db.db_path("other").exists()
     conn = db.connect_rw("other")
-    conn.execute("INSERT INTO persons (workspace, name, created_at) VALUES ('other','a','t')")
-    assert db.connect_ro("work").execute("SELECT count(*) FROM persons").fetchone()[0] == 0
+    conn.execute("INSERT INTO people (workspace, name, created_at) VALUES ('other','a','t')")
+    assert db.connect_ro("work").execute("SELECT count(*) FROM people").fetchone()[0] == 0
 
 
 def test_person_events_are_append_only(lib_home):
     conn = db.connect_rw("work")
-    conn.execute("INSERT INTO persons (workspace, name, created_at) VALUES ('work','a','t')")
+    conn.execute("INSERT INTO people (workspace, name, created_at) VALUES ('work','a','t')")
     conn.execute(
         "INSERT INTO person_events (workspace, person_id, event, at) VALUES ('work',1,'merge','t')"
     )
     with pytest.raises(sqlite3.DatabaseError):
         conn.execute("DELETE FROM person_events")
+
+
+def test_foreign_keys_point_at_tables_that_exist_after_every_rename(home, monkeypatch):
+    """0018/0019 rename persons and records; references must follow, or writes fail."""
+    monkeypatch.setenv("LIBRARIAN_HOME", str(home))
+    conn = db.connect_rw("work")
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    targets = {
+        (table, fk[2])
+        for table in tables
+        for fk in conn.execute(f'PRAGMA foreign_key_list("{table}")')
+    }
+    assert {target for _, target in targets} <= tables, targets
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    conn.close()

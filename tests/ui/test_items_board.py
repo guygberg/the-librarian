@@ -1,3 +1,5 @@
+import re
+
 from playwright.sync_api import expect
 
 from fixtures.scenarios import payments_cutover as payments
@@ -28,56 +30,100 @@ def seed(ui):
     )
 
 
-def titles(page, scope=""):
-    return page.locator(f"{scope} [data-part=item] .t").all_text_contents()
+LIST_TITLES = "[data-part=item] [data-part=item-title]"
+CARD_TITLES = "[data-part=item] strong"
+
+
+def cards(page, scope=""):
+    return page.locator(f"{scope} {CARD_TITLES}").all_text_contents()
+
+
+def listed_on_every_page(page):
+    """The titles of the whole table, walked seven rows at a time."""
+    out = []
+    pages = page.locator("[data-part=page]")
+    for n in range(pages.count()):
+        pages.nth(n).click()
+        expect(page.locator("[data-part=page].active")).to_have_text(str(n + 1))
+        out += page.locator(LIST_TITLES).all_text_contents()
+    return out
 
 
 def test_list_and_board_hold_the_same_records_and_board_columns_follow_the_groups(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     seed(ui)
     page.goto(ui.url + "/items")
-    expect(page.locator("[data-part=view-tab].on")).to_have_text("List")
-    listed = titles(page)
+    expect(page.locator("[data-part=view-tab].active")).to_have_text("List")
+    expect(page.locator("[data-part=item]").first).to_be_visible()
+    answer = page.evaluate(API, "/api/open-items?scope=all")
+    open_titles = {r["title"] for r in answer["records"] if r["group"]}
+    listed = listed_on_every_page(page)
+    assert len(listed) == len(set(listed))
+    assert set(listed) == open_titles
     assert "Shipped it" not in listed
+    page.locator("[data-part=page]").first.click()
+    assert page.url == ui.url + "/items"
 
-    page.get_by_text("Board", exact=True).click()
+    page.locator("[data-part=view-tab]", has_text="Board").click()
     expect(page.locator("[data-part=board]")).to_be_visible()
     assert page.url == ui.url + "/items?view=board"
     headings = page.locator("[data-part=board] [data-part=group]").all_text_contents()
-    assert [h.split(" (")[0] for h in headings] == [
-        "Needs attention",
-        "Waiting on others",
-        "Other open",
-        "Done",
-    ]
-    assert titles(page, "[data-part=col-done]") == ["Shipped it"]
-    assert titles(page, "[data-part=col-waiting]") == ["Chase vendor"]
-    assert titles(page, "[data-part=col-other]") == ["Raz task"]
+    assert [re.sub(r"\s*\d+$", "", h) for h in headings] == ["Needs you", "Waiting", "Open"]
+    assert cards(page, "[data-part=col-needs]") == [payments.BLOCKER, "Mine open"]
+    assert cards(page, "[data-part=col-waiting]") == ["Chase vendor"]
+    assert cards(page, "[data-part=col-other]") == ["Raz task"]
+    for part, group in (
+        ("col-needs", "needs_attention"),
+        ("col-waiting", "waiting_on_others"),
+        ("col-other", "other_open"),
+    ):
+        in_group = {r["title"] for r in answer["records"] if r["group"] == group}
+        assert set(cards(page, f"[data-part={part}]")) == in_group
+    assert set(cards(page)) == set(listed)
+    expect(page.locator("[data-part=col-done]")).to_have_count(0)
 
-    answer = page.evaluate(API, "/api/open-items?scope=all")
-    expected = {r["title"] for r in answer["records"] if r["group"] or r["lifecycle"] == "done"}
-    assert set(titles(page)) == expected
-    assert set(listed) == expected - {"Shipped it"}
+    # Finished work has its own column, on the Completed tab.
+    page.locator("[data-part=kind-tab]", has_text="Completed").click()
+    assert page.url == ui.url + "/items?view=board&kind=done"
+    done = {r["title"] for r in answer["records"] if r["lifecycle"] == "done"}
+    expect(page.locator(f"[data-part=col-done] {CARD_TITLES}")).to_have_text(["Shipped it"])
+    assert set(cards(page)) == done == {"Shipped it"}
+    page.locator("[data-part=view-tab]", has_text="List").click()
+    expect(page.locator(LIST_TITLES)).to_have_text(["Shipped it"])
 
 
 def test_row_shows_kind_lifecycle_and_filters_live_in_the_url(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     seed(ui)
-    page.goto(ui.url + "/items?view=board&basis=confirmed")
+    page.goto(ui.url + "/items?basis=confirmed")
     expect(page.locator("[data-part=basis-filter]")).to_have_value("confirmed")
-    assert titles(page) == ["Raz task"]
-    expect(page.locator("[data-part=row-kind]")).to_have_text("action item")
-    expect(page.locator("[data-part=row-lifecycle]")).to_have_text("open")
+    expect(page.locator(LIST_TITLES)).to_have_text(["Raz task"])
+    expect(page.locator("[data-part=row-kind]")).to_have_text("Action item")
+    lifecycle = page.locator("[data-part=row-lifecycle]")
+    expect(lifecycle).to_have_text("Open")
+    expect(lifecycle).to_have_attribute("data-lifecycle", "open")
 
-    page.locator("[data-part=basis-filter]").select_option("")
+    # The board keeps the filter: the banner names it and clears it.
+    page.locator("[data-part=view-tab]", has_text="Board").click()
+    assert page.url == ui.url + "/items?view=board&basis=confirmed"
+    expect(page.locator(CARD_TITLES)).to_have_text(["Raz task"])
+    expect(page.locator("[data-part=filter-banner]")).to_contain_text("1 matching item · confirmed")
+    page.locator("[data-part=clear-filters]").click()
+    assert page.url == ui.url + "/items?view=board"
     page.locator("[data-part=lifecycle-filter]").select_option("pending")
     assert page.url == ui.url + "/items?view=board&lifecycle=pending"
-    expect(page.locator("[data-part=item] .t")).to_have_text(["Chase vendor"])
+    expect(page.locator(CARD_TITLES)).to_have_text(["Chase vendor"])
 
     page.reload()
-    expect(page.locator("[data-part=item] .t")).to_have_text(["Chase vendor"])
+    expect(page.locator(CARD_TITLES)).to_have_text(["Chase vendor"])
     expect(page.locator("[data-part=lifecycle-filter]")).to_have_value("pending")
-    expect(page.locator("[data-part=view-tab].on")).to_have_text("Board")
+    expect(page.locator("[data-part=view-tab].active")).to_have_text("Board")
+
+    page.locator("[data-part=view-tab]", has_text="List").click()
+    assert page.url == ui.url + "/items?lifecycle=pending"
+    expect(page.locator(LIST_TITLES)).to_have_text(["Chase vendor"])
+    expect(page.locator("[data-part=row-lifecycle]")).to_have_text("Waiting")
+    expect(page.locator("[data-part=row-lifecycle]")).to_have_attribute("data-lifecycle", "pending")
 
 
 def test_phone_width_has_no_page_overflow_in_either_view(page, ui):

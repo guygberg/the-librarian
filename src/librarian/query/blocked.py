@@ -24,9 +24,14 @@ def blocked(
         views = project.member_views(conn, workspace, cfg, winner, at)
         resolved = {"project": {"id": winner, "name": views[0]["title"]}, "baseline": None}
     else:
-        rows = conn.execute("SELECT id FROM records WHERE workspace = ? ORDER BY id", (workspace,))
+        rows = conn.execute("SELECT id FROM items WHERE workspace = ? ORDER BY id", (workspace,))
         views = [core.current_view(conn, workspace, rid, cfg, at) for (rid,) in rows]
-    blockers = [v for v in views if v["kind"] == "blocker" and v["lifecycle"] in stale.UNFINISHED]
+    blockers = [
+        v
+        for v in views
+        if any(link["type"] == "blocks" for link in v["links"])
+        and v["lifecycle"] in stale.UNFINISHED
+    ]
     return envelope.build(
         conn,
         workspace,

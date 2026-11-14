@@ -36,7 +36,7 @@ def me(home):
     try:
         with conn:
             return conn.execute(
-                "INSERT INTO persons (workspace, name, is_me, created_at)"
+                "INSERT INTO people (workspace, name, is_me, created_at)"
                 " VALUES ('work', 'Dana', 1, '2023-11-01T00:00:00+00:00')"
             ).lastrowid
     finally:

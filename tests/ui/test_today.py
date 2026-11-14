@@ -50,7 +50,7 @@ def test_counts_match_the_api_and_next_best_move_opens(page, ui):
     expect(page).to_have_url(f"{ui.url}/items/{first['id']}")
 
 
-def test_panels_page_and_completing_updates_every_count(page, ui):
+def test_carousel_steps_through_every_entry_and_completing_updates_every_count(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     seed(ui)
     page.goto(ui.url)
@@ -58,27 +58,40 @@ def test_panels_page_and_completing_updates_every_count(page, ui):
     total = count(page, "count-needs")
     open_before = count(page, "count-open")
     assert total > 5
-    expect(needs.locator("[data-part=today-item]")).to_have_count(5)
-    expect(needs.locator("[data-part=needs-range]")).to_have_text(f"1–5 of {total}")
-    needs.locator("[data-part=needs-next]").click()
-    expect(needs.locator("[data-part=today-item]")).to_have_count(total - 5)
-    expect(needs.locator("[data-part=needs-next]")).to_be_disabled()
+    items = page.evaluate(API, "/api/open-items?scope=all")
+    titles = [r["title"] for r in items["records"] if r["group"] == "needs_attention"]
+    assert len(titles) == total
+    expect(needs.locator("[data-part=needs-count]")).to_have_text(str(total))
+    # One entry shows at a time; Next walks the query's order and wraps to the start.
+    for n, title in enumerate(titles, 1):
+        expect(needs.locator("[data-part=today-item]")).to_have_count(1)
+        expect(needs.locator("[data-part=today-item]")).to_have_text(title)
+        expect(needs.locator("[data-part=needs-range]")).to_have_text(f"{n} of {total}")
+        needs.locator("[data-part=needs-next]").click()
+    expect(needs.locator("[data-part=needs-range]")).to_have_text(f"1 of {total}")
     needs.locator("[data-part=needs-prev]").click()
-    expect(needs.locator("[data-part=needs-range]")).to_have_text(f"1–5 of {total}")
+    expect(needs.locator("[data-part=needs-range]")).to_have_text(f"{total} of {total}")
+    expect(needs.locator("[data-part=today-item]")).to_have_text(titles[-1])
+    needs.locator("[data-part=needs-next]").click()
+    expect(needs.locator("[data-part=today-item]")).to_have_text(titles[0])
 
     expect(page.locator("[data-part=completed] [data-part=empty]")).to_be_visible()
-    needs.locator("[data-part=today-done]").first.click()
+    needs.locator("[data-part=today-done]").click()
     expect(page.locator("[data-part=count-needs] b")).to_have_text(str(total - 1))
     assert count(page, "count-open") == open_before - 1
+    expect(needs.locator("[data-part=needs-range]")).to_have_text(f"1 of {total - 1}")
     done = page.locator("[data-part=completed-item]")
     expect(done).to_have_count(1)
-    expect(done.locator("[data-part=completed-at]")).to_contain_text("Finished")
+    expect(done).to_contain_text(titles[0])
+    expect(done.locator("[data-part=completed-at]")).to_contain_text("Completed at")
     expect(page.locator("[data-part=person-event]")).to_have_count(1)
 
-    done.locator("[data-part=today-reopen]").click()
+    # The Completed panel has no Reopen button: the toast's Undo reopens the item.
+    page.locator("[data-part=undo]").click()
     expect(page.locator("[data-part=count-needs] b")).to_have_text(str(total))
     assert count(page, "count-open") == open_before
     expect(done).to_have_count(0)
+    expect(needs.locator("[data-part=today-item]")).to_have_text(titles[0])
 
 
 def test_quiet_workspace_shows_calm_truthful_empty_states(page, ui):
@@ -87,14 +100,22 @@ def test_quiet_workspace_shows_calm_truthful_empty_states(page, ui):
     ui.sql("UPDATE records SET lifecycle = 'dropped'")
     page.goto(ui.url)
     expect(page.locator("[data-part=count-open] b")).to_have_text("0")
-    expect(page.locator("[data-part=next-best-move]")).to_have_count(0)
-    expect(page.locator("[data-part=needs] [data-part=empty]")).to_contain_text(
-        "Nothing needs you today."
+    hero = page.locator("[data-part=next-best-move]")
+    expect(hero.locator("[data-part=next-title]")).to_have_text("You’re all caught up")
+    expect(hero.locator("[data-part=next-why]")).to_contain_text(
+        "Nothing needs you today. Last import"
     )
+    for part in ("next-open", "next-done", "next-assign"):
+        expect(hero.locator(f"[data-part={part}]")).to_have_count(0)
+    expect(page.locator("[data-part=needs] [data-part=empty]")).to_contain_text(
+        "Nothing needs you today. Last import"
+    )
+    expect(page.locator("[data-part=needs] [data-part=today-item]")).to_have_count(0)
+    expect(page.locator("[data-part=needs] [data-part=needs-range]")).to_have_text("0 of 0")
     expect(page.locator("[data-part=waiting] [data-part=empty]")).to_have_text(
         "Nothing is waiting on someone else."
     )
     expect(page.locator("[data-part=review] [data-part=empty]")).to_have_text("Nothing to review.")
     expect(page.locator("[data-part=completed] [data-part=empty]")).to_have_text(
-        "Nothing has been finished yet."
+        "Your completed items will appear here."
     )

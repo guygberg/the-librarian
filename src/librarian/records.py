@@ -1,5 +1,6 @@
 """Read side of Records: one Record with its owner, project links and Evidence."""
 
+import json
 import sqlite3
 from typing import Any
 
@@ -8,20 +9,20 @@ from librarian.link import review
 
 _FIELDS = (
     "id",
-    "kind",
     "title",
     "body",
     "lifecycle",
     "basis",
-    "commitment",
     "stated_deadline",
     "reasoning",
+    "updated_at",
+    "priority",
 )
 
 
 def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, Any] | None:
     row = conn.execute(
-        f"SELECT {', '.join(_FIELDS)}, parent_id, owner_person_id FROM records"
+        f"SELECT {', '.join(_FIELDS)}, notes, parent_id, owner_person_id FROM items"
         " WHERE workspace = ? AND id = ?",
         (workspace, record_id),
     ).fetchone()
@@ -30,10 +31,17 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
     record: dict[str, Any] = {
         k: v for k, v in zip(_FIELDS, row, strict=False) if v not in (None, "")
     }
-    parent_id, owner_id = row[-2:]
+    notes, parent_id, owner_id = row[-3:]
+    record["notes"] = json.loads(notes)
+    record["parent_id"] = parent_id
+    record["is_tag"] = bool(
+        conn.execute(
+            "SELECT 1 FROM tags WHERE workspace = ? AND item_id = ?", (workspace, record_id)
+        ).fetchone()
+    )
     if owner_id:
         name, is_me = conn.execute(
-            "SELECT name, is_me FROM persons WHERE id = ?", (owner_id,)
+            "SELECT name, is_me FROM people WHERE id = ?", (owner_id,)
         ).fetchone()
         record["owner"] = name
         if is_me:
@@ -78,7 +86,7 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
 
 
 def _label(conn: sqlite3.Connection, to_type: str, to_id: int) -> str | None:
-    table, column = {"record": ("records", "title"), "person": ("persons", "name")}.get(
+    table, column = {"record": ("items", "title"), "person": ("people", "name")}.get(
         to_type, (None, None)
     )
     if table is None:

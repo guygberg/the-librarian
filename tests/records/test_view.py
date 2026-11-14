@@ -55,7 +55,7 @@ def person(home, name="Sam Owner"):
     conn = db.connect_rw("work")
     try:
         return conn.execute(
-            "INSERT INTO persons (workspace, name, created_at)"
+            "INSERT INTO people (workspace, name, created_at)"
             " VALUES ('work', ?, '2023-11-01T00:00:00+00:00')",
             (name,),
         ).lastrowid

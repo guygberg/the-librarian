@@ -27,7 +27,7 @@ def get_visit(req):
     last = _last(req)
     with req.ro() as conn:
         changed = conn.execute(
-            "SELECT count(*) FROM records WHERE workspace = ? AND updated_at > ?",
+            "SELECT count(*) FROM items WHERE workspace = ? AND updated_at > ?",
             (req.workspace, last or ""),
         ).fetchone()[0]
     return 200, {"last_visit": last, "changed": changed}

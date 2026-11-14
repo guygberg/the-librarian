@@ -35,7 +35,7 @@ def add_projects(
     """`candidates` with the Records of these projects added, within what the cap leaves."""
     out = [{**c, "records_sent": True} if c["id"] in project_ids else c for c in candidates]
     sent = {c["id"] for c in out}
-    room = RECORD_CAP - sum(1 for c in out if c["kind"] != "project")
+    room = RECORD_CAP - sum(1 for c in out if not c.get("is_tag"))
     for project_id in project_ids:
         for record in _records_of(conn, workspace, project_id, stale_days):
             if room > 0 and record["id"] not in sent:
@@ -47,7 +47,7 @@ def add_projects(
 
 def unsent_projects(records: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> list[int]:
     """Existing projects the result links Records to, whose own Records were not sent."""
-    unsent = {c["id"] for c in candidates if c["kind"] == "project" and not c.get("records_sent")}
+    unsent = {c["id"] for c in candidates if c.get("is_tag") and not c.get("records_sent")}
     linked = {
         link["to"]["id"]
         for rec in records
@@ -59,9 +59,9 @@ def unsent_projects(records: list[dict[str, Any]], candidates: list[dict[str, An
 
 def _project_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     return [
-        {"id": record_id, "kind": "project", "title": title, "records_sent": False}
+        {"id": record_id, "is_tag": True, "title": title, "records_sent": False}
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project'"
+            "SELECT id, title FROM items WHERE workspace = ? AND id IN (SELECT item_id FROM tags)"
             " AND lifecycle != 'superseded' ORDER BY id",
             (workspace,),
         )
@@ -75,7 +75,8 @@ def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> 
     found: set[int] = set()
     for prefix in prefixes:
         rows = conn.execute(
-            "SELECT r.id, r.kind FROM records r JOIN evidence e ON e.record_id = r.id"
+            "SELECT r.id, CASE WHEN r.id IN (SELECT item_id FROM tags)"
+            " THEN 'project' ELSE 'item' END FROM items r JOIN evidence e ON e.record_id = r.id"
             " WHERE r.workspace = ? AND substr(e.locator, 1, ?) = ?",
             (workspace, len(prefix), prefix),
         ).fetchall()
@@ -111,13 +112,13 @@ def _records_of(
     return [
         {
             "id": record_id,
-            "kind": kind,
+            "is_tag": False,
             "title": title,
             "lifecycle": lifecycle,
             "project": project_id,
         }
         for record_id, kind, title, lifecycle in conn.execute(
-            "SELECT r.id, r.kind, r.title, r.lifecycle FROM records r"
+            "SELECT r.id, 'item', r.title, r.lifecycle FROM items r"
             " JOIN links l ON l.from_type = 'record'"
             " AND l.from_id = r.id AND l.type = 'belongs_to' AND l.to_type = 'record'"
             " AND l.to_id = ?"

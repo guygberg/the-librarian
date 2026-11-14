@@ -1,8 +1,8 @@
 """The Review list and what a person does to it: accept or reject a suggestion, move or split an
 Alias.
 
-Every action appends a Person event to a Record; Aliases live in the `aliases` table, which
-Import never rewrites."""
+Every action appends a Person event to a Record. Aliases live in the
+`people.aliases` JSON array, which Import never rewrites."""
 
 import sqlite3
 from typing import Any
@@ -27,13 +27,13 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
             "link": entry["link"],
             "raw_name": entry["raw_name"],
             "record": {
-                **{k: record[k] for k in ("id", "kind", "title", "evidence")},
+                **{k: record[k] for k in ("id", "is_tag", "title", "evidence")},
                 "basis": record.get("basis"),
             },
         }
         if entry["other_record_id"]:
             other = records.get(conn, workspace, entry["other_record_id"])
-            row["other"] = {"id": other["id"], "kind": other["kind"], "title": other["title"]}
+            row["other"] = {"id": other["id"], "is_tag": other["is_tag"], "title": other["title"]}
         elif entry["kind"] == review.UNCONFIRMED_PERSON:
             row["candidates"] = _candidates(conn, workspace, entry["raw_name"])
         out.append(row)
@@ -42,13 +42,10 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
 
 def _candidates(conn: sqlite3.Connection, workspace: str, name: str) -> list[dict[str, Any]]:
     wanted = key(name)
+    names = dict(conn.execute("SELECT id, name FROM people WHERE workspace = ?", (workspace,)))
     found = {
-        pid: (pname, alias)
-        for pid, pname, alias in conn.execute(
-            "SELECT p.id, p.name, a.alias FROM aliases a"
-            " JOIN persons p ON p.id = a.person_id WHERE a.workspace = ?",
-            (workspace,),
-        )
+        pid: (names[pid], alias)
+        for pid, alias in people.alias_rows(conn, workspace)
         if not alias.startswith(people.SLACK) and key(alias) == wanted
     }
     return [{"id": pid, "name": pname, "alias": alias} for pid, (pname, alias) in found.items()]
@@ -85,12 +82,9 @@ def accept(conn: sqlite3.Connection, workspace: str, entry_id: int, person_id: i
     else:
         _need_person(conn, workspace, person_id)
     wanted = key(raw_name)
-    for alias_id, alias in conn.execute(
-        "SELECT id, alias FROM aliases WHERE workspace = ? AND person_id != ?",
-        (workspace, person_id),
-    ).fetchall():
-        if not alias.startswith(people.SLACK) and key(alias) == wanted:
-            conn.execute("DELETE FROM aliases WHERE id = ?", (alias_id,))
+    for pid, alias in people.alias_rows(conn, workspace):
+        if pid != person_id and not alias.startswith(people.SLACK) and key(alias) == wanted:
+            people.remove_alias(conn, workspace, pid, alias)
     people.add_alias(conn, workspace, person_id, raw_name)
     if link_type != "owner":
         conn.execute(
@@ -122,23 +116,20 @@ def reject(conn: sqlite3.Connection, workspace: str, entry_id: int) -> int:
 
 def _need_person(conn: sqlite3.Connection, workspace: str, person_id: int) -> None:
     if not conn.execute(
-        "SELECT 1 FROM persons WHERE workspace = ? AND id = ?", (workspace, person_id)
+        "SELECT 1 FROM people WHERE workspace = ? AND id = ?", (workspace, person_id)
     ).fetchone():
         raise Invalid(404, f"no person {person_id}")
 
 
 def _need_alias(conn: sqlite3.Connection, workspace: str, person_id: int, alias: str) -> None:
     _need_person(conn, workspace, person_id)
-    if not conn.execute(
-        "SELECT 1 FROM aliases WHERE workspace = ? AND person_id = ? AND alias = ?",
-        (workspace, person_id, alias),
-    ).fetchone():
+    if alias not in people.aliases_for(conn, workspace, person_id):
         raise Invalid(404, f"person {person_id} has no Alias {alias!r}")
 
 
 def _need_record(conn: sqlite3.Connection, workspace: str, record_id: int) -> None:
     if not conn.execute(
-        "SELECT 1 FROM records WHERE workspace = ? AND id = ?", (workspace, record_id)
+        "SELECT 1 FROM items WHERE workspace = ? AND id = ?", (workspace, record_id)
     ).fetchone():
         raise Invalid(404, f"no Record {record_id}")
 
@@ -156,10 +147,7 @@ def move_alias(
     _need_alias(conn, workspace, from_person, alias)
     _need_person(conn, workspace, to_person)
     _need_record(conn, workspace, record_id)
-    conn.execute(
-        "DELETE FROM aliases WHERE workspace = ? AND person_id = ? AND alias = ?",
-        (workspace, from_person, alias),
-    )
+    people.remove_alias(conn, workspace, from_person, alias)
     people.add_alias(conn, workspace, to_person, alias)
     events.append(
         conn,
@@ -182,10 +170,7 @@ def split_alias(
     Person's id."""
     _need_alias(conn, workspace, from_person, alias)
     _need_record(conn, workspace, record_id)
-    conn.execute(
-        "DELETE FROM aliases WHERE workspace = ? AND person_id = ? AND alias = ?",
-        (workspace, from_person, alias),
-    )
+    people.remove_alias(conn, workspace, from_person, alias)
     new = people.new_person(conn, workspace, name or alias)
     people.add_alias(conn, workspace, new, alias)
     events.append(

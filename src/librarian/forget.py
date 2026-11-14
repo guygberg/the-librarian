@@ -81,11 +81,11 @@ def _delete_items(
     ]
     if orphans:
         marks = _marks(orphans)
-        conn.execute(f"UPDATE records SET parent_id = NULL WHERE parent_id IN ({marks})", orphans)
+        conn.execute(f"UPDATE items SET parent_id = NULL WHERE parent_id IN ({marks})", orphans)
         for table, column in (
             ("review_entries", "record_id"),
             ("review_entries", "other_record_id"),
-            ("project_aliases", "record_id"),
+            ("tags", "item_id"),
             ("unit_records", "record_id"),
         ):
             conn.execute(f"DELETE FROM {table} WHERE {column} IN ({marks})", orphans)
@@ -94,7 +94,7 @@ def _delete_items(
             f" OR (to_type = 'record' AND to_id IN ({marks}))",
             orphans + orphans,
         )
-        conn.execute(f"DELETE FROM records WHERE id IN ({marks})", orphans)
+        conn.execute(f"DELETE FROM items WHERE id IN ({marks})", orphans)
         conn.execute(
             f"DELETE FROM record_events WHERE record_id IN ({marks})", orphans
         )  # allowed once the Record is gone

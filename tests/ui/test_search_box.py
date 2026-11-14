@@ -1,10 +1,9 @@
 from urllib.parse import quote
 
 from playwright.sync_api import expect
-from test_expanded import expand
 
 from fixtures.scenarios import payments_cutover as payments
-from support.ui_stream import open_stream, record
+from support.ui_stream import open_item, open_stream, record
 
 BOX = "[data-part=search] input"
 RESULTS = "[data-part=search-results]"
@@ -26,7 +25,9 @@ def test_slash_focuses_search_on_every_view(page, ui):
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     press_slash_focuses(page)
 
-    expand(page, ui, payments.NOV_18)
+    open_stream(page, ui)
+    page.locator("[data-part=kind-filter]").select_option("decisions")
+    open_item(page, payments.NOV_18)
     press_slash_focuses(page)
 
     page.locator("[data-part=evidence-quote]").first.click()
@@ -63,7 +64,7 @@ def test_records_come_first_and_a_passage_opens_the_source_sheet(page, ui):
     page.locator(BOX).fill("cutover")
     page.keyboard.press("Enter")
 
-    parts = page.locator(f"{RESULTS} [data-part^=search-]:not([data-part$=link])")
+    parts = page.locator(f"{RESULTS} :is([data-part=search-record], [data-part=search-passage])")
     expect(parts.first).to_have_attribute("data-part", "search-record")
     kinds = [parts.nth(i).get_attribute("data-part") for i in range(parts.count())]
     assert "search-passage" in kinds

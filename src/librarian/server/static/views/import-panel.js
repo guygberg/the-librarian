@@ -2,6 +2,7 @@ import * as api from '../api.js';
 import { h } from '../dom.js';
 import { clock, isToday, parseLocal, shortDate } from '../format.js';
 import { failure, loading, openDialog } from '../shell.js';
+import { icon, pageHead } from '../ui.js';
 
 const SOURCES = { slack: 'Slack', session: 'Claude sessions', drive: 'Recordings' };
 const COUNTERS = ['fetched', 'transcribed', 'extracted', 'failed'];
@@ -50,9 +51,10 @@ function failedItems(progress) {
 function forgetControl(row, say, reload) {
   const ask = () => {
     const typed = h('input', { type: 'text', placeholder: `type ${row.name}`, 'aria-label': `Type ${row.name} to confirm`, 'data-part': 'forget-text' });
-    const go = h('button', { type: 'button', disabled: true, 'data-part': 'forget-confirm' }, 'Forget for good');
+    const go = h('button', { type: 'button', class: 'primary', disabled: true, 'data-part': 'forget-confirm' }, 'Forget for good');
     const dialog = openDialog(`Forget ${row.name}?`,
-      h('p', {}, `This deletes everything imported from ${row.name}. Type its name to confirm.`), typed, go);
+      h('p', { style: 'margin-bottom:14px' }, `This deletes everything imported from ${row.name}. Type its name to confirm.`), typed,
+      h('div', { class: 'modal-footer' }, go));
     typed.addEventListener('input', () => { go.disabled = typed.value !== row.name; });
     go.addEventListener('click', async () => {
       const done = await reply(api.post('/api/forget', { conversation: row.id, confirm: true }));
@@ -111,7 +113,7 @@ export async function importPanel() {
     if ((await showProgress()).running) watch();
   };
 
-  const importButton = h('button', { type: 'button', 'data-part': 'import-button' }, 'Import');
+  const importButton = h('button', { type: 'button', class: 'primary', 'data-part': 'import-button' }, icon('download'), 'Import');
   importButton.addEventListener('click', async () => {
     const done = await reply(api.post('/api/import/start', {}));
     say(done.error ?? 'Import started.');
@@ -142,7 +144,10 @@ export async function importPanel() {
   const loadPicker = () => fresh('/api/slack/picks').then(drawPicker, (e) => picker.replaceChildren(
     h('div', { class: 'grp' }, 'Slack conversations'), h('p', { class: 'pnote w', 'data-part': 'picker-error' }, `Cannot list conversations: ${e.message}`)));
 
-  root.append(h('div', { class: 'grp' }, 'Import'), top, h('div', { class: 'm' }, importButton, dryRun), message, picker);
+  root.append(
+    pageHead('Import', 'Bring your sources up to date. Nothing is ever written back to them.', 'rings', importButton),
+    h('section', { class: 'panel detail-card' }, h('div', { class: 'between' }, h('h3', {}, 'Sources'), dryRun), message, top),
+    h('section', { class: 'panel detail-card' }, picker));
   await Promise.all([started().catch((e) => top.replaceChildren(failure(`Cannot read Import status: ${e.message}`))), loadPicker()]);
   return root;
 }

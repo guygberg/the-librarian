@@ -4,25 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="librarian-token" content="__TOKEN__">
-  <title>Librarian</title>
-  <link rel="stylesheet" href="/static/shell.css">
+  <title>Mission Control</title>
+  <link rel="stylesheet" href="/static/mission.css">
   <link rel="stylesheet" href="/static/app.css">
   <script type="module" src="/static/app.js"></script>
 </head>
-<body>
+<body class="palette-home">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1d0"/><stop offset=".32" stop-color="#e6b46f"/><stop offset=".62" stop-color="#a96629"/><stop offset="1" stop-color="#f8d59d"/></linearGradient><linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f1bd73" stop-opacity=".75"/><stop offset="1" stop-color="#8c4619" stop-opacity=".2"/></linearGradient><radialGradient id="glow"><stop stop-color="#ffca69" stop-opacity=".65"/><stop offset="1" stop-color="#c16c12" stop-opacity="0"/></radialGradient></defs></svg>
   <div id="app">
     <aside class="sidebar" id="sidebar" aria-label="Main">
-      <a class="brand" href="/" data-link><span class="brand-mark" aria-hidden="true"></span>Librarian</a>
-      <nav id="nav" data-part="nav"></nav>
-      <div class="sidebar-bottom"><button type="button" class="textbtn" data-part="theme-toggle"></button></div>
+      <div class="brand"><svg viewBox="0 0 60 60" aria-hidden="true"><path d="m6 50 9-42 15 9-13 2-3 18 15-17 19 24-3-29 9 5 2 34-20-7-11-14-19 17Z" fill="url(#gold)"/><path d="m16 49 14-8 11 9-15-2Z" fill="#e6c28d"/></svg><span>MISSION<br>CONTROL</span></div>
+      <div class="panel level" data-part="week"></div>
+      <nav id="nav" data-part="nav" aria-label="Main navigation"></nav>
+      <div class="quests" id="freshness" data-part="freshness"></div>
+      <div class="sidebar-bottom" data-part="sidebar-bottom"></div>
     </aside>
-    <div class="scrim" data-part="scrim" hidden></div>
+    <div class="sidebar-backdrop" data-part="scrim" hidden></div>
     <div class="workspace">
       <header class="topbar" data-part="topbar">
         <button type="button" class="iconbtn mobile-menu" data-part="menu" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"></button>
-        <form id="search" class="search" data-part="search" role="search"><input type="search" name="q" placeholder="Search  ( / )" aria-label="Search" autocomplete="off"></form>
-        <p id="freshness" class="pnote" data-part="freshness"></p>
+        <form id="search" class="search grow" data-part="search" role="search"><input name="q" aria-label="Search all items" placeholder="Search titles, summaries, quotes…" autocomplete="off"><kbd>/</kbd></form>
+        <button type="button" class="iconbtn sound" data-part="open-import" data-href="/import" role="link" aria-label="Import"></button>
+        <button type="button" class="iconbtn settings" data-part="settings" aria-label="Settings"></button>
       </header>
+      <p class="fresh-line" id="fresh-line" data-part="freshness-line"></p>
       <div id="results"></div>
       <main id="view"></main>
     </div>

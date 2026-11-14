@@ -11,12 +11,12 @@ STAMP = "2023-11-01T00:00:00+00:00"
 
 def person(ui, name, me=False):
     ui.sql(
-        "INSERT INTO persons (workspace, name, is_me, created_at) VALUES ('work', ?, ?, ?)",
+        "INSERT INTO people (workspace, name, is_me, created_at) VALUES ('work', ?, ?, ?)",
         name,
         int(me),
         STAMP,
     )
-    return ui.sql("SELECT id FROM persons WHERE name = ?", name)[0][0]
+    return ui.sql("SELECT id FROM people WHERE name = ?", name)[0][0]
 
 
 def record(ui, title, kind="action_item", lifecycle="open", basis="inferred", owner=None):
@@ -36,7 +36,16 @@ def record(ui, title, kind="action_item", lifecycle="open", basis="inferred", ow
 
 
 def row(page, title):
+    """The item's row in the Items table, or its board card. The table shows 7 rows a page."""
     return page.locator("[data-part=item]", has=page.get_by_text(title, exact=True))
+
+
+def open_item(page, title):
+    """Open the item's own page from its row and return the page's root."""
+    row(page, title).locator("[data-part=item-title]").click()
+    panel = page.locator("[data-part=item-expanded]")
+    expect(panel).to_be_visible()
+    return panel
 
 
 def open_stream(page, ui):

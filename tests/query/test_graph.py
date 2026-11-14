@@ -86,7 +86,7 @@ def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(ap
 
 
 def test_centre_on_a_person_returns_owned_records_and_superseded_records_keep_edges(api):
-    [(person,)] = api.sql("SELECT id FROM persons WHERE name = 'Raz Peretz'")
+    [(person,)] = api.sql("SELECT id FROM people WHERE name = 'Raz Peretz'")
     [(blocker,)] = api.sql("SELECT id FROM records WHERE title = ?", payments.BLOCKER)
     api.sql("UPDATE records SET lifecycle = 'superseded' WHERE id = ?", blocker)
 

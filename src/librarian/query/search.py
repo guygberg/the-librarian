@@ -1,9 +1,11 @@
 """Search Source items. Read-only: takes a connection from `db.connect_ro`."""
 
+import json
 import sqlite3
 from collections.abc import Callable
 
 from librarian import config, locator, textsearch
+from librarian.link import people as identities
 from librarian.query import core, envelope
 
 SNIPPET_CHARS = 160
@@ -20,19 +22,33 @@ def _record_ids(
     """Records are matched here, not in the full-text index.
 
     They change through many writers and a work memory bank holds few. Text is the title,
-    body, reasoning, Evidence quotes and a project's aliases; title matches rank first.
+    body, reasoning, Evidence quotes; title matches rank first.
     """
     extra: dict[int, list[str]] = {}
-    for table, column in (("evidence", "quote"), ("project_aliases", "alias")):
+    for table, column in (("evidence", "quote"),):
         for record_id, text in conn.execute(
             f"SELECT record_id, {column} FROM {table} WHERE workspace = ?", (workspace,)
         ):
             extra.setdefault(record_id, []).append(text)
-    titled, other = [], []
-    for record_id, title, body, reasoning in conn.execute(
-        "SELECT id, title, body, reasoning FROM records WHERE workspace = ? ORDER BY id",
+    edits = {}
+    for rid, event, detail in conn.execute(
+        "SELECT record_id, event, detail FROM record_events"
+        " WHERE workspace = ? AND event IN ('edit', 'rename') ORDER BY id",
         (workspace,),
     ):
+        change = json.loads(detail)
+        edits.setdefault(rid, {}).update(
+            {"title": change["title"], "body": change["body"]}
+            if event == "edit"
+            else {"title": change["to"]}
+        )
+    titled, other = [], []
+    for record_id, title, body, reasoning in conn.execute(
+        "SELECT id, title, body, reasoning FROM items WHERE workspace = ? ORDER BY id",
+        (workspace,),
+    ):
+        title = edits.get(record_id, {}).get("title", title)
+        body = edits.get(record_id, {}).get("body", body)
         if matches(title):
             titled.append(record_id)
         elif matches(" ".join([title, body, reasoning or "", *extra.get(record_id, [])])):
@@ -42,17 +58,38 @@ def _record_ids(
 
 def _people(conn: sqlite3.Connection, workspace: str, matches: Callable[[str], bool]) -> list[dict]:
     people = {
-        pid: {"person_id": pid, "name": name, "aliases": []}
-        for pid, name in conn.execute(
-            "SELECT id, name FROM persons WHERE workspace = ? ORDER BY id", (workspace,)
+        pid: {
+            "person_id": pid,
+            "name": name,
+            "aliases": [],
+            "slack_id": slack_id,
+            "email": email,
+            "role": role,
+            "department": department,
+        }
+        for pid, name, slack_id, email, role, department in conn.execute(
+            "SELECT id, name, slack_id, email, role, department FROM people"
+            " WHERE workspace = ? ORDER BY id",
+            (workspace,),
         )
     }
-    for pid, alias in conn.execute(
-        "SELECT person_id, alias FROM aliases WHERE workspace = ? ORDER BY id", (workspace,)
-    ):
+    for pid, alias in identities.alias_rows(conn, workspace):
         people[pid]["aliases"].append(alias)
     return [
-        p for p in people.values() if any(matches(label) for label in (p["name"], *p["aliases"]))
+        p
+        for p in people.values()
+        if any(
+            matches(label)
+            for label in (
+                p["name"],
+                *p["aliases"],
+                p["slack_id"],
+                p["email"],
+                p["role"],
+                p["department"],
+            )
+            if label
+        )
     ]
 
 

@@ -1,138 +1,164 @@
-import { act, justActed } from '../actions.js';
+import { itemForm, priorityBadge } from '../entities.js';
+import { justActed } from '../actions.js';
 import * as api from '../api.js';
 import { h } from '../dom.js';
-import { clock, dateLine, isToday, shortDate } from '../format.js';
-import { lastImport } from '../freshness.js';
+import { clock, isToday, parseLocal, shortDate } from '../format.js';
 import { href } from '../filters.js';
-import { changedStrip } from './stream.js';
-
-const PAGE = 5;
-const NEEDS = 'needs_attention';
-const WAITING = 'waiting_on_others';
+import { lastImport, openDialog } from '../shell.js';
+import { NEEDS, WAITING, btn, emblem, first, icon } from '../ui.js';
+import { assign, blurb, complete } from './common.js';
 
 const when = (iso) => {
   const at = new Date(iso);
-  return isToday(at) ? `today ${clock(at)}` : `${shortDate(at)} ${clock(at)}`;
+  return isToday(at) ? clock(at) : `${shortDate(at)} ${clock(at)}`;
 };
 
-const open = (item) => h('a', { href: href({ open: item.id }), 'data-link': true }, item.title);
-
-/** Why the item is ranked where it is: the query's own order, and the flags that raise an item within its group. */
-function why(item, ahead) {
-  const flags = [];
-  if (item.contradictions.length) flags.push('its sources disagree');
-  if (item.stale && item.last_evidence) flags.push(`it has not been mentioned since ${shortDate(new Date(item.last_evidence))}`);
-  if (item.stated_deadline) flags.push(`it is due ${item.stated_deadline}`);
-  const rank = ahead ? `first of ${ahead + 1} things that need you` : 'the only thing that needs you';
-  return `Ranked ${rank}${flags.length ? `: ${flags.join(', ')}` : ''}.`;
+function greeting() {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function tile(part, label, value, to) {
-  return h('a', { class: 'tile', href: to, 'data-link': true, 'data-part': part }, h('b', {}, String(value)), h('span', {}, label));
+function flag(item) { return item ? priorityBadge(item) : null; }
+
+function hero(needs, people, calm) {
+  const [next] = needs;
+  return h('section', { class: 'panel accent today-hero', 'data-part': 'next-best-move' }, emblem('cube'),
+    h('div', { class: 'grow' },
+      h('div', { class: 'today-hero-label' }, h('div', { class: 'eyebrow' }, 'NEXT BEST MOVE'), flag(next)),
+      h('h2', { 'data-part': 'next-title' }, next ? next.title : 'You’re all caught up'),
+      h('p', { 'data-part': 'next-why' }, next ? blurb(next) : calm)),
+    next ? h('div', { class: 'actions' },
+      btn('Open item', { href: href({ open: next.id }), 'data-part': 'next-open' }),
+      btn([icon('check'), 'Mark done'], { cls: 'primary', onClick: () => complete(next), 'data-part': 'next-done' }),
+      !next.is_tag
+        ? btn([icon('user'), 'Assign to…', icon('down', 'small')], { onClick: () => assign(next, people), 'data-part': 'next-assign' })
+        : null) : null);
 }
 
-function nextBestMove(needs) {
-  const [first] = needs;
-  if (!first) return null;
-  return h('section', { class: 'panel next', 'data-part': 'next-best-move' },
-    h('div', { class: 'grp' }, 'Next best move'),
-    h('div', { class: 't', 'data-part': 'next-title' }, open(first)),
-    h('p', { class: 'pnote', 'data-part': 'next-why' }, why(first, needs.length - 1)),
-    h('div', { class: 'acts' }, h('a', { class: 'chip', href: href({ open: first.id }), 'data-link': true, 'data-part': 'next-open' }, 'Open')));
-}
-
-function button(part, text, onClick) {
-  const el = h('button', { type: 'button', class: 'chip', 'data-part': part }, text);
-  el.addEventListener('click', onClick);
-  return el;
-}
-
-/** A panel that shows `PAGE` entries at a time; its Previous and Next controls redraw only the panel. */
-function pagedPanel(part, title, list, entry, empty, settle) {
-  const body = h('div', { 'data-part': `${part}-list` });
-  const pager = h('div', { class: 'm', 'data-part': `${part}-pager` });
+/** One of the three cards under the hero: it shows one entry at a time, and its arrows redraw only the card. */
+function carousel({ part, title, glyph, list, all, entry, calm }) {
+  const host = h('section', {});
   let at = 0;
   const draw = () => {
-    const shown = list.slice(at, at + PAGE);
-    body.replaceChildren(...(shown.length ? shown.map(entry) : [h('p', { class: 'empty small', 'data-part': 'empty' }, empty)]));
-    const prev = button(`${part}-prev`, 'Previous', () => { at -= PAGE; draw(); });
-    const next = button(`${part}-next`, 'Next', () => { at += PAGE; draw(); });
-    prev.disabled = at === 0;
-    next.disabled = at + PAGE >= list.length;
-    pager.replaceChildren(...(list.length > PAGE
-      ? [h('span', { 'data-part': `${part}-range` }, `${at + 1}–${at + shown.length} of ${list.length}`), prev, next]
-      : []));
+    at = list.length ? (at + list.length) % list.length : 0;
+    const shown = list.length ? entry(list[at]) : null;
+    const step = (dir, name, label) => btn(icon(name), { cls: 'round', disabled: list.length < 2, 'aria-label': `${label} ${title}`,
+      'data-part': `${part}-${dir < 0 ? 'prev' : 'next'}`, onClick: () => { at += dir; draw(); } });
+    host.className = shown?.to ? 'panel carousel clickable-ticket' : 'panel carousel';
+    for (const [name, value] of [['data-part', part], ['data-href', shown?.to ?? null]]) {
+      if (value) host.setAttribute(name, value); else host.removeAttribute(name);
+    }
+    host.replaceChildren(
+      h('div', { class: 'row' }, icon(glyph), title, h('span', { class: 'counter', 'data-part': `${part}-count` }, String(list.length)),
+        btn(icon('more'), { cls: 'textbtn', href: all, 'aria-label': `View ${title}` })),
+      h('div', { class: 'today-ticket-heading' },
+        h('h2', {}, shown
+          ? (shown.to ? h('a', { class: 'today-ticket-link', href: shown.to, 'data-link': true, 'data-part': 'today-item' }, shown.title) : shown.title)
+          : 'All clear'),
+        shown?.flag),
+      h('p', shown ? {} : { 'data-part': 'empty' }, shown ? shown.text : calm),
+      h('div', { class: 'carousel-controls' }, step(-1, 'back', 'Previous'), shown ? shown.action : btn([icon('check'), 'Done'], { cls: 'primary', disabled: true }), step(1, 'chevron', 'Next')),
+      h('div', { class: 'carousel-index', 'data-part': `${part}-range` }, `${list.length ? at + 1 : 0} of ${list.length}`));
   };
   draw();
-  return h('section', { class: settle ? 'panel settle' : 'panel', 'data-part': part },
-    h('div', { class: 'grp' }, `${title} (${list.length})`), body, pager);
+  return host;
 }
 
-const itemRow = (item) => h('div', { class: 'it', 'data-part': 'today-item' },
-  h('div', { class: 't' }, open(item)),
-  h('div', { class: 'm' },
-    h('span', {}, item.projects.map((p) => p.title).join(', ')),
-    item.stated_deadline ? h('span', {}, `due ${item.stated_deadline}`) : null,
-    button('today-done', 'Mark done', () => act(item.id, 'done'))));
+const itemEntry = (item) => ({
+  title: item.title, to: href({ open: item.id }), flag: flag(item),
+  text: blurb(item),
+  action: btn([icon('check'), 'Done'], { cls: 'primary', onClick: () => complete(item), 'data-part': 'today-done' }),
+});
 
-const doneRow = (item) => h('div', { class: 'it', 'data-part': 'completed-item' },
-  h('div', { class: 't' }, open(item)),
-  h('div', { class: 'm' },
-    h('span', { 'data-part': 'completed-at' }, `Finished ${when(item.done_at)}`),
-    button('today-reopen', 'Reopen', () => act(item.id, 'reopen'))));
+const reviewEntry = (row) => ({
+  title: row.record.title, to: null, flag: null,
+  text: `${row.mark.replace(/^./, (c) => c.toUpperCase())}${row.raw_name ? ` · “${row.raw_name}”` : ''}`,
+  action: btn([icon('spark'), 'Review'], { cls: 'primary', href: '/review', 'data-part': 'today-review' }),
+});
 
-const reviewRow = (row) => h('div', { class: 'it', 'data-part': 'today-review' },
-  h('div', { class: 'm' }, h('span', { class: 'w' }, row.mark), row.raw_name ? h('span', {}, `"${row.raw_name}"`) : null),
-  h('div', { class: 't' }, h('a', { href: '/review', 'data-link': true }, row.record.title)));
-
+const EVENT_ICONS = { done: 'check', reopen: 'reset', owner: 'user', project: 'tag', resolve: 'sliders', accept: 'spark', reject: 'close' };
 const label = (event) => event.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 /** What the person and Import changed since the last meeting; nothing invented when it was quiet. */
-function activity(changes) {
+function activity(changes, freshness) {
   const titles = new Map(changes.records.map((r) => [r.id, r.title]));
   const imported = changes.changes.filter((c) => c.import);
   const made = imported.filter((c) => c.import === 'created').length;
-  const lines = [
-    ...changes.person_events.map((e) => h('div', { class: 'm', 'data-part': 'person-event' },
-      h('span', {}, `${label(e.event)} · ${titles.get(e.record_id) ?? 'an item'}`), h('span', {}, when(e.at)))),
-    imported.length
-      ? h('div', { class: 'm', 'data-part': 'import-change' }, h('span', {}, `Import: ${made} new, ${imported.length - made} updated`))
-      : null,
-  ].filter(Boolean);
-  return h('section', { class: 'panel', 'data-part': 'activity' },
-    h('div', { class: 'grp' }, 'Activity'),
-    h('p', { class: 'pnote' }, changes.resolved.baseline),
-    lines.length ? lines : h('p', { class: 'empty small', 'data-part': 'empty' }, 'Nothing has changed in that time.'));
+  const at = freshness.last_import_finished_at ? parseLocal(freshness.last_import_finished_at) : null;
+  const rows = [
+    ...changes.person_events.map((e) => ({ part: 'person-event', icon: EVENT_ICONS[e.event] ?? 'doc', actor: 'You', time: when(e.at),
+      text: `${label(e.event)} · ${titles.get(e.record_id) ?? 'an item'}` })),
+    ...(imported.length ? [{ part: 'import-change', icon: 'download', actor: 'System', time: at ? when(at) : '',
+      text: `Imported ${made} new, ${imported.length - made} updated` }] : []),
+  ];
+  const line = (r) => h('div', { class: 'activity-row', 'data-part': r.part }, icon(r.icon), h('span', {}, r.text),
+    h('span', { class: 'actor' }, r.actor), h('time', {}, r.time));
+  const body = h('div', { 'data-part': 'activity-rows' });
+  const tabs = h('div', { class: 'tabs' });
+  let tab = 'All';
+  const of = () => rows.filter((r) => tab === 'All' || r.actor === tab);
+  const draw = () => {
+    tabs.replaceChildren(...['All', 'You', 'System'].map((t) => btn(t, { cls: tab === t ? 'tab active' : 'tab', 'data-part': 'activity-tab', onClick: () => { tab = t; draw(); } })));
+    const shown = of().slice(0, 5);
+    body.replaceChildren(...(shown.length ? shown.map(line) : [h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing has changed in that time.')]));
+  };
+  draw();
+  return h('section', { class: 'panel activity', 'data-part': 'activity' },
+    h('div', { class: 'panel-heading' }, h('h2', {}, 'Activity log'), h('p', { 'data-part': 'activity-baseline' }, changes.resolved.baseline ?? 'Everything that happened'), tabs,
+      btn(['View all ', icon('arrow', 'small')], { cls: 'textbtn', 'data-part': 'activity-all',
+        onClick: () => openDialog('Activity log', h('div', { style: 'max-height:65vh;overflow:auto' }, of().length ? of().map(line) : h('p', { class: 'empty' }, 'No activity yet.'))) })),
+    body);
+}
+
+function completedPanel(done) {
+  const shown = done.slice(0, 3);
+  const today = done.filter((i) => isToday(new Date(i.done_at)));
+  const allToday = shown.length > 0 && shown.every((i) => isToday(new Date(i.done_at)));
+  return h('section', { class: 'panel completed-panel', 'data-part': 'completed' },
+    h('div', { class: 'panel-heading' },
+      h('h2', {}, allToday || !shown.length ? 'Today’s completed tasks' : 'Recently completed'),
+      h('p', { 'data-part': 'completed-count' }, `${today.length} completed · +${today.length * 20} XP`),
+      btn(['Open archive ', icon('arrow', 'small')], { cls: 'textbtn', href: href({ kind: 'done', group: null }), style: 'margin-left:auto', 'data-part': 'open-archive' })),
+    h('div', { class: 'completed-grid' }, shown.length
+      ? shown.map((i, n) => h('div', { class: 'completed-card', 'data-part': 'completed-item' },
+        h('div', { class: 'medal' }, emblem(['chip', 'cube', 'rings'][n])),
+        h('div', {}, btn(i.title, { cls: 'item-title', href: href({ open: i.id }) }),
+          h('p', { 'data-part': 'completed-at' }, `Completed at ${when(i.done_at)}`))))
+      : h('p', { class: 'empty', 'data-part': 'empty' }, 'Your completed items will appear here.')));
 }
 
 /** The Today dashboard: every number and list comes from the open-items, review and changes answers. */
 export async function today() {
   const acted = justActed();
   const settled = ['done', 'reopen'].includes(acted?.name);
-  const [answer, review, changes, visit] = await Promise.all([
-    api.get('/api/open-items?scope=all'), api.get('/api/review'), api.get('/api/changes'), api.get('/api/visit')]);
-  const of = (group) => answer.records.filter((r) => r.group === group);
+  const [answer, review, changes] = await Promise.all([
+    api.get('/api/open-items?scope=all'), api.get('/api/review'), api.get('/api/changes')]);
+  const of = (group) => answer.records.filter((r) => r.group === group && !r.parent_id);
   const needs = of(NEEDS);
   const waiting = of(WAITING);
-  const openCount = answer.records.filter((r) => r.group).length;
+  const openCount = answer.records.filter((r) => r.group && !r.parent_id).length;
   const completed = answer.records
     .filter((r) => r.lifecycle === 'done' && r.done_at)
     .sort((a, b) => b.done_at.localeCompare(a.done_at));
   const calm = `Nothing needs you today. ${lastImport(answer.freshness)}`;
+  const me = first(answer.people.find((p) => p.is_me)?.name);
+  const count = (part, n, text) => h('span', { 'data-part': part }, h('b', {}, String(n)), ` ${text}`);
 
-  return h('section', { class: 'page today', 'data-part': 'today' },
-    h('div', { class: 'date', 'data-part': 'date-line' }, dateLine(new Date())),
-    changedStrip(visit),
-    h('h1', {}, 'Today'),
-    h('div', { class: settled ? 'tiles settle' : 'tiles', 'data-part': 'counts' },
-      tile('count-open', 'Open', openCount, '/items'),
-      tile('count-needs', 'Needs attention', needs.length, '/items'),
-      tile('count-waiting', 'Waiting', waiting.length, '/items'),
-      tile('count-review', 'Review', review.count, '/review')),
-    nextBestMove(needs),
-    pagedPanel('needs', 'Needs you', needs, itemRow, calm, settled),
-    pagedPanel('waiting', 'Waiting', waiting, itemRow, 'Nothing is waiting on someone else.', settled),
-    pagedPanel('review', 'Review', review.rows, reviewRow, 'Nothing to review.', false),
-    pagedPanel('completed', 'Recently completed', completed, doneRow, 'Nothing has been finished yet.', settled),
-    activity(changes));
+  return h('section', { class: 'today', 'data-part': 'today' },
+    h('div', { class: 'greeting' },
+      h('h1', {}, `${greeting()}${me ? `, ${me}` : ''}.`),
+      h('p', { class: settled ? 'settle' : null, 'data-part': 'counts' },
+        count('count-open', openCount, openCount === 1 ? 'open item' : 'open items'), ' · ',
+        count('count-needs', needs.length, needs.length === 1 ? 'needs you' : 'need you'), ' · ',
+        count('count-waiting', waiting.length, 'waiting on others'), ' · ',
+        count('count-review', review.count, 'suggestions')),
+      btn([icon('plus'), 'New item'], { cls: 'primary', onClick: () => itemForm(), 'data-part': 'today-new' })),
+    hero(needs, answer.people, calm),
+    h('div', { class: settled ? 'carousel-grid settle' : 'carousel-grid' },
+      carousel({ part: 'needs', title: 'Needs you', glyph: 'target', list: needs, all: href({ group: 'needs', kind: 'items' }), entry: itemEntry, calm }),
+      carousel({ part: 'waiting', title: 'Waiting on others', glyph: 'hourglass', list: waiting, all: href({ group: 'waiting', kind: 'items' }), entry: itemEntry,
+        calm: 'Nothing is waiting on someone else.' }),
+      carousel({ part: 'review', title: 'Suggestions', glyph: 'spark', list: review.rows, all: '/review', entry: reviewEntry, calm: 'Nothing to review.' })),
+    activity(changes, answer.freshness),
+    completedPanel(completed));
 }

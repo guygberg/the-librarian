@@ -17,7 +17,8 @@ def start(page, ui):
 
 
 def urls(ui):
-    [(rid,)] = ui.sql("SELECT min(id) FROM records WHERE kind = 'action_item'")
+    # The Nov 18 decision has Evidence, a rival source and relations, so every tab has content.
+    [(rid,)] = ui.sql("SELECT id FROM records WHERE title = ?", payments.NOV_18)
     [(project,)] = ui.sql("SELECT title FROM records WHERE kind = 'project' LIMIT 1")
     [(locator,)] = ui.sql("SELECT locator FROM evidence LIMIT 1")
     return [
@@ -25,11 +26,17 @@ def urls(ui):
         "/items",
         f"/items?project={quote(project)}",
         "/items?kind=done",
+        "/items?view=board",
+        "/items?group=needs",
         f"/items/{rid}",
+        f"/items/{rid}?tab=activity",
+        f"/items/{rid}?tab=sources",
         f"/items/{rid}?tab=relations",
         f"/items/{rid}?tab=relations&hops=2",
         f"/items?source={quote(locator, safe='')}",
         "/items?q=cutover",
+        "/people",
+        "/projects",
         "/review",
         "/import",
     ]
@@ -80,3 +87,9 @@ def test_every_view_reloads_to_the_same_state(page, ui):
         after = page.locator("#view").inner_text(), page.locator("#sheet").inner_text(), page.url
         assert before == after, path
         assert before[0].strip(), path
+        if path.startswith("/items/"):
+            expect(page.locator("[data-part=item-expanded]")).to_be_visible()
+            tab = re.search(r"tab=(\w+)", path)
+            expect(page.locator(".tab.active")).to_have_attribute(
+                "data-part", f"tab-{tab.group(1) if tab else 'overview'}"
+            )

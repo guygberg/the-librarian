@@ -6,7 +6,6 @@ from typing import Any
 
 from librarian import config
 from librarian.query import core, envelope
-from librarian.query.open_items import KINDS
 from librarian.query.project import _owner
 
 
@@ -22,9 +21,9 @@ def waiting(conn: sqlite3.Connection, workspace: str, at: datetime | None = None
     ids = [
         row[0]
         for row in conn.execute(
-            "SELECT id FROM records WHERE workspace = ?"
-            f" AND kind IN ({', '.join('?' * len(KINDS))}) ORDER BY id",
-            (workspace, *KINDS),
+            "SELECT id FROM items WHERE workspace = ?"
+            " AND id NOT IN (SELECT item_id FROM tags) ORDER BY id",
+            (workspace,),
         )
     ]
     views = [

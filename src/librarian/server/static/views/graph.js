@@ -116,12 +116,12 @@ function canvas(graph, open) {
     tip.textContent = label(e.kind);
     return svg('g', { class: `edge hop-${Math.max(hopOf.get(e.from), hopOf.get(e.to))}`, 'data-part': 'graph-edge', 'data-kind': e.kind },
       tip,
-      svg('line', { x1, y1, x2, y2, stroke: '#9A95AD', 'stroke-width': 1.5, 'marker-end': 'url(#arrow)' }),
+      svg('line', { x1, y1, x2, y2, stroke: 'var(--muted)', 'stroke-width': 1.5, 'marker-end': 'url(#arrow)' }),
       ...(where ? [text(...where, label(e.kind),
-        { fill: '#9A95AD', 'font-size': 12, stroke: '#17151f', 'stroke-width': 4, 'paint-order': 'stroke' })] : []));
+        { fill: 'var(--muted)', 'font-size': 12, stroke: 'var(--bg)', 'stroke-width': 4, 'paint-order': 'stroke' })] : []));
   });
   const arrow = svg('defs', {}, svg('marker', { id: 'arrow', markerWidth: 8, markerHeight: 8, refX: 7, refY: 4, orient: 'auto' },
-    svg('path', { d: 'M0,0 L8,4 L0,8z', fill: '#9A95AD' })));
+    svg('path', { d: 'M0,0 L8,4 L0,8z', fill: 'var(--muted)' })));
   const nodes = graph.nodes.map((n) => {
     const [x, y] = spot.get(n.id);
     const tip = svg('title', {});
@@ -129,8 +129,8 @@ function canvas(graph, open) {
     return svg('a', { href: recentre(n.id), 'data-link': '', class: `node hop-${n.hop} ${n.type}${n.id === graph.center ? ' center' : ''}`, 'data-part': 'graph-node', 'data-id': n.id },
       tip,
       svg('rect', { x: x - NODE[0] / 2, y: y - NODE[1] / 2, width: NODE[0], height: NODE[1], rx: n.type === 'person' ? 24 : 12 }),
-      text(x, y - 3, clip(heading(n)), { fill: '#EDEAF5', 'font-size': 14 }),
-      text(x, y + 14, subtitle(n), { fill: '#9A95AD', 'font-size': 11 }));
+      text(x, y - 3, clip(heading(n)), { fill: 'var(--text)', 'font-size': 14 }),
+      text(x, y + 14, subtitle(n), { fill: 'var(--muted)', 'font-size': 11 }));
   });
   return svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Relations', 'data-part': 'relations-graph' }, arrow, ...edges, ...nodes);
 }
@@ -140,7 +140,7 @@ const chip = (content, to, on, part, extra = {}) =>
 
 /** A person node's menu: one of its Aliases (the first, until edited) can move to another Person or split off. */
 function personMenu(node, open, people) {
-  const alias = h('input', { type: 'text', value: node.aliases[0] ?? node.title, 'aria-label': 'Alias', 'data-part': 'person-alias' });
+  const alias = h('input', { type: 'text', class: 'select field', value: node.aliases[0] ?? node.title, 'aria-label': 'Alias', 'data-part': 'person-alias' });
   return h('details', { class: 'pmenu', 'data-part': 'person-menu', 'data-id': node.id },
     h('summary', {}, node.title),
     alias, aliasControls({ alias: () => alias.value, from: Number(node.id.split(':')[1]), recordId: open, people }));

@@ -77,7 +77,7 @@ def validate(raw: str, unit_text: str, candidate_ids: set[int], locators: set[st
 def _check_record(rec: Any, candidate_ids: set[int], refs: set[str]) -> tuple[str, str] | None:
     if not isinstance(rec, dict):
         return "bad_shape", "record is not an object"
-    ref, kind = rec.get("ref"), rec.get("kind")
+    ref = rec.get("ref")
     if not (isinstance(ref, str) and ref):
         return "bad_shape", "missing ref"
     if ref in refs:
@@ -85,26 +85,13 @@ def _check_record(rec: Any, candidate_ids: set[int], refs: set[str]) -> tuple[st
     if not (isinstance(rec.get("title"), str) and rec["title"].strip()):
         return "bad_shape", "missing title"
     for key, allowed in (
-        ("kind", schema.KINDS),
         ("lifecycle", schema.LIFECYCLES),
         ("basis", schema.BASES),
     ):
         if rec.get(key) not in allowed:
             return "bad_enum", f"{key}={rec.get(key)!r}"
-    if "commitment" in rec and rec["commitment"] not in schema.COMMITMENTS:
-        return "bad_enum", f"commitment={rec['commitment']!r}"
-    only = {
-        "commitment": "action_item",
-        "owner": "action_item",
-        "stated_deadline": "action_item",
-        "reasoning": "decision",
-        "parent": "project",
-    }
-    for key, needed in only.items():
-        if key in rec and kind != needed:
-            return "bad_shape", f"`{key}` only belongs on a {needed}"
-    if kind == "action_item" and "commitment" not in rec:
-        return "bad_shape", "action item without commitment"
+    if "is_tag" in rec and not isinstance(rec["is_tag"], bool):
+        return "bad_shape", "is_tag must be a boolean"
     match = rec.get("match")
     if not isinstance(match, dict) or match.get("decision") not in schema.ID_DECISIONS:
         return "bad_enum", f"match={match!r}"

@@ -1,16 +1,14 @@
 """The extraction result contract: one JSON schema, exported for `claude -p --json-schema`.
 
-The enum lists here are the single home for the validator too. They mirror the CHECK constraints in
-`migrations/0001_core.sql`.
+The enum lists here are the single home for the validator too.
+Items have no type or commitment field; is_tag routes grouping labels to tag membership.
 """
 
 import hashlib
 import json
 
-KINDS = ["project", "action_item", "decision", "blocker", "open_question"]
 LIFECYCLES = ["open", "pending", "suspended", "done", "dropped", "superseded"]
 BASES = ["stated", "inferred", "confirmed"]
-COMMITMENTS = ["intention", "request", "commitment"]
 LINK_TYPES = [
     "belongs_to",
     "owner",
@@ -67,7 +65,7 @@ SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["ref", "match", "kind", "title", "lifecycle", "basis", "evidence"],
+                "required": ["ref", "match", "title", "lifecycle", "basis", "evidence"],
                 "additionalProperties": False,
                 "properties": {
                     "ref": {"type": "string"},
@@ -80,12 +78,11 @@ SCHEMA = {
                             "id": {"type": "integer"},
                         },
                     },
-                    "kind": {"enum": KINDS},
+                    "is_tag": {"type": "boolean"},
                     "title": {"type": "string"},
                     "body": {"type": "string"},
                     "lifecycle": {"enum": LIFECYCLES},
                     "basis": {"enum": BASES},
-                    "commitment": {"enum": COMMITMENTS},
                     "owner": {"oneOf": _OWNER_VARIANTS},
                     "stated_deadline": {"type": "string"},
                     "reasoning": {"type": "string"},

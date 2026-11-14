@@ -1,40 +1,52 @@
-import { h } from './dom.js';
+import { priority } from './entities.js';
+import { NEEDS, WAITING } from './ui.js';
 
-export const TABS = [['items', 'Items'], ['decisions', 'Decisions'], ['blockers', 'Blockers'], ['questions', 'Questions'], ['done', 'Done']];
+export const KINDS = [['items', 'Open items'], ['done', 'Completed']];
 export const DETAIL_TABS = ['overview', 'activity', 'sources', 'relations'];
 /** A tab as it appears in the URL: the first one is the default and is left out. */
 export const tabParam = (tab) => (tab === 'overview' ? null : tab);
-const RECORD_KIND = { decisions: 'decision', blockers: 'blocker', questions: 'open_question' };
+const GROUPS = { needs: NEEDS, waiting: WAITING };
 
-/** Every filter lives in the URL, so a reload or a shared link returns to the same view. An expanded item is `/items/<id>`. */
+/** Every filter lives in the URL, so a reload or a shared link returns to the same view. An item's own page is `/items/<id>`. */
 export function current() {
   const q = new URLSearchParams(location.search);
   const kind = q.get('kind');
   return {
+    untagged: q.get('untagged'), priority: q.get('priority'),
     view: q.get('view') === 'board' ? 'board' : 'list', lifecycle: q.get('lifecycle'), basis: q.get('basis'), warn: q.get('warn'), since: q.get('since'),
-    project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
+    project: q.get('project'), kind: KINDS.some(([k]) => k === kind) ? kind : 'items', group: q.get('group') in GROUPS ? q.get('group') : null,
+    owner: q.get('owner'), waiting: q.get('waiting'), person: q.get('person'), sort: q.get('sort') === 'name' ? 'name' : null,
+    page: Number(q.get('page')) > 1 ? q.get('page') : null,
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: DETAIL_TABS.includes(q.get('tab')) ? q.get('tab') : 'overview',
     source: q.get('source'), quote: q.get('quote'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
   };
 }
 
-/** The URL for the current filters with `change` applied; a null value clears that filter. The expanded item and
- * its tab are not carried over: changing a filter collapses it. The source sheet (`source`, an Evidence locator)
- * is only ever the one asked for, with the `quote` clicked: a locator names a Source item, not which of its
- * Evidence quotes was meant. */
-export function href({ open = null, tab = null, source = null, quote = null, ...change }) {
+/** The filters that narrow the Items list, as the banner and the search results name them. */
+export const FILTER_KEYS = ['priority', 'untagged', 'project', 'person', 'owner', 'waiting', 'lifecycle', 'basis', 'warn', 'since'];
+
+/** The URL for the current filters with `change` applied; a null value clears that filter. The open item and
+ * its tab are not carried over: changing a filter returns to the list, on its first page unless `page` is given.
+ * The source sheet (`source`, an Evidence locator) is only ever the one asked for, with the `quote` clicked:
+ * a locator names a Source item, not which of its Evidence quotes was meant. */
+export function href({ open = null, tab = null, source = null, quote = null, page = null, ...change }) {
   const q = new URLSearchParams();
   const graphKeys = ['center', 'hops', 'kinds']; // the Relations graph's state, kept only while that tab is shown
-  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source, quote })) {
+  for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source, quote, page })) {
     if (graphKeys.includes(key) && !(open && tab === 'relations')) continue;
     if (key !== 'open' && value && !(key === 'kind' && value === 'items') && !(key === 'view' && value === 'list')) q.set(key, value);
   }
   return `${open ? `/items/${open}` : '/items'}${q.size ? `?${q}` : ''}`;
 }
 
+/** The Items list with nothing narrowed. */
+export const cleared = () => href(Object.fromEntries([...FILTER_KEYS, 'q', 'group', 'kind', 'sort'].map((k) => [k, null])));
+
 export function waitingOn(item) {
   return item.waiting_on ?? item.links.find((l) => l.type === 'waiting_on')?.to ?? null;
 }
+
+export const involves = (item, name) => item.owner === name || item.links.some((l) => l.to === name);
 
 /** Warning states a Record can carry, named for the `warn` filter. The query core decides them; the browser only reads the flags. */
 export const WARNINGS = {
@@ -45,6 +57,8 @@ export const WARNINGS = {
 };
 
 export function matches(item, state) {
+  if (state.priority && (priority(item) >= 80 ? 'high' : priority(item) >= 60 ? 'medium' : 'low') !== state.priority) return false;
+  if (state.untagged && item.projects.length) return false;
   if (state.lifecycle && item.lifecycle !== state.lifecycle) return false;
   if (state.basis && item.basis !== state.basis) return false;
   if (state.warn && !WARNINGS[state.warn]?.[1](item)) return false;
@@ -52,57 +66,12 @@ export function matches(item, state) {
   if (state.project && !item.projects.some((p) => p.title === state.project)) return false;
   if (state.owner && item.owner !== state.owner) return false;
   if (state.waiting && waitingOn(item) !== state.waiting) return false;
+  if (state.person && !involves(item, state.person)) return false;
+  if (state.group && item.group !== GROUPS[state.group]) return false;
   switch (state.kind) {
     case 'done': return item.lifecycle === 'done';
-    case 'decisions': return item.kind === 'decision';
-    case 'items': return item.group !== null || (state.view === 'board' && item.lifecycle === 'done');
-    default: return item.kind === RECORD_KIND[state.kind] && item.group !== null;
+    // A lifecycle asked for by name is shown even when it is not an open one.
+    case 'items': return item.group !== null || Boolean(state.lifecycle && !item.is_tag);
+    default: return false;
   }
-}
-
-const chip = (text, to, on, part) => h('a', { href: to, class: on ? 'chip on' : 'chip', 'data-link': true, 'data-part': part }, text);
-
-export function chips(projects, state) {
-  return h('div', { class: 'pf', 'data-part': 'project-filter' },
-    chip('All work', href({ project: null }), !state.project, 'project-chip'),
-    projects.map((p) => chip(p.title, href({ project: p.title }), state.project === p.title, 'project-chip')));
-}
-
-export function tabs(state) {
-  return h('div', { class: 'tabs', 'data-part': 'kind-tabs' },
-    TABS.map(([kind, label]) => chip(label, href({ kind }), state.kind === kind, 'kind-tab')));
-}
-
-/** `choices` are names, or [value, label] pairs when the URL value differs from the text shown. */
-function menu(label, key, choices, state) {
-  const select = h('select', { 'data-part': `${key}-filter`, 'aria-label': label },
-    h('option', { value: '' }, label),
-    choices.map((c) => [].concat(c)).map(([value, text = value]) => h('option', { value, selected: state[key] === value }, text)));
-  select.addEventListener('change', () => window.librarianNavigate(href({ [key]: select.value || null })));
-  return select;
-}
-
-/** Lifecycle, Basis, warning state and date: the filters that need no list of names from the data. */
-export function more(state) {
-  const since = h('input', { type: 'date', value: state.since ?? '', 'data-part': 'since-filter', 'aria-label': 'Updated since' });
-  since.addEventListener('change', () => window.librarianNavigate(href({ since: since.value || null })));
-  return h('div', { class: 'people', 'data-part': 'more-filters' },
-    menu('Lifecycle: any', 'lifecycle', ['open', 'pending', 'suspended', 'done', 'dropped', 'superseded'], state),
-    menu('Basis: any', 'basis', ['stated', 'inferred', 'confirmed'], state),
-    menu('Warning: any', 'warn', Object.entries(WARNINGS).map(([k, [text]]) => [k, text]), state),
-    since);
-}
-
-/** List and Board show the same filtered records; only the layout differs. */
-export function views(state) {
-  return h('div', { class: 'tabs', 'data-part': 'view-toggle' },
-    [['list', 'List'], ['board', 'Board']].map(([view, text]) => chip(text, href({ view }), state.view === view, 'view-tab')));
-}
-
-/** A person is a filter on owner and on waiting-on, never a page. */
-export function people(owners, waiting, state) {
-  const names = (list) => [...new Set(list.filter(Boolean))].sort();
-  return h('div', { class: 'people', 'data-part': 'person-filter' },
-    menu('Owner: anyone', 'owner', names(owners), state),
-    menu('Waiting on: anyone', 'waiting', names(waiting), state));
 }

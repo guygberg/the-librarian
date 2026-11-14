@@ -14,7 +14,6 @@ from librarian.query import stale
 
 # Kinds whose "done" must be earned: by completion Evidence or the person's mark
 # (silence is not completion).
-_EARNED_DONE = ("action_item", "blocker", "open_question")
 _STATE_KEYS = ("waiting_on", "suspended_by", "reason")
 
 
@@ -44,7 +43,7 @@ def current_view(
     completed_at = max((t for t, role in evidence if role == "completes"), default=None)
     lifecycle = view.get("lifecycle", "open")
     done_at = completed_at
-    if lifecycle == "done" and view["kind"] in _EARNED_DONE and completed_at is None:
+    if lifecycle == "done" and not view["is_tag"] and completed_at is None:
         lifecycle = "open"
     for entry in log:
         lifecycle, done_at = _apply(conn, view, entry, lifecycle, done_at)
@@ -58,7 +57,7 @@ def current_view(
     last = max((t for t, _ in evidence), default=None)
     if last:
         view["last_evidence"] = last.isoformat()
-    view["stale"] = stale.is_stale(view["kind"], lifecycle, last, at or now(), cfg)
+    view["stale"] = stale.is_stale("item", lifecycle, last, at or now(), cfg)
     settled = {
         e["detail"]["with"]
         for e in log
@@ -70,6 +69,7 @@ def current_view(
     view["links"] = [link for link in view["links"] if link["type"] != "contradicts"]
     if (
         log
+        and not any(e["event"] == "create" for e in log)
         and not conn.execute(
             "SELECT 1 FROM unit_records WHERE workspace = ? AND record_id = ?",
             (workspace, record_id),
@@ -98,6 +98,12 @@ def _apply(
         "merge",
     ):
         view["basis"] = "confirmed"
+    if entry["event"] == "rename":
+        view["title"] = detail["to"]
+    if entry["event"] == "edit":
+        view.update(title=detail["title"], body=detail["body"])
+        if not view["is_tag"]:
+            view["stated_deadline"] = detail["due"] or None
     if "lifecycle" in detail:
         lifecycle = detail["lifecycle"]
         done_at = datetime.fromisoformat(entry["at"]) if lifecycle == "done" else None
@@ -106,15 +112,17 @@ def _apply(
         view.update({k: detail[k] for k in _STATE_KEYS if k in detail})
     if "person_id" in detail:
         row = conn.execute(
-            "SELECT name, is_me FROM persons WHERE id = ?", (detail["person_id"],)
+            "SELECT name, is_me FROM people WHERE id = ?", (detail["person_id"],)
         ).fetchone()
         view["owner"] = row[0]
         view.pop("owner_is_me", None)
         if row[1]:
             view["owner_is_me"] = True
-    if "project_id" in detail:
+    if "project_id" in detail and detail["project_id"] is None:
+        view["projects"] = []
+    elif "project_id" in detail:
         title = conn.execute(
-            "SELECT title FROM records WHERE id = ?", (detail["project_id"],)
+            "SELECT title FROM items WHERE id = ?", (detail["project_id"],)
         ).fetchone()[0]
         view["projects"] = [{"id": detail["project_id"], "title": title}]
     return lifecycle, done_at
@@ -140,5 +148,5 @@ def _contradictions(
     out = []
     for other in other_ids:
         got = records.get(conn, workspace, other)
-        out.append({k: got[k] for k in ("id", "kind", "title", "evidence")})
+        out.append({k: got[k] for k in ("id", "is_tag", "title", "evidence")})
     return out

@@ -39,10 +39,11 @@ def world(tmp_path, home):
             (decision, revision),
         )
         person = conn.execute(
-            "INSERT INTO persons (workspace, name, created_at) VALUES ('work', 'Noa Zamir', 'x')"
+            "INSERT INTO people (workspace, name, created_at) VALUES ('work', 'Noa Zamir', 'x')"
         ).lastrowid
         conn.execute(
-            "INSERT INTO aliases (workspace, person_id, alias) VALUES ('work', ?, 'נועה')",
+            "UPDATE people SET aliases = json_insert(aliases, '$[#]', 'נועה')"
+            " WHERE workspace = 'work' AND id = ?",
             (person,),
         )
         meeting = record("action_item", "סיכום הפגישה")

@@ -65,7 +65,7 @@ def test_accepting_saves_the_alias_so_the_name_links_automatically_after_import(
 def test_accepting_with_no_person_makes_one_named_after_the_alias(api):
     row = api.row(NEAR)
     assert api.post(f"/api/review/{row['id']}/accept")[1]["owner"] == "Dana Cohn"
-    assert api.sql("SELECT COUNT(*) FROM persons WHERE name = 'Dana Cohn'") == [(1,)]
+    assert api.sql("SELECT COUNT(*) FROM people WHERE name = 'Dana Cohn'") == [(1,)]
 
 
 def test_rejecting_sticks_through_the_next_import(api):
@@ -93,7 +93,9 @@ def test_move_alias_reowns_the_record_logs_a_person_event_and_survives_import(ap
     api.reimport()
     assert api.show("By id")["owner"] == "dana  cohen"
     assert api.events("move_alias") == ["move_alias"]
-    assert api.sql("SELECT person_id FROM aliases WHERE alias = 'Dana Cohen'") == [(new,)]
+    assert api.sql(
+        "SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'Dana Cohen'"
+    ) == [(new,)]
 
 
 def test_split_alias_moves_it_to_a_new_person_and_survives_import(api):
@@ -106,9 +108,9 @@ def test_split_alias_moves_it_to_a_new_person_and_survives_import(api):
     api.reimport()
     assert api.show("By id")["owner"] == "D. Cohen"
     assert api.events("split") == ["split"]
-    assert api.sql("SELECT person_id FROM aliases WHERE alias = 'dcohen'") == [
-        (api.person("D. Cohen"),)
-    ]
+    assert api.sql(
+        "SELECT p.id FROM people p, json_each(p.aliases) a WHERE a.value = 'dcohen'"
+    ) == [(api.person("D. Cohen"),)]
 
 
 def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(api):

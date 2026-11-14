@@ -28,9 +28,13 @@ def shot(page, size, name):
 
 def seed(ui):
     me = person(ui, "Dana Levi", me=True)
-    [(raz,)] = ui.sql("SELECT id FROM persons WHERE name = 'Raz Peretz'")
+    [(raz,)] = ui.sql("SELECT id FROM people WHERE name = 'Raz Peretz'")
     dani = person(ui, "Dani Cohen")
-    ui.sql("INSERT INTO aliases (workspace, person_id, alias) VALUES ('work', ?, 'Dani')", dani)
+    ui.sql(
+        "UPDATE people SET aliases = json_insert(aliases, '$[#]', 'Dani')"
+        " WHERE workspace = 'work' AND id = ?",
+        dani,
+    )
     record(ui, "Mine open", owner=me)
     record(ui, "Raz decision", owner=raz, basis="confirmed")
     suggested = record(ui, "Send the invoice")
@@ -60,7 +64,7 @@ def test_acceptance_journey(page, ui, size):
 
     # Items: List and Board share the filtered set; filters live in the URL.
     page.goto(base + "/items")
-    expect(page.locator("[data-part=view-tab].on")).to_have_text("List")
+    expect(page.locator("[data-part=view-tab].active")).to_have_text("List")
     shot(page, size, "items-list")
     page.get_by_text("Board", exact=True).click()
     expect(page.locator("[data-part=board]")).to_be_visible()
@@ -68,7 +72,7 @@ def test_acceptance_journey(page, ui, size):
     page.goto(f"{base}/items?project={quote(payments.PROJECT)}&kind=decisions")
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     page.goto(f"{base}/items?owner=Raz+Peretz&lifecycle=open")
-    expect(page.locator("[data-part=item] .t")).to_have_text(["Raz decision"])
+    expect(page.locator("[data-part=item] [data-part=item-title]")).to_have_text(["Raz decision"])
     page.goto(base + "/items")
 
     # Item detail: all four tabs, then Evidence in the source sheet.
@@ -85,12 +89,12 @@ def test_acceptance_journey(page, ui, size):
     expect(page.locator(SHEET)).to_be_visible()
     shot(page, size, "source-sheet")
 
-    # Complete and reopen from Today.
+    # Complete from Today, and take it back with the confirmation's Undo.
     page.goto(base)
     done = page.locator("[data-part=today-done]").first
     done.click()
     expect(page.locator("[data-part=completed-item]")).to_have_count(1)
-    page.locator("[data-part=today-reopen]").click()
+    page.locator("#toast [data-part=undo]").click()
     expect(page.locator("[data-part=completed-item]")).to_have_count(0)
 
     # People and Projects.

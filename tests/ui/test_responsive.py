@@ -102,7 +102,8 @@ def test_trust_states_read_differently_in_the_list(page, ui):
     record(ui, "Stated thing", kind="decision", basis="stated")
     record(ui, "Confirmed thing", kind="decision", basis="confirmed")
     open_stream(page, ui)
-    page.locator("[data-part=kind-tab]", has_text="Decisions").click()
+    page.locator("[data-part=kind-filter]").select_option(label="Decisions")
+    expect(page).to_have_url(ui.url + "/items?kind=decisions")
     labels = {
         title: page.locator("[data-part=item]", has_text=title).first.inner_text()
         for title in ("Stated thing", "Confirmed thing", LONG)

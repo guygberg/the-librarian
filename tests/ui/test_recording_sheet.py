@@ -2,7 +2,7 @@ from playwright.sync_api import expect
 
 from fixtures.scenarios import onboarding_hebrew as hebrew
 from fixtures.scenarios import recording_uncertain_hebrew as spoken
-from support.ui_stream import open_stream, row
+from support.ui_stream import open_item, open_stream
 
 SHEET = "[data-part=source-sheet]"
 THURSDAY_SEGMENT = 2  # after the intro line; starts at UNCERTAIN_START
@@ -25,8 +25,7 @@ def open_thursday(page, ui):
         f"drive:{file_id}/1",
     )
     open_stream(page, ui)
-    row(page, hebrew.SIGNUP).locator(".t a").click()
-    page.locator("[data-part=item-expanded] [data-part=evidence-quote]").first.click()
+    open_item(page, hebrew.SIGNUP).locator("[data-part=evidence-quote]").first.click()
     expect(page.locator(SHEET)).to_be_visible()
     return file_id
 
@@ -50,7 +49,7 @@ def test_sheet_title_names_the_recording_with_date_and_range_and_shows_the_line_
     open_thursday(page, ui)
 
     sheet = page.locator(SHEET)
-    expect(sheet).to_contain_text("Recording · Onboarding")
+    expect(sheet).to_contain_text("RECORDING · Onboarding")
     expect(sheet).not_to_contain_text("drive:")
     expect(sheet.locator("[data-part=sheet-when]")).to_have_text("Oct 20 · 00:09:14 — 00:09:19")
     before = sheet.locator("[data-part=source-line]").first

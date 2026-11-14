@@ -10,6 +10,7 @@ import sqlite3
 from typing import Any
 
 from librarian.link import review
+from librarian.link.people import aliases_for
 
 KINDS = (
     "belongs_to",
@@ -56,7 +57,7 @@ def _edges(
     ):  # the owner column is the owner Link whether or not a row was written for it
         have = {(a, b) for t, a, b in edges if t == "owner"}
         for record_id, person_id in conn.execute(
-            "SELECT id, owner_person_id FROM records"
+            "SELECT id, owner_person_id FROM items"
             " WHERE workspace = ? AND owner_person_id IS NOT NULL ORDER BY id",
             (workspace,),
         ):
@@ -81,21 +82,15 @@ def _label(conn: sqlite3.Connection, workspace: str, node: Node) -> dict[str, An
     type_, id_ = node
     if type_ == "record":
         row = conn.execute(
-            "SELECT kind, title, lifecycle FROM records WHERE workspace = ? AND id = ?",
+            "SELECT title, lifecycle FROM items WHERE workspace = ? AND id = ?",
             (workspace, id_),
         ).fetchone()
-        return {"record_kind": row[0], "title": row[1], "lifecycle": row[2]} if row else {}
+        return {"title": row[0], "lifecycle": row[1]} if row else {}
     if type_ == "person":
         row = conn.execute(
-            "SELECT name FROM persons WHERE workspace = ? AND id = ?", (workspace, id_)
+            "SELECT name FROM people WHERE workspace = ? AND id = ?", (workspace, id_)
         ).fetchone()
-        aliases = [
-            a
-            for (a,) in conn.execute(
-                "SELECT alias FROM aliases WHERE workspace = ? AND person_id = ? ORDER BY id",
-                (workspace, id_),
-            )
-        ]
+        aliases = aliases_for(conn, workspace, id_)
         return {"title": row[0], "aliases": aliases} if row else {}
     row = conn.execute(
         "SELECT source, stable_id FROM source_items WHERE workspace = ? AND id = ?",

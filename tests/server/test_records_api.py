@@ -74,7 +74,7 @@ def seed(api):
             for kind, title in (("project", "Billing cleanup"), ("action_item", "Call the bank"))
         ]
         person = conn.execute(
-            "INSERT INTO persons (workspace, name, created_at) VALUES ('work', 'Dana Cohen', 'x')"
+            "INSERT INTO people (workspace, name, created_at) VALUES ('work', 'Dana Cohen', 'x')"
         ).lastrowid
     return *ids, person
 

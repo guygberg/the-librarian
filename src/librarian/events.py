@@ -18,6 +18,8 @@ from typing import Any
 from librarian.clock import utc_now_iso
 
 TYPES = (
+    "edit",
+    "create",
     "status_change",
     "owner_change",
     "project_move",

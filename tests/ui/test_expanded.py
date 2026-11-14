@@ -3,7 +3,7 @@ from datetime import datetime
 from playwright.sync_api import expect
 
 from fixtures.scenarios import payments_cutover as payments
-from support.ui_stream import NOW, open_stream, record, row
+from support.ui_stream import NOW, open_item, open_stream, record, row
 
 
 def record_id(ui, title):
@@ -11,13 +11,12 @@ def record_id(ui, title):
 
 
 def expand(page, ui, title):
-    """Open the Decisions tab (the cutover Records are decisions) and expand `title` in place."""
+    """Show the Decisions on the Items page (the cutover Records are decisions) and open `title`'s
+    own page from its row."""
     open_stream(page, ui)
-    page.locator("[data-part=kind-tab]", has_text="Decisions").click()
-    row(page, title).locator(".t a").click()
-    panel = page.locator("[data-part=item-expanded]")
-    expect(panel).to_be_visible()
-    return panel
+    page.locator("[data-part=kind-filter]").select_option("decisions")
+    expect(page).to_have_url(f"{ui.url}/items?kind=decisions")
+    return open_item(page, title)
 
 
 def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
@@ -30,13 +29,11 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
     expect(panel.locator("[data-part=lifecycle]")).to_have_text("Open")
     expect(panel.locator("[data-part=basis-text]")).to_contain_text("Inferred")
     expect(panel.locator("[data-part=commitment]")).to_have_count(0)
-    expect(row(page, payments.NOV_18).locator("[data-part=basis-inferred]")).to_have_text(
-        "Inferred"
-    )
+    expect(panel.locator("[data-part=details] [data-part=basis-inferred]")).to_have_text("Inferred")
 
-    expect(panel.locator("[data-part=tab-overview]")).to_have_class("chip on")
+    expect(panel.locator("[data-part=tab-overview]")).to_have_class("tab active")
     expect(panel.locator("[data-part=next-move]")).to_contain_text("Settle which source is right")
-    latest = panel.locator(":scope > [data-part=evidence]")
+    latest = panel.locator("[data-part=body-overview] [data-part=evidence]")
     expect(latest).to_have_count(1)
 
     panel.locator("[data-part=tab-sources]").click()
@@ -53,6 +50,7 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
 
     panel.locator("[data-part=tab-activity]").click()
     assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=activity")
+    expect(panel.locator("[data-part=tab-activity]")).to_have_class("tab active")
     expect(evidence).to_have_count(0)
 
     panel.locator("[data-part=tab-relations]").click()
@@ -60,9 +58,13 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
     assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=relations")
     expect(evidence).to_have_count(0)
 
-    row(page, payments.NOV_18).locator(".t a").click()
+    # Back to the list it was opened from, where the row carries the same Basis mark.
+    panel.locator("[data-part=back-to-items]").click()
     expect(page.locator("[data-part=item-expanded]")).to_have_count(0)
     assert page.url == ui.url + "/items?kind=decisions"
+    expect(row(page, payments.NOV_18).locator("[data-part=basis-inferred]")).to_have_text(
+        "Inferred"
+    )
 
 
 def test_action_item_shows_commitment_and_deadline(page, ui):
@@ -111,11 +113,12 @@ def test_expanded_url_reloads_to_the_same_item_even_when_filtered_out(page, ui):
     page.reload()
     assert page.url == url
     expect(page.locator("[data-part=item-expanded]")).to_have_count(1)
-    expect(
-        page.locator("[data-part=item]", has=page.locator("[data-part=item-expanded]")).locator(
-            ".t"
-        )
-    ).to_have_text(payments.NOV_18)
+    expect(page.locator("[data-part=item-expanded] [data-part=detail-title]")).to_have_text(
+        payments.NOV_18
+    )
 
-    page.goto(url + "?kind=done")
+    page.goto(url.split("?")[0] + "?kind=done")
     expect(page.locator("[data-part=item-expanded]")).to_have_count(1)
+    expect(page.locator("[data-part=item-expanded] [data-part=detail-title]")).to_have_text(
+        payments.NOV_18
+    )

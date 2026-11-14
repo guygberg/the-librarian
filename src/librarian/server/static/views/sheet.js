@@ -2,6 +2,7 @@ import * as api from '../api.js';
 import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { position, shortDate } from '../format.js';
+import { btn, icon } from '../ui.js';
 
 const SOURCES = { slack: 'Slack', session: 'Session', drive: 'Recording' };
 
@@ -35,10 +36,10 @@ function speakerMenu(item, people) {
     await api.post('/api/speaker', { locator: item.locator, ...body });
     window.librarianNavigate(location.pathname + location.search);
   };
-  const pick = h('select', { 'data-part': 'speaker-pick', 'aria-label': 'Set speaker' },
+  const pick = h('select', { class: 'select', 'data-part': 'speaker-pick', 'aria-label': 'Set speaker' },
     h('option', { value: '' }, 'Set speaker'), people.map((p) => h('option', { value: p.id }, p.name)));
   pick.addEventListener('change', () => pick.value && set({ person_id: Number(pick.value) }));
-  const typed = h('input', { type: 'text', placeholder: 'or type a name', 'aria-label': 'Speaker name', 'data-part': 'speaker-name' });
+  const typed = h('input', { type: 'text', class: 'select field', placeholder: 'or type a name', 'aria-label': 'Speaker name', 'data-part': 'speaker-name' });
   typed.addEventListener('keydown', (e) => e.key === 'Enter' && typed.value.trim() && set({ name: typed.value.trim() }));
   return h('span', { class: 'speaker', 'data-part': 'speaker-menu' }, pick, typed);
 }
@@ -68,20 +69,19 @@ function player(found) {
 function original(found, raw) {
   if (found.source === 'drive') return player(found);
   if (found.permalink) {
-    return h('a', { href: found.permalink, target: '_blank', rel: 'noopener', 'data-part': 'open-original' }, 'Open original ↗');
+    return h('a', { class: 'tagchip', href: found.permalink, target: '_blank', rel: 'noopener', 'data-part': 'open-original' }, 'Open original ', icon('external', 'small'));
   }
   if (found.source !== 'session') return null;
-  const button = h('button', { type: 'button', class: 'chip', 'data-part': 'open-original' }, 'Open original');
-  button.addEventListener('click', () => {
+  const button = btn(['Open original ', icon('external', 'small')], { 'data-part': 'open-original', onClick: () => {
     raw.hidden = !raw.hidden;
-    button.classList.toggle('on', !raw.hidden);
-  });
+    button.classList.toggle('active', !raw.hidden);
+  } });
   return button;
 }
 
 /** A recording is named by its file's title, with the date and the Evidence segment's time range under it. */
 function title(found) {
-  const label = h('b', {}, SOURCES[found.source] ?? found.source);
+  const label = h('span', { class: 'eyebrow' }, (SOURCES[found.source] ?? found.source).toUpperCase());
   const mark = found.items.find((i) => i.evidence);
   if (found.source !== 'drive' || !mark?.title) return [label, ` · ${found.locator}`];
   const when = `${shortDate(new Date(`${mark.date}T00:00`))} · ${position(mark.start)} — ${position(mark.end)}`;
@@ -97,12 +97,12 @@ export async function render(host) {
   const people = found.source === 'drive' ? (await api.get('/api/open-items?scope=all')).people : null;
   const raw = h('pre', { class: 'raw', 'data-part': 'raw-passage', hidden: true },
     found.items.map((i) => i.raw).filter(Boolean).join('\n'));
-  const close = filters.href({ open, tab: filters.tabParam(tab) });
+  const close = filters.href({ open, tab: filters.tabParam(tab), page: filters.current().page });
   const gloss = found.glosses.find((g) => g.quote === quote) ?? found.glosses[0];
   host.replaceChildren(h('div', { class: 'sheet', 'data-part': 'source-sheet' },
     h('div', { class: 'wrap' },
-      h('a', { href: close, class: 'chip', 'data-link': true, 'data-part': 'close-sheet' }, 'Close'),
-      title(found),
+      h('div', { class: 'between sheet-head' }, h('div', {}, title(found)),
+        btn(icon('close'), { cls: 'iconbtn ghost', href: close, 'aria-label': 'Close', 'data-part': 'close-sheet' })),
       h('div', { class: 'passage' }, found.items.map((i) => line(i, gloss, people))),
       original(found, raw),
       raw)));
