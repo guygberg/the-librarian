@@ -7,7 +7,7 @@ first, so a running Import never sees half a conversation vanish.
 import sqlite3
 from typing import Any
 
-from librarian import events
+from librarian import events, suggestion_lifecycle
 from librarian.slack import picks
 
 SOURCE = "slack"
@@ -79,6 +79,7 @@ def _delete_items(
         for r in touched
         if not conn.execute("SELECT 1 FROM evidence WHERE record_id = ?", (r,)).fetchone()
     ]
+    suggestion_lifecycle.forget_sources(conn, workspace, revisions, item_ids, orphans)
     if orphans:
         marks = _marks(orphans)
         conn.execute(f"UPDATE records SET parent_id = NULL WHERE parent_id IN ({marks})", orphans)
@@ -120,9 +121,11 @@ def _delete_items(
         "DELETE FROM import_items WHERE workspace = ? AND source = ? AND substr(item, 1, ?) = ?",
         (workspace, SOURCE, len(conversation_id) + 1, f"{conversation_id}/"),
     )
+    # Both ledgers: the next analysis of a re-imported conversation must run again.
     for prefix in ("slack-thread", "slack-day"):
-        conn.execute(
-            "DELETE FROM extracted_units WHERE workspace = ? AND substr(unit_key, 1, ?) = ?",
-            (workspace, len(prefix) + len(conversation_id) + 2, f"{prefix}-{conversation_id}-"),
-        )
+        for ledger in ("extracted_units", "suggestion_units"):
+            conn.execute(
+                f"DELETE FROM {ledger} WHERE workspace = ? AND substr(unit_key, 1, ?) = ?",
+                (workspace, len(prefix) + len(conversation_id) + 2, f"{prefix}-{conversation_id}-"),
+            )
     return orphans

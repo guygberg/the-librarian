@@ -13,6 +13,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
+from librarian import suggestion_lifecycle
 from librarian.clock import utc_now_iso
 from librarian.extract import candidates, runs, schema, units
 from librarian.extract.stage import _hash
@@ -121,8 +122,11 @@ def _store(conn, workspace, unit, suggester, run_id, suggestions: list[dict]) ->
     try:
         created = 0
         by_ref = {s["ref"]: s for s in suggestions}
+        seen: set[str] = set()
         for s in suggestions:
-            suggestion_id = _insert(conn, workspace, run_id, s, by_ref, now)
+            if not s["evidence"]:
+                raise ValueError("a Suggestion needs Evidence")
+            suggestion_id = _insert(conn, workspace, run_id, s, by_ref, now, seen)
             if suggestion_id is None:  # the same Suggestion is already stored
                 continue
             created += 1
@@ -152,7 +156,29 @@ _PAYLOAD_KEYS = (
 )  # fmt: skip
 
 
-def _insert(conn, workspace, run_id, s, by_ref, now) -> int | None:
+def _insert(conn, workspace, run_id, s, by_ref, now, seen: set[str]) -> int | None:
+    """None when the same Suggestion already stands. One whose Evidence now cites other
+    revisions has materially changed: the old one is superseded (unless accepted), and a new
+    one made."""
+    key = _dedupe_key(s, by_ref)
+    if key in seen:  # the model said it twice in one answer
+        return None
+    seen.add(key)
+    row = conn.execute(
+        "SELECT id, status FROM suggestions WHERE workspace = ? AND dedupe_key = ?",
+        (workspace, key),
+    ).fetchone()
+    if row:
+        old_id, status = row
+        revisions = {
+            r
+            for (r,) in conn.execute(
+                "SELECT revision_id FROM suggestion_evidence WHERE suggestion_id = ?", (old_id,)
+            )
+        }
+        if status == "accepted" or revisions == {e["revision_id"] for e in s["evidence"]}:
+            return None
+        suggestion_lifecycle.supersede(conn, workspace, [old_id], "source changed")
     payload = {k: s[k] for k in _PAYLOAD_KEYS if k in s}
     ends = {}
     for side in ("from", "to"):
@@ -160,7 +186,7 @@ def _insert(conn, workspace, run_id, s, by_ref, now) -> int | None:
         if end and "type" in end:
             ends[side] = (end["type"], end["id"])
     cur = conn.execute(
-        "INSERT OR IGNORE INTO suggestions (workspace, kind, link_type, payload, from_type,"
+        "INSERT INTO suggestions (workspace, kind, link_type, payload, from_type,"
         " from_id, to_type, to_id, run_id, confidence, band, basis, reasoning, dedupe_key,"
         " created_at)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -176,11 +202,11 @@ def _insert(conn, workspace, run_id, s, by_ref, now) -> int | None:
             s["band"],
             s["basis"],
             s["reasoning"],
-            _dedupe_key(s, by_ref),
+            key,
             now,
         ),
     )
-    return cur.lastrowid if cur.rowcount else None
+    return cur.lastrowid
 
 
 def _dedupe_key(s: dict, by_ref: dict[str, dict]) -> str:

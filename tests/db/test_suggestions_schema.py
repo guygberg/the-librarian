@@ -186,7 +186,7 @@ def test_suggestion_dedupe_is_per_workspace_and_unique(conn):
     suggestion(conn, run)
     with pytest.raises(sqlite3.IntegrityError):
         suggestion(conn, run)
-    suggestion(conn, run, workspace="other")
+    suggestion(conn, add_run(conn, "other"), workspace="other")
     assert (
         conn.execute("SELECT count(*) FROM suggestions WHERE workspace = 'work'").fetchone()[0] == 1
     )
