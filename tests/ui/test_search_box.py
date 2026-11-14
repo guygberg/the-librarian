@@ -85,3 +85,28 @@ def test_the_url_restores_the_search(page, ui):
 
     expect(page.locator(BOX)).to_have_value("cutover")
     expect(page.locator("[data-part=search-record]").first).to_be_visible()
+
+
+def test_results_keep_the_active_filters_visible_and_clearable(page, ui):
+    ui = ui("payments-cutover", payments.NOW)
+    page.goto(f"{ui.url}/items?project={quote(payments.PROJECT)}")
+    page.locator(BOX).fill("cutover")
+    page.keyboard.press("Enter")
+
+    kept = page.locator("[data-part=search-filter]")
+    expect(kept).to_have_count(1)
+    expect(kept).to_contain_text(payments.PROJECT)
+    kept.click()
+    expect(page.locator("[data-part=search-filter]")).to_have_count(0)
+    expect(page.locator(BOX)).to_have_value("cutover")
+    assert "project=" not in page.url
+
+
+def test_slash_focuses_search_on_the_import_panel_and_no_matches_says_so(page, ui):
+    ui = ui("payments-cutover", payments.NOW)
+    page.goto(f"{ui.url}/import")
+    expect(page.locator("[data-part=import-panel]")).to_be_visible()
+    press_slash_focuses(page)
+    page.locator(BOX).fill("zzzznomatch")
+    page.keyboard.press("Enter")
+    expect(page.locator("[data-part=search-empty]")).to_have_text("No matches.")

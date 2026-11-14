@@ -1,6 +1,7 @@
 import * as api from './api.js';
 import { h } from './dom.js';
 import * as filters from './filters.js';
+import * as shell from './shell.js';
 
 const SOURCES = { slack: 'Slack', session: 'Session', drive: 'Recording' };
 
@@ -22,6 +23,18 @@ export function bind(form) {
   });
 }
 
+const FILTER_KEYS = ['project', 'owner', 'waiting', 'lifecycle', 'basis', 'warn', 'since'];
+
+/** The filters still applied to the stream behind the results, with a link that clears each one. */
+function activeFilters(state) {
+  const on = FILTER_KEYS.filter((k) => state[k]).map((k) => [k, state[k]]);
+  if (state.kind !== 'items') on.push(['kind', state.kind]);
+  if (!on.length) return null;
+  return h('div', { class: 'pf', 'data-part': 'search-filters' }, 'Filters kept: ',
+    on.map(([key, value]) => h('a', { class: 'chip on', href: filters.href({ [key]: key === 'kind' ? 'items' : null }), 'data-link': true,
+      'data-part': 'search-filter', 'aria-label': `Clear ${key} ${value}` }, `${key}: ${value} ×`)));
+}
+
 const dir = (text) => (HEBREW.test(text) ? { dir: 'rtl', lang: 'he' } : { dir: 'auto' });
 
 /** Records first, then the raw passages. A Record opens in place in the stream; a passage opens the source sheet. */
@@ -29,10 +42,17 @@ export async function render(form, host) {
   const { q, open } = filters.current();
   form.elements.q.value = q ?? '';
   if (!q) return host.replaceChildren();
-  const answer = await api.get(`/api/search?q=${encodeURIComponent(q)}`);
+  host.replaceChildren(shell.loading('Searching'));
+  let answer;
+  try {
+    answer = await api.get(`/api/search?q=${encodeURIComponent(q)}`);
+  } catch (e) {
+    return host.replaceChildren(shell.failure(`Search failed: ${e.message}`));
+  }
   const passages = answer.evidence.filter((e) => e.record_id === null);
   const link = (text, to, part, attrs) => h('a', { href: to, 'data-link': true, 'data-part': part, ...attrs }, text);
   host.replaceChildren(h('div', { class: 'results', 'data-part': 'search-results' },
+    activeFilters(filters.current()),
     answer.records.map((r) => h('div', { class: 'res', 'data-part': 'search-record' },
       link(r.title, filters.href({ open: r.id }), 'search-record-link', dir(r.title)), h('span', { class: 'm' }, r.kind.replace('_', ' ')))),
     passages.map((p) => h('div', { class: 'res', 'data-part': 'search-passage' },

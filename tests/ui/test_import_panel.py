@@ -191,3 +191,29 @@ def test_picking_in_the_panel_reaches_the_cli_and_forgetting_needs_the_typed_nam
     confirm.click()
     expect(page.locator(PART.format("panel-message"))).to_contain_text(f"Forgot {name}")
     assert ui.sql("SELECT COUNT(*) FROM source_items WHERE source = 'slack'")[0][0] == 0
+
+
+def test_freshness_opens_the_panel_from_any_view_and_import_older_asks_before_fetching(page, ui):
+    ui = ui("payments-cutover", payments.NOW)
+    page.goto(f"{ui.url}/people")
+    page.locator(PART.format("open-import")).click()
+    expect(page.locator(PART.format("import-panel"))).to_be_visible()
+
+    picked = page.locator(f"{PART.format('pick-row')}:has(input:checked)").first
+    expect(picked).to_be_visible()
+    picked.locator(PART.format("older")).click()
+    confirm = page.locator(PART.format("older-confirm"))
+    expect(confirm).to_contain_text("older messages")
+    confirm.click()
+    expect(page.locator(PART.format("panel-message"))).to_contain_text("Fetching older history")
+
+
+def test_forgetting_is_a_dialog_that_escape_cancels_without_deleting(page, ui):
+    ui = ui("payments-cutover", payments.NOW)
+    page.goto(f"{ui.url}/import")
+    stored = ui.sql("SELECT COUNT(*) FROM source_items WHERE source = 'slack'")[0][0]
+    page.locator(PART.format("forget")).first.click()
+    expect(page.locator("dialog[open] " + PART.format("forget-text"))).to_be_focused()
+    page.keyboard.press("Escape")
+    expect(page.locator("dialog[open]")).to_have_count(0)
+    assert ui.sql("SELECT COUNT(*) FROM source_items WHERE source = 'slack'")[0][0] == stored

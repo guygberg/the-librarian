@@ -1,6 +1,7 @@
 import * as api from '../api.js';
 import { h } from '../dom.js';
 import { clock, isToday, parseLocal, shortDate } from '../format.js';
+import { failure, loading, openDialog } from '../shell.js';
 
 const SOURCES = { slack: 'Slack', session: 'Claude sessions', drive: 'Recordings' };
 const COUNTERS = ['fetched', 'transcribed', 'extracted', 'failed'];
@@ -47,21 +48,23 @@ function failedItems(progress) {
 }
 
 function forgetControl(row, say, reload) {
-  const slot = h('span', {});
   const ask = () => {
-    const typed = h('input', { type: 'text', placeholder: `type ${row.name}`, 'data-part': 'forget-text' });
+    const typed = h('input', { type: 'text', placeholder: `type ${row.name}`, 'aria-label': `Type ${row.name} to confirm`, 'data-part': 'forget-text' });
     const go = h('button', { type: 'button', disabled: true, 'data-part': 'forget-confirm' }, 'Forget for good');
+    const dialog = openDialog(`Forget ${row.name}?`,
+      h('p', {}, `This deletes everything imported from ${row.name}. Type its name to confirm.`), typed, go);
     typed.addEventListener('input', () => { go.disabled = typed.value !== row.name; });
     go.addEventListener('click', async () => {
       const done = await reply(api.post('/api/forget', { conversation: row.id, confirm: true }));
+      dialog.close();
       say(done.error ?? `Forgot ${row.name}.`);
       reload();
     });
-    slot.replaceChildren(typed, go);
+    typed.focus();
   };
   const button = h('button', { type: 'button', 'data-part': 'forget' }, 'Forget');
   button.addEventListener('click', ask);
-  return h('span', {}, button, slot);
+  return button;
 }
 
 function olderControl(row, say, started) {
@@ -85,8 +88,8 @@ function olderControl(row, say, started) {
 export async function importPanel() {
   const message = h('p', { class: 'pnote', 'data-part': 'panel-message' });
   const say = (...parts) => message.replaceChildren(...parts);
-  const top = h('div', {});
-  const picker = h('div', { 'data-part': 'slack-picker' });
+  const top = h('div', {}, loading('Loading Import status'));
+  const picker = h('div', { 'data-part': 'slack-picker' }, loading('Loading Slack conversations'));
   const root = h('div', { 'data-part': 'import-panel' });
   let timer = null;
 
@@ -140,6 +143,6 @@ export async function importPanel() {
     h('div', { class: 'grp' }, 'Slack conversations'), h('p', { class: 'pnote w', 'data-part': 'picker-error' }, `Cannot list conversations: ${e.message}`)));
 
   root.append(h('div', { class: 'grp' }, 'Import'), top, h('div', { class: 'm' }, importButton, dryRun), message, picker);
-  await Promise.all([started(), loadPicker()]);
+  await Promise.all([started().catch((e) => top.replaceChildren(failure(`Cannot read Import status: ${e.message}`))), loadPicker()]);
   return root;
 }
