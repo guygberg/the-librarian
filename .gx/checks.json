@@ -1,5 +1,6 @@
 {
   "test": {
+    "changed": "[ -x .venv/bin/pytest ] || make install; .venv/bin/pytest -q tests/server tests/ui",
     "full": "[ -x .venv/bin/pytest ] || make install; .venv/bin/pytest -q"
   }
 }
