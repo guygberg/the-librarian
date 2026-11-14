@@ -185,6 +185,9 @@ def _insert(conn, workspace, run_id, s, by_ref, now, seen: set[str]) -> int | No
         end = s.get(side)
         if end and "type" in end:
             ends[side] = (end["type"], end["id"])
+        elif end:  # a ref means nothing after this answer: keep what it named
+            target = by_ref[end["ref"]]
+            payload[side] = {"kind": target["kind"], "title": target["title"]}
     cur = conn.execute(
         "INSERT INTO suggestions (workspace, kind, link_type, payload, from_type,"
         " from_id, to_type, to_id, run_id, confidence, band, basis, reasoning, dedupe_key,"

@@ -35,6 +35,24 @@ TYPES = (
 )
 
 
+def insert(
+    conn: sqlite3.Connection,
+    workspace: str,
+    record_id: int | None,
+    event: str,
+    detail: dict[str, Any] | None = None,
+    at: str | None = None,
+) -> int:
+    """Write inside the caller's transaction, which `append` would commit."""
+    if event not in TYPES:
+        raise ValueError(f"unknown event {event!r}")
+    return conn.execute(
+        "INSERT INTO record_events (workspace, record_id, event, detail, at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (workspace, record_id, event, json.dumps(detail or {}), at or utc_now_iso()),
+    ).lastrowid
+
+
 def append(
     conn: sqlite3.Connection,
     workspace: str,
@@ -43,14 +61,8 @@ def append(
     detail: dict[str, Any] | None = None,
     at: str | None = None,
 ) -> int:
-    if event not in TYPES:
-        raise ValueError(f"unknown event {event!r}")
     with conn:
-        return conn.execute(
-            "INSERT INTO record_events (workspace, record_id, event, detail, at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (workspace, record_id, event, json.dumps(detail or {}), at or utc_now_iso()),
-        ).lastrowid
+        return insert(conn, workspace, record_id, event, detail, at)
 
 
 def for_record(conn: sqlite3.Connection, workspace: str, record_id: int) -> list[dict[str, Any]]:
