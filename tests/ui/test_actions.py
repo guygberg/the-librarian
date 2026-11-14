@@ -39,7 +39,7 @@ def test_mark_done_updates_the_counts_and_the_item_appears_under_done_with_histo
     expect(page.locator("[data-part=lifecycle]")).to_contain_text("Done")
     expect(page.locator("[data-part=act-reopen]")).to_be_visible()
 
-    page.goto(f"{ui.url}/?kind=done")
+    page.goto(f"{ui.url}/items?kind=done")
     done = row(page, "Send the invoice")
     expect(done).to_be_visible()
     done.locator(".t a").click()

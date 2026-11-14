@@ -22,13 +22,14 @@ def urls(ui):
     [(locator,)] = ui.sql("SELECT locator FROM evidence LIMIT 1")
     return [
         "/",
-        f"/?project={quote(project)}",
-        "/?kind=done",
+        "/items",
+        f"/items?project={quote(project)}",
+        "/items?kind=done",
         f"/items/{rid}",
         f"/items/{rid}?tab=relations",
         f"/items/{rid}?tab=relations&hops=2",
-        f"/?source={quote(locator, safe='')}",
-        "/?q=cutover",
+        f"/items?source={quote(locator, safe='')}",
+        "/items?q=cutover",
         "/review",
         "/import",
     ]

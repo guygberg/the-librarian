@@ -22,7 +22,7 @@ def test_slash_focuses_search_on_every_view(page, ui):
     open_stream(page, ui)
     press_slash_focuses(page)
 
-    page.goto(f"{ui.url}/?project={quote(payments.PROJECT)}")
+    page.goto(f"{ui.url}/items?project={quote(payments.PROJECT)}")
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     press_slash_focuses(page)
 

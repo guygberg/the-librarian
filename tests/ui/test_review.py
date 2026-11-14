@@ -47,7 +47,7 @@ def test_count_matches_rows_and_accept_and_reject_settle_the_suggestions(page, u
     suggest(ui, "Send the invoice", "Dani")
     suggest(ui, "Chase the vendor", "Dani")
     [(open_now,)] = ui.sql(OPEN)
-    page.goto(ui.url)
+    page.goto(ui.url + "/items")
     expect(row(page, "Send the invoice").locator(MARK)).to_have_text(["unconfirmed person"])
 
     expect(page.locator(COUNT)).to_have_text(f"{open_now} to review")
@@ -67,7 +67,7 @@ def test_count_matches_rows_and_accept_and_reject_settle_the_suggestions(page, u
         ("rejected",),
     ]
 
-    page.goto(ui.url)
+    page.goto(ui.url + "/items")
     expect(row(page, "Send the invoice").locator(MARK)).to_have_count(0)
 
 
@@ -118,7 +118,7 @@ def test_project_confirm_rename_and_merge_from_the_status_header(page, ui):
     expect(page.locator(ROW)).to_have_count(open_now)
     expect(page.locator(ROW, has_text="inferred project")).to_have_count(2)
 
-    page.goto(f"{ui.url}/?project={ATLAS.replace(' ', '%20')}")
+    page.goto(f"{ui.url}/items?project={ATLAS.replace(' ', '%20')}")
     tools = page.locator("[data-part=project-tools]")
     drawn = tools.locator("[data-part=project-name]").element_handle()
     with page.expect_response("**/confirm"):
@@ -142,7 +142,7 @@ def test_project_confirm_rename_and_merge_from_the_status_header(page, ui):
 
 def test_split_moves_the_ticked_items_to_a_new_project(page, ui):
     ui = start(page, ui, "projects-stable-ids", stable.NOW)
-    page.goto(f"{ui.url}/?project={ATLASES}")
+    page.goto(f"{ui.url}/items?project={ATLASES}")
     tools = page.locator("[data-part=project-tools]")
     tools.locator("[data-part=project-split] summary").click()
     tools.locator("[data-part=split-name]").fill("Rollout")

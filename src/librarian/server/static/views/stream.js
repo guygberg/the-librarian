@@ -115,7 +115,7 @@ function groups(items, answer, evidence, open) {
 }
 
 /** What changed since the person last dismissed this strip; gone for good until something changes again. */
-function changedStrip({ last_visit: last, changed }) {
+export function changedStrip({ last_visit: last, changed }) {
   if (!changed) return null;
   const strip = h('div', { class: 'strip', 'data-part': 'changed-strip' },
     h('span', {}, last ? `${changed} changed since your last visit` : `${changed} records so far`),

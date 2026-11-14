@@ -39,7 +39,7 @@ def test_header_groups_and_other_open_expands_in_place(page, ui):
     expect(budget).to_be_hidden()
     page.get_by_text("Other open").click()
     expect(budget).to_be_visible()
-    assert page.url == ui.url + "/"
+    assert page.url == ui.url + "/items"
 
 
 def test_basis_markers_and_warnings(page, ui):
@@ -86,8 +86,8 @@ def test_basis_markers_and_warnings(page, ui):
         STAMP,
     )
 
-    page.goto(ui.url)
-    headline = page.locator("[data-part=headline]")
+    page.goto(ui.url + "/items")
+    headline =page.locator("[data-part=headline]")
     expect(headline).to_be_visible()
     expect(headline).to_have_text(re.compile(r"^3 things need you, "))
     expect(headline.locator("em")).to_have_text("need you")
@@ -161,8 +161,8 @@ def test_empty_state_is_calm_and_names_the_last_import(page, ui):
     imported = datetime.fromisoformat(stamp.replace(" ", "T")).replace(tzinfo=UTC)
 
     page.clock.set_fixed_time(imported)
-    page.goto(ui.url)
-    empty = page.locator("[data-part=empty]")
+    page.goto(ui.url + "/items")
+    empty =page.locator("[data-part=empty]")
     expect(empty).to_have_text(f"Nothing needs you today. Last import {imported:%H:%M}.")
     body = page.locator("body").inner_text().lower()
     assert not re.search(r"confetti|badge|streak|points|congrat", body)

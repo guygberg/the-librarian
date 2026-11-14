@@ -2,6 +2,7 @@ import { h } from './dom.js';
 import * as freshness from './freshness.js';
 import { start } from './router.js';
 import { stream } from './views/stream.js';
+import { today } from './views/today.js';
 import * as sheet from './views/sheet.js';
 import { importPanel } from './views/import-panel.js';
 import { review } from './views/review.js';
@@ -12,7 +13,7 @@ shell.bind();
 search.bind(document.getElementById('search'));
 
 const routes = {
-  '/': stream,
+  '/': today,
   '/items': stream,
   '/items/:id': stream,
   '/people': shell.emptyPage('People', 'No people to show yet.'),

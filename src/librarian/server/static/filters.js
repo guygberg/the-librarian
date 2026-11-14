@@ -25,7 +25,7 @@ export function href({ open = null, tab = null, source = null, quote = null, ...
     if (graphKeys.includes(key) && !(open && tab === 'relations')) continue;
     if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
   }
-  return `${open ? `/items/${open}` : '/'}${q.size ? `?${q}` : ''}`;
+  return `${open ? `/items/${open}` : '/items'}${q.size ? `?${q}` : ''}`;
 }
 
 export function waitingOn(item) {

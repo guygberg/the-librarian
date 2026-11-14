@@ -51,7 +51,7 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
 
     row(page, payments.NOV_18).locator(".t a").click()
     expect(page.locator("[data-part=item-expanded]")).to_have_count(0)
-    assert page.url == ui.url + "/?kind=decisions"
+    assert page.url == ui.url + "/items?kind=decisions"
 
 
 def test_action_item_shows_commitment_and_deadline(page, ui):

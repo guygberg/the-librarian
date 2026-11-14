@@ -80,7 +80,7 @@ def test_panel_lists_every_part_and_an_import_shows_the_counts_a_cli_import_prin
     assert code == 0, out
     served = serve(env)
 
-    page.goto(served.url)
+    page.goto(served.url + "/items")
     page.locator(PART.format("open-import")).click()
     for part in (
         "import-sources",
@@ -129,7 +129,7 @@ def test_a_second_start_is_refused_with_the_running_progress_and_the_stream_stil
         expect(page.locator(PART.format("import-progress"))).to_contain_text("Import running")
         assert Path(stub_env["STUB_LOG"]).read_text() == before
 
-        page.goto(served.url)
+        page.goto(served.url + "/items")
         expect(page.locator(PART.format("headline"))).to_be_visible()
     finally:
         first.send_signal(signal.SIGKILL)

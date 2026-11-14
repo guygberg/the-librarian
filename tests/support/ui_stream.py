@@ -41,5 +41,5 @@ def row(page, title):
 
 def open_stream(page, ui):
     page.clock.set_fixed_time(datetime.fromisoformat(NOW))
-    page.goto(ui.url)
+    page.goto(ui.url + "/items")
     expect(page.locator("[data-part=headline]")).to_be_visible()

@@ -117,6 +117,8 @@ def test_edge_kind_filter_hides_other_kinds(page, ui):
     keep = sorted(kinds)[0]
     for kind in sorted(kinds - {keep}):
         kind_chip(page, kind).click()
+        # The next chip's link is built from the state drawn, so wait for this click to settle.
+        expect(kind_chip(page, kind)).not_to_have_class("chip on")
     shown = {e["kind"] for e in api_graph(page, item, 1, keep)["edges"]}
     assert shown == {keep}
     expect(page.locator("[data-part=graph-edge]")).to_have_count(
