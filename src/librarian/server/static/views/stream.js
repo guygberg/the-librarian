@@ -51,9 +51,13 @@ function row(item, evidence, open) {
   const expanded = open?.record.id === item.id;
   return h('div', { class: acted?.id === item.id ? 'it settle' : 'it', 'data-part': 'item' },
     h('div', { class: 't' }, h('a', { href: filters.href({ open: expanded ? null : item.id }), 'data-link': true }, item.title)),
+    item.body ? h('p', { class: 'sum', 'data-part': 'summary' }, item.body) : null,
     h('div', { class: 'm' },
       h('span', {}, item.projects.map((p) => p.title).join(', ')),
+      h('span', { 'data-part': 'row-kind' }, item.kind.replace('_', ' ')),
+      h('span', { 'data-part': 'row-lifecycle' }, item.lifecycle),
       h('span', {}, who + due),
+      item.last_evidence ? h('span', { 'data-part': 'updated' }, `Updated ${shortDate(new Date(item.last_evidence))}`) : null,
       h('span', { class: cls, 'data-part': `basis-${item.basis}` }, label),
       warnings(item).map((w) => h('span', { class: 'w', 'data-part': 'warning' }, w))),
     expanded ? panel(open.record, open.tab, open) : evidence.filter((e) => e.record_id === item.id).map((e) => evidenceLine(e)));
@@ -114,6 +118,22 @@ function groups(items, answer, evidence, open) {
   ];
 }
 
+/** The same records in columns: the query's groups, then Done. Anything else that matched (a decision, a dropped item) is never dropped. */
+function board(items, evidence, open) {
+  const column = (part, title, list) => h('section', { class: 'col', 'data-part': part },
+    h('div', { class: 'grp', 'data-part': 'group' }, `${title} (${list.length})`),
+    list.map((i) => row(i, evidence, open)));
+  const of = (group) => items.filter((r) => r.group === group);
+  const done = items.filter((r) => r.group === null && r.lifecycle === 'done');
+  const rest = items.filter((r) => r.group === null && r.lifecycle !== 'done');
+  return h('div', { class: 'board', 'data-part': 'board' },
+    column('col-needs', 'Needs attention', of(NEEDS)),
+    column('col-waiting', 'Waiting on others', of(WAITING)),
+    column('col-other', 'Other open', of(OTHER)),
+    column('col-done', 'Done', done),
+    rest.length ? column('col-rest', 'Not open', rest) : null);
+}
+
 /** What changed since the person last dismissed this strip; gone for good until something changes again. */
 export function changedStrip({ last_visit: last, changed }) {
   if (!changed) return null;
@@ -154,12 +174,16 @@ export async function stream() {
     progress(answer.progress),
     filters.chips(answer.projects, state),
     header,
+    filters.views(state),
     filters.tabs(state),
     filters.people(hasOwner.map(ownerName), answer.records.map(filters.waitingOn), state),
+    filters.more(state),
     stray,
-    state.kind === 'items'
-      ? groups(shown, answer, evidence, open)
-      : shown.length
+    state.view === 'board'
+      ? board(shown, evidence, open)
+      : state.kind === 'items'
+        ? groups(shown, answer, evidence, open)
+        : shown.length
         ? shown.map((i) => row(i, evidence, open))
         : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing here.'));
 }

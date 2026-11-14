@@ -8,6 +8,7 @@ export function current() {
   const q = new URLSearchParams(location.search);
   const kind = q.get('kind');
   return {
+    view: q.get('view') === 'board' ? 'board' : 'list', lifecycle: q.get('lifecycle'), basis: q.get('basis'), warn: q.get('warn'), since: q.get('since'),
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
     open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
     source: q.get('source'), quote: q.get('quote'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
@@ -23,7 +24,7 @@ export function href({ open = null, tab = null, source = null, quote = null, ...
   const graphKeys = ['center', 'hops', 'kinds']; // the Relations graph's state, kept only while that tab is shown
   for (const [key, value] of Object.entries({ ...current(), ...change, tab: open ? tab : null, source, quote })) {
     if (graphKeys.includes(key) && !(open && tab === 'relations')) continue;
-    if (key !== 'open' && value && !(key === 'kind' && value === 'items')) q.set(key, value);
+    if (key !== 'open' && value && !(key === 'kind' && value === 'items') && !(key === 'view' && value === 'list')) q.set(key, value);
   }
   return `${open ? `/items/${open}` : '/items'}${q.size ? `?${q}` : ''}`;
 }
@@ -32,14 +33,26 @@ export function waitingOn(item) {
   return item.waiting_on ?? item.links.find((l) => l.type === 'waiting_on')?.to ?? null;
 }
 
+/** Warning states a Record can carry, named for the `warn` filter. The query core decides them; the browser only reads the flags. */
+export const WARNINGS = {
+  disagree: ['Sources disagree', (i) => i.contradictions.length > 0],
+  uncertain: ['Transcription uncertain', (i) => Boolean(i.transcription_uncertain)],
+  stale: ['Not mentioned lately', (i) => Boolean(i.stale && i.last_evidence)],
+  suggested: ['Awaiting confirmation', (i) => (i.suggested ?? []).length > 0],
+};
+
 export function matches(item, state) {
+  if (state.lifecycle && item.lifecycle !== state.lifecycle) return false;
+  if (state.basis && item.basis !== state.basis) return false;
+  if (state.warn && !WARNINGS[state.warn]?.[1](item)) return false;
+  if (state.since && !(item.last_evidence && item.last_evidence.slice(0, 10) >= state.since)) return false;
   if (state.project && !item.projects.some((p) => p.title === state.project)) return false;
   if (state.owner && item.owner !== state.owner) return false;
   if (state.waiting && waitingOn(item) !== state.waiting) return false;
   switch (state.kind) {
     case 'done': return item.lifecycle === 'done';
     case 'decisions': return item.kind === 'decision';
-    case 'items': return item.group !== null;
+    case 'items': return item.group !== null || (state.view === 'board' && item.lifecycle === 'done');
     default: return item.kind === RECORD_KIND[state.kind] && item.group !== null;
   }
 }
@@ -57,12 +70,30 @@ export function tabs(state) {
     TABS.map(([kind, label]) => chip(label, href({ kind }), state.kind === kind, 'kind-tab')));
 }
 
-function menu(label, key, names, state) {
+/** `choices` are names, or [value, label] pairs when the URL value differs from the text shown. */
+function menu(label, key, choices, state) {
   const select = h('select', { 'data-part': `${key}-filter`, 'aria-label': label },
     h('option', { value: '' }, label),
-    names.map((n) => h('option', { value: n, selected: state[key] === n }, n)));
+    choices.map((c) => [].concat(c)).map(([value, text = value]) => h('option', { value, selected: state[key] === value }, text)));
   select.addEventListener('change', () => window.librarianNavigate(href({ [key]: select.value || null })));
   return select;
+}
+
+/** Lifecycle, Basis, warning state and date: the filters that need no list of names from the data. */
+export function more(state) {
+  const since = h('input', { type: 'date', value: state.since ?? '', 'data-part': 'since-filter', 'aria-label': 'Updated since' });
+  since.addEventListener('change', () => window.librarianNavigate(href({ since: since.value || null })));
+  return h('div', { class: 'people', 'data-part': 'more-filters' },
+    menu('Lifecycle: any', 'lifecycle', ['open', 'pending', 'suspended', 'done', 'dropped', 'superseded'], state),
+    menu('Basis: any', 'basis', ['stated', 'inferred', 'confirmed'], state),
+    menu('Warning: any', 'warn', Object.entries(WARNINGS).map(([k, [text]]) => [k, text]), state),
+    since);
+}
+
+/** List and Board show the same filtered records; only the layout differs. */
+export function views(state) {
+  return h('div', { class: 'tabs', 'data-part': 'view-toggle' },
+    [['list', 'List'], ['board', 'Board']].map(([view, text]) => chip(text, href({ view }), state.view === view, 'view-tab')));
 }
 
 /** A person is a filter on owner and on waiting-on, never a page. */
