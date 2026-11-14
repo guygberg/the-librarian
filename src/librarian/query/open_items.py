@@ -157,20 +157,21 @@ def open_items(
 
 
 def _people(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
-    """Every Person, for choosing an owner."""
+    """Every Person, for choosing an owner and for the People page."""
     return [
-        {"id": row[0], "name": row[1]}
+        {"id": row[0], "name": row[1], "is_me": bool(row[2])}
         for row in conn.execute(
-            "SELECT id, name FROM persons WHERE workspace = ? ORDER BY id", (workspace,)
+            "SELECT id, name, is_me FROM persons WHERE workspace = ? ORDER BY id", (workspace,)
         )
     ]
 
 
 def _projects(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     return [
-        {"id": row[0], "title": row[1]}
+        {"id": row[0], "title": row[1], "basis": row[2], "body": row[3]}
         for row in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project' ORDER BY id",
+            "SELECT id, title, basis, body FROM records"
+            " WHERE workspace = ? AND kind = 'project' ORDER BY id",
             (workspace,),
         )
     ]

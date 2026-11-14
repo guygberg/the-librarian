@@ -53,10 +53,12 @@ function row(item, evidence, open) {
     h('div', { class: 't' }, h('a', { href: filters.href({ open: expanded ? null : item.id }), 'data-link': true }, item.title)),
     item.body ? h('p', { class: 'sum', 'data-part': 'summary' }, item.body) : null,
     h('div', { class: 'm' },
-      h('span', {}, item.projects.map((p) => p.title).join(', ')),
+      h('span', {}, item.projects.flatMap((p, i) => [i ? ', ' : '', h('a', { href: `/projects?project=${encodeURIComponent(p.title)}`, 'data-link': true, 'data-part': 'row-project' }, p.title)])),
       h('span', { 'data-part': 'row-kind' }, item.kind.replace('_', ' ')),
       h('span', { 'data-part': 'row-lifecycle' }, item.lifecycle),
-      h('span', {}, who + due),
+      h('span', {}, ownerName(item) && !item.owner_is_me
+        ? h('a', { href: `/people?person=${encodeURIComponent(who)}`, 'data-link': true, 'data-part': 'row-owner' }, who)
+        : who, due),
       item.last_evidence ? h('span', { 'data-part': 'updated' }, `Updated ${shortDate(new Date(item.last_evidence))}`) : null,
       h('span', { class: cls, 'data-part': `basis-${item.basis}` }, label),
       warnings(item).map((w) => h('span', { class: 'w', 'data-part': 'warning' }, w))),

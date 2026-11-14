@@ -58,11 +58,6 @@ export function bind() {
   });
 }
 
-/** Placeholder body of a page whose content a later ticket builds: a real route with an honest empty state. */
-export function emptyPage(title, text) {
-  return async () => h('section', { class: 'page' }, h('h1', {}, title), h('p', { class: 'empty small', 'data-part': 'empty' }, text));
-}
-
 export function loading(text = 'Loading') {
   return h('p', { class: 'state loading', role: 'status', 'data-part': 'loading' }, text);
 }

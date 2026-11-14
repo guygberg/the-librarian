@@ -26,7 +26,10 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
             "mark": review.MARKS[entry["kind"]],
             "link": entry["link"],
             "raw_name": entry["raw_name"],
-            "record": {k: record[k] for k in ("id", "kind", "title", "evidence")},
+            "record": {
+                **{k: record[k] for k in ("id", "kind", "title", "evidence")},
+                "basis": record.get("basis"),
+            },
         }
         if entry["other_record_id"]:
             other = records.get(conn, workspace, entry["other_record_id"])

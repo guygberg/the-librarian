@@ -48,10 +48,21 @@ function actions(row, people, failed) {
     : h('small', {}, 'Set the speaker on the item itself.');
 }
 
+/** Why the Librarian is asking, in the person's words. A suggestion stays a suggestion until Accept. */
+const REASONS = {
+  [PEOPLE]: (row) => `"${row.raw_name}" may be a person already known; nothing is assigned until you accept.`,
+  [INFERRED]: () => 'The Librarian inferred this project from the sources; it is not confirmed.',
+  [SUGGESTED]: () => 'The Librarian suggests moving this item into the project below.',
+  [MERGE]: () => 'These two projects look like one; nothing merges until you accept.',
+  unknown_speaker: () => 'The speaker was not recognised, so the item has no confirmed owner.',
+};
+
 function reviewRow(row, people) {
   const failed = h('p', { class: 'w', 'data-part': 'review-error' });
   return h('div', { class: 'it', 'data-part': 'review-row', 'data-kind': row.kind },
-    h('div', { class: 'm' }, h('span', { class: 'w', 'data-part': 'review-mark' }, row.mark), row.raw_name ? h('span', {}, `"${row.raw_name}"`) : null),
+    h('div', { class: 'm' }, h('span', { class: 'w', 'data-part': 'review-mark' }, row.mark), row.raw_name ? h('span', {}, `"${row.raw_name}"`) : null,
+      h('span', { 'data-part': 'review-basis' }, `Basis: ${row.record.basis ?? 'unknown'}`)),
+    h('p', { class: 'pnote', 'data-part': 'review-reason' }, (REASONS[row.kind] ?? (() => 'Needs your decision.'))(row)),
     h('div', { class: 't' }, itemLink(row.record)),
     row.other ? h('div', { class: 'm', 'data-part': 'review-other' }, h('span', {}, 'and'), itemLink(row.other)) : null,
     row.record.evidence.map((e) => evidenceLine(e, true)),

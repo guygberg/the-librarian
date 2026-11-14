@@ -25,7 +25,7 @@ def test_nav_lists_the_five_pages_and_each_route_loads(page, ui):
     page.locator(NAV, has_text="Today").click()
     expect(page.locator(NAV, has_text="Today")).to_have_attribute("aria-current", "page")
     page.goto(ui.url + "/people")
-    expect(page.locator("[data-part=empty]")).to_be_visible()
+    expect(page.locator("[data-part=people]")).to_be_visible()
 
 
 def test_theme_toggle_switches_and_remembers(page, ui):

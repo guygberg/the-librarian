@@ -64,8 +64,8 @@ def test_row_shows_kind_lifecycle_and_filters_live_in_the_url(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     seed(ui)
     page.goto(ui.url + "/items?view=board&basis=confirmed")
-    assert titles(page) == ["Raz task"]
     expect(page.locator("[data-part=basis-filter]")).to_have_value("confirmed")
+    assert titles(page) == ["Raz task"]
     expect(page.locator("[data-part=row-kind]")).to_have_text("action item")
     expect(page.locator("[data-part=row-lifecycle]")).to_have_text("open")
 

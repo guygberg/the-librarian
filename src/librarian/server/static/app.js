@@ -5,6 +5,8 @@ import { stream } from './views/stream.js';
 import { today } from './views/today.js';
 import * as sheet from './views/sheet.js';
 import { importPanel } from './views/import-panel.js';
+import { people } from './views/people.js';
+import { projects } from './views/projects.js';
 import { review } from './views/review.js';
 import * as search from './search.js';
 import * as shell from './shell.js';
@@ -16,8 +18,8 @@ const routes = {
   '/': today,
   '/items': stream,
   '/items/:id': stream,
-  '/people': shell.emptyPage('People', 'No people to show yet.'),
-  '/projects': shell.emptyPage('Projects', 'No projects to show yet.'),
+  '/people': people,
+  '/projects': projects,
   '/import': importPanel,
   '/review': review,
 };

@@ -3,11 +3,11 @@ import { h } from '../dom.js';
 import * as filters from '../filters.js';
 
 /** Confirm, rename, merge and split a project, from its status header. `items` are the Records that may leave it. */
-export function projectTools(project, projects, items) {
+export function projectTools(project, projects, items, stay = null) {
   const failed = h('p', { class: 'w', 'data-part': 'project-error' });
-  // A rename or merge changes the name the page is filtered by, so the page follows it.
+  // On Items a rename or merge changes the name the page is filtered by, so the page follows it; `stay` keeps another page put.
   const go = (action, body, shownAs = project.name) =>
-    change(`/api/projects/${project.id}/${action}`, action, project.id, body, failed, filters.href({ project: shownAs }));
+    change(`/api/projects/${project.id}/${action}`, action, project.id, body, failed, stay ?? filters.href({ project: shownAs }));
   const field = (part, placeholder) => h('input', { type: 'text', placeholder, 'aria-label': placeholder, 'data-part': part });
   const button = (part, text, onClick) => {
     const el = h('button', { type: 'button', class: 'chip', 'data-part': part }, text);
