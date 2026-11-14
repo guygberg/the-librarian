@@ -124,9 +124,84 @@ SCHEMA = {
 }
 
 
+SUGGEST_KINDS = ["new_tag", "new_item", "link"]
+SUGGEST_BASES = ["stated", "inferred"]
+SUGGEST_LIFECYCLES = ["open", "pending"]
+INFERRED_CAP = 89
+
+# A Link end of a Suggestion: a candidate Record or Person, or a new Tag/Item of the same answer.
+_TYPED_END = {
+    "type": "object",
+    "required": ["type", "id"],
+    "additionalProperties": False,
+    "properties": {"type": {"enum": ["record", "person"]}, "id": {"type": "integer"}},
+}
+
+SUGGEST_SCHEMA = {
+    "type": "object",
+    "required": ["suggestions"],
+    "additionalProperties": False,
+    "properties": {
+        "suggestions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["ref", "kind", "confidence", "basis", "reasoning", "evidence"],
+                "additionalProperties": False,
+                "properties": {
+                    "ref": {"type": "string"},
+                    "kind": {"enum": SUGGEST_KINDS},
+                    "title": {"type": "string"},
+                    "body": {"type": "string"},
+                    "owner": {
+                        "oneOf": [
+                            _ID_END,
+                            {
+                                "type": "object",
+                                "required": ["raw_name"],
+                                "additionalProperties": False,
+                                "properties": {"raw_name": {"type": "string"}},
+                            },
+                        ]
+                    },
+                    "stated_deadline": {"type": "string"},
+                    "lifecycle": {"enum": SUGGEST_LIFECYCLES},
+                    "link_type": {"enum": LINK_TYPES},
+                    "from": {"oneOf": [_TYPED_END, _REF_END]},
+                    "to": {"oneOf": [_TYPED_END, _REF_END]},
+                    "confidence": {"type": "integer"},
+                    "basis": {"enum": SUGGEST_BASES},
+                    "reasoning": {"type": "string"},
+                    "evidence": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["locator", "quote"],
+                            "additionalProperties": False,
+                            "properties": {
+                                "locator": {"type": "string"},
+                                "quote": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    },
+}
+
+
 def schema_json() -> str:
     return json.dumps(SCHEMA, sort_keys=True, indent=2)
 
 
 def schema_hash() -> str:
     return hashlib.sha256(schema_json().encode()).hexdigest()
+
+
+def suggest_schema_json() -> str:
+    return json.dumps(SUGGEST_SCHEMA, sort_keys=True, indent=2)
+
+
+def suggest_schema_hash() -> str:
+    return hashlib.sha256(suggest_schema_json().encode()).hexdigest()

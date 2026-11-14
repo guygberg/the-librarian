@@ -15,6 +15,7 @@ from librarian.link import tags
 from librarian.link.names import key
 
 RECORD_CAP = 60
+PERSON_CAP = 200
 _OPEN = ("open", "pending", "suspended")
 
 
@@ -23,6 +24,47 @@ def pick(
 ) -> list[dict[str, Any]]:
     chosen = _same_conversation(conn, workspace, unit) | _named_in(conn, workspace, unit)
     return add_tags(conn, workspace, _tag_list(conn, workspace), sorted(chosen), stale_days)
+
+
+def pick_for_suggestions(
+    conn: sqlite3.Connection, workspace: str, unit: Unit, stale_days: int
+) -> list[dict[str, Any]]:
+    """Every Tag, the open action items near this unit (topped up with the newest open ones, within
+    the cap) and every Person with Aliases. All of this workspace, never another."""
+    items = [c for c in pick(conn, workspace, unit, stale_days) if c["kind"] == "action_item"]
+    items = [{k: v for k, v in c.items() if k != "tag"} for c in items][:RECORD_CAP]
+    have = {c["id"] for c in items}
+    for record_id, title, lifecycle in conn.execute(
+        "SELECT id, title, lifecycle FROM records WHERE workspace = ? AND kind = 'action_item'"
+        " AND lifecycle IN (?, ?, ?) ORDER BY updated_at DESC, id",
+        (workspace, *_OPEN),
+    ):
+        if len(items) >= RECORD_CAP:
+            break
+        if record_id not in have:
+            items.append(
+                {"id": record_id, "kind": "action_item", "title": title, "lifecycle": lifecycle}
+            )
+    return [*_tag_list_for_suggestions(conn, workspace), *items, *_persons(conn, workspace)]
+
+
+def _tag_list_for_suggestions(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
+    return [{"id": c["id"], "kind": "tag", "title": c["title"]} for c in _tag_list(conn, workspace)]
+
+
+def _persons(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
+    aliases: dict[int, list[str]] = {}
+    for person_id, alias in conn.execute(
+        "SELECT person_id, alias FROM aliases WHERE workspace = ? ORDER BY alias", (workspace,)
+    ):
+        aliases.setdefault(person_id, []).append(alias)
+    return [
+        {"id": person_id, "kind": "person", "name": name, "aliases": aliases.get(person_id, [])}
+        for person_id, name in conn.execute(
+            "SELECT id, name FROM persons WHERE workspace = ? ORDER BY id LIMIT ?",
+            (workspace, PERSON_CAP),
+        )
+    ]
 
 
 def add_tags(

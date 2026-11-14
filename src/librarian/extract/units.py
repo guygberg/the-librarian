@@ -25,23 +25,34 @@ class Unit:
     key: str
     lines: list[str] = field(default_factory=list)
     locators: set[str] = field(default_factory=set)
+    # locator -> (revision id, item text): the exact revision each line was built from
+    revisions: dict[str, tuple[int, str]] = field(default_factory=dict)
     newest: float = 0  # latest item timestamp; items without one count as oldest
 
     @property
     def text(self) -> str:
         return "\n".join(self.lines)
 
-    def add(self, source: str, stable_id: str, speaker: str, text: str, ts: float = 0) -> None:
+    def add(
+        self,
+        source: str,
+        stable_id: str,
+        speaker: str,
+        text: str,
+        ts: float = 0,
+        revision_id: int = 0,
+    ) -> None:
         self.newest = max(self.newest, ts)
         locator = f"{source}:{stable_id}"
         self.lines.append(f"[{locator}] {speaker}: {text}")
         self.locators.add(locator)
+        self.revisions[locator] = (revision_id, text)
 
 
 def build(conn: sqlite3.Connection, workspace: str) -> dict[tuple[str, str], list[Unit]]:
     """The units of everything stored, by the import item (source, item) that each belongs to."""
     rows = conn.execute(
-        "SELECT i.source, i.stable_id, i.origin_name, r.content FROM source_items i"
+        "SELECT i.source, i.stable_id, i.origin_name, r.content, r.id FROM source_items i"
         " JOIN source_item_revisions r ON r.source_item_id = i.id"
         " WHERE i.workspace = ? AND i.gone = 0"
         " AND r.revision = (SELECT MAX(revision) FROM source_item_revisions"
@@ -57,11 +68,11 @@ def build(conn: sqlite3.Connection, workspace: str) -> dict[tuple[str, str], lis
         return unit
 
     parsed = [
-        (source, stable_id, origin, json.loads(content))
-        for source, stable_id, origin, content in rows
+        (source, stable_id, origin, json.loads(content), revision_id)
+        for source, stable_id, origin, content, revision_id in rows
     ]
-    sessions: dict[str, list[tuple[str, dict]]] = {}
-    for source, stable_id, origin, content in sorted(parsed, key=_order):
+    sessions: dict[str, list[tuple[str, dict, int]]] = {}
+    for source, stable_id, origin, content, revision_id in sorted(parsed, key=_order):
         if source == "slack":
             channel = stable_id.split("/")[0]
             root = content.get("thread_ts")
@@ -71,31 +82,36 @@ def build(conn: sqlite3.Connection, workspace: str) -> dict[tuple[str, str], lis
                 else f"slack-day-{channel}-{_day(content.get('ts'))}"
             )
             put(key, ("slack", stable_id)).add(
-                source, stable_id, content.get("user", "?"), content.get("text", ""), _ts(content)
+                source,
+                stable_id,
+                content.get("user", "?"),
+                content.get("text", ""),
+                _ts(content),
+                revision_id,
             )
         elif source == "session":
-            sessions.setdefault(content["session_id"], []).append((stable_id, content))
+            sessions.setdefault(content["session_id"], []).append((stable_id, content, revision_id))
         elif source == "drive":
             file_hash = stable_id.split("/")[0]
             key = f"drive-{file_hash}-{int(content['start'] // WINDOW_SECONDS) + 1}"
             put(key, (RECORDING_SOURCE, origin)).add(
-                source, stable_id, "", content["text"], _ts(content)
+                source, stable_id, "", content["text"], _ts(content), revision_id
             )
     for session_id, lines in sessions.items():
-        for number, (stable_id, content) in enumerate(lines):
+        for number, (stable_id, content, revision_id) in enumerate(lines):
             key = f"session-{session_id}-{number // SESSION_WINDOW + 1}"
             put(key, ("session", stable_id)).add(
-                "session", stable_id, content["role"], content["text"], _ts(content)
+                "session", stable_id, content["role"], content["text"], _ts(content), revision_id
             )
     return {
         member: sorted(by_key.values(), key=lambda u: u.key) for member, by_key in members.items()
     }
 
 
-def _order(row: tuple[str, str, str, dict]) -> tuple:
+def _order(row: tuple[str, str, str, dict, int]) -> tuple:
     """Chronological inside each source; items of different units may interleave, which is
     harmless."""
-    source, _, _, content = row
+    source, _, _, content, _ = row
     return source, _ts(content), content.get("line", 0), content.get("segment", 0)
 
 

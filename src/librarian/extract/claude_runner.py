@@ -25,6 +25,32 @@ PROMPT = (
     "return no Records when nothing qualifies."
 )
 
+SUGGEST_PROMPT = """\
+Suggest Tags, Items and Links for the work-memory text on stdin. Follow the JSON schema exactly.
+Answer six questions about the text, using only the candidates listed after it:
+1. new_tag: a concept, project, process or topic that no existing Tag covers.
+2. link (belongs_to etc.) to an existing Tag the text discusses.
+3. link between a new or existing Tag and a Person or Record.
+4. new_item: something to do, or something waiting on a Person (lifecycle open or pending).
+5. link to an existing open action-item Record the text discusses. A status hint such as
+   "looks done" goes in the reasoning; never change a lifecycle.
+6. link between a new or existing Item and a Person or Tag.
+A link end is {"type": "record"|"person", "id": <candidate id>} or {"ref": <ref of a new_tag or
+new_item in this answer>}. Prefer existing ids: link to a candidate when one fits, new_* only when
+none does. Never invent a Person or an id; an unknown owner is {"raw_name": ...}.
+Every suggestion needs "confidence" (an integer 0-100), "basis" (stated or inferred) and one
+sentence of "reasoning". Scale:
+- 90-100: explicit in the text: a named owner, an exact existing match or a stated commitment.
+- 70-89: strongly implied and supported by one direct quote.
+- 40-69: plausible but ambiguous: several candidates fit or the wording is vague.
+- 0-39: a weak guess.
+Lower the score for several matches, first-name-only Persons, inferred claims and indirect quotes.
+Inferred never exceeds 89. New Tags and Items score lower than links to existing Records unless
+explicitly named. Never inflate confidence.
+Every suggestion needs at least one Evidence with the locator of a bracketed item and a verbatim
+quote from that item; no real quote means no suggestion. Hebrew and English are both supported;
+keep titles in the source language. Return an empty list when nothing qualifies."""
+
 # Environment that switches off everything not needed to answer.
 QUIET_ENV = {
     "DISABLE_TELEMETRY": "1",
@@ -64,9 +90,18 @@ class ClaudeExtractor:
         self._backoff = cfg["claude_backoff_seconds"]
         self._version: str | None = None
 
+    prompt = PROMPT
+    candidates_header = "Candidate Records already stored:"
+
+    @staticmethod
+    def schema_json() -> str:
+        return schema.schema_json()
+
     @property
     def meta(self) -> RunMeta:
-        return RunMeta(model=self._model, claude_code_version=self._claude_version(), prompt=PROMPT)
+        return RunMeta(
+            model=self._model, claude_code_version=self._claude_version(), prompt=self.prompt
+        )
 
     def _claude_version(self) -> str:
         if self._version is None:
@@ -89,9 +124,9 @@ class ClaudeExtractor:
 
     def argv(self) -> list[str]:
         return [
-            self._bin, "-p", PROMPT,
+            self._bin, "-p", self.prompt,
             "--output-format", "json",
-            "--json-schema", schema.schema_json(),
+            "--json-schema", self.schema_json(),
             "--tools", "",
             "--strict-mcp-config",
             "--safe-mode",
@@ -104,9 +139,7 @@ class ClaudeExtractor:
     def extract(self, unit_key: str, unit_text: str, candidates: list[dict[str, Any]]) -> str:
         stdin = unit_text
         if candidates:
-            stdin += "\n\nCandidate Records already stored:\n" + json.dumps(
-                candidates, ensure_ascii=False
-            )
+            stdin += f"\n\n{self.candidates_header}\n" + json.dumps(candidates, ensure_ascii=False)
         self._claude_version()  # fail before the first send, not after
         for attempt in range(self._retries + 1):
             try:
@@ -176,3 +209,14 @@ class ClaudeExtractor:
         text = RawEnvelopeText(json.dumps(structured, ensure_ascii=False))
         text.raw = out
         return text
+
+
+class ClaudeSuggester(ClaudeExtractor):
+    """The same locked-down call, asking the Suggestions questions under the Suggestions schema."""
+
+    prompt = SUGGEST_PROMPT
+    candidates_header = "Candidates already stored (Tags, open action items, Persons):"
+
+    @staticmethod
+    def schema_json() -> str:
+        return schema.suggest_schema_json()
