@@ -110,6 +110,45 @@ def test_edge_labels_do_not_overlap_at_two_hops(page, ui):
             assert apart, f"label behind a node: {a} {n}"
 
 
+def test_labels_are_not_drawn_over_another_edges_line_and_parallel_edges_are_apart(page, ui):
+    graph_page(page, ui, "&hops=2")
+    edges = page.locator("[data-part=graph-edge]").evaluate_all(
+        """els => {
+          const o = document.querySelector('[data-part=relations-graph]').getBoundingClientRect();
+          const svg = document.querySelector('[data-part=relations-graph]');
+          const k = o.width / svg.viewBox.baseVal.width;
+          return els.map((g, i) => {
+            const ln = g.querySelector('line');
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map(a => +ln.getAttribute(a));
+            const tx = g.querySelector('text');
+            let box = null;
+            if (tx) { const r = tx.getBoundingClientRect();
+              box = { l: (r.left - o.left) / k, r: (r.right - o.left) / k,
+                      t: (r.top - o.top) / k, b: (r.bottom - o.top) / k }; }
+            return { i, x1, y1, x2, y2, box, title: g.querySelector('title').textContent };
+          });
+        }"""
+    )
+    assert len(edges) > 3
+    for e in edges:
+        if not e["box"]:
+            assert e["title"]
+            continue
+        for other in edges:
+            if other["i"] == e["i"]:
+                continue
+            for k in range(101):
+                x = other["x1"] + (other["x2"] - other["x1"]) * k / 100
+                y = other["y1"] + (other["y2"] - other["y1"]) * k / 100
+                b = e["box"]
+                inside = b["l"] < x < b["r"] and b["t"] < y < b["b"]
+                assert not inside, f"label {e} over line {other}"
+    for i, a in enumerate(edges):
+        for b in edges[i + 1 :]:
+            same = (a["x1"], a["y1"], a["x2"], a["y2"]) == (b["x1"], b["y1"], b["x2"], b["y2"])
+            assert not same, f"edges drawn on the same path: {a} {b}"
+
+
 def test_edge_kind_filter_hides_other_kinds(page, ui):
     ui, item = graph_page(page, ui)
     kinds = {e["kind"] for e in api_graph(page, item, 1)["edges"]}

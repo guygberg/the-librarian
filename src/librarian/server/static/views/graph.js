@@ -72,11 +72,20 @@ function border([x, y], [tx, ty]) {
 }
 
 const LABEL_H = 18;
+const PARALLEL_GAP = 22;
 const labelBox = ([x, y], content) => {
   const w = content.length * 7 + 8;
   return { l: x - w / 2, r: x + w / 2, t: y - LABEL_H + 3, b: y + 3 };
 };
 const collides = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+const crosses = ([[x1, y1], [x2, y2]], box) => {
+  for (let k = 0; k <= 50; k++) {
+    const x = x1 + ((x2 - x1) * k) / 50;
+    const y = y1 + ((y2 - y1) * k) / 50;
+    if (x > box.l && x < box.r && y > box.t && y < box.b) return true;
+  }
+  return false;
+};
 const nodeBox = ([x, y]) => ({ l: x - NODE[0] / 2, r: x + NODE[0] / 2, t: y - NODE[1] / 2, b: y + NODE[1] / 2 });
 
 /**
@@ -84,14 +93,14 @@ const nodeBox = ([x, y]) => ({ l: x - NODE[0] / 2, r: x + NODE[0] / 2, t: y - NO
  * edges converge on the centre, and clear of every node and of the labels already placed. Null when no spot is free:
  * the label is then left off (the edge keeps its kind as a tooltip) rather than drawn behind a node or over another label.
  */
-function clearSpot(a, b, mid, content, placed) {
+function clearSpot(a, b, mid, content, placed, others) {
   const dist = ([x, y]) => Math.hypot(x - mid[0], y - mid[1]);
   const [near, far] = dist(a) <= dist(b) ? [a, b] : [b, a];
   for (const t of [0.65, 0.5, 0.8, 0.35, 0.2]) {
     for (const dy of [0, LABEL_H, -LABEL_H]) {
       const spot = [near[0] + (far[0] - near[0]) * t, near[1] + (far[1] - near[1]) * t - 4 + dy];
       const box = labelBox(spot, content);
-      if (!placed.some((other) => collides(other, box))) {
+      if (!placed.some((other) => collides(other, box)) && !others.some((line) => crosses(line, box))) {
         placed.push(box);
         return spot;
       }
@@ -107,11 +116,21 @@ function canvas(graph, open) {
   const hopOf = new Map(graph.nodes.map((n) => [n.id, n.hop]));
   const recentre = (id) => filters.href({ open, tab: 'relations', center: id === `record:${open}` ? null : id });
   const placed = [...spot.values()].map(nodeBox);
-  const edges = graph.edges.map((e) => {
+  // Edges between the same pair of nodes are fanned out sideways so each keeps its own line and label.
+  const pairKey = (e) => [e.from, e.to].sort().join('|');
+  const siblings = Map.groupBy(graph.edges, pairKey);
+  const lines = graph.edges.map((e) => {
     const [from, to] = [spot.get(e.from), spot.get(e.to)];
-    const [x1, y1] = border(from, to);
-    const [x2, y2] = border(to, from);
-    const where = clearSpot([x1, y1], [x2, y2], mid, label(e.kind), placed);
+    const group = siblings.get(pairKey(e));
+    const shift = (group.indexOf(e) - (group.length - 1) / 2) * PARALLEL_GAP;
+    const len = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+    const side = (p) => [p[0] + (-(to[1] - from[1]) / len) * shift, p[1] + ((to[0] - from[0]) / len) * shift];
+    const [f, t] = [side(from), side(to)];
+    return [border(f, t), border(t, f)];
+  });
+  const edges = graph.edges.map((e, i) => {
+    const [[x1, y1], [x2, y2]] = lines[i];
+    const where = clearSpot([x1, y1], [x2, y2], mid, label(e.kind), placed, lines.filter((_, j) => j !== i));
     const tip = svg('title', {});
     tip.textContent = label(e.kind);
     return svg('g', { class: `edge hop-${Math.max(hopOf.get(e.from), hopOf.get(e.to))}`, 'data-part': 'graph-edge', 'data-kind': e.kind },
