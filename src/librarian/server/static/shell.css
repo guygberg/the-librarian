@@ -83,6 +83,8 @@ dialog input, dialog textarea, dialog select { width: 100%; background: var(--bg
   body.drawer-open .sidebar { transform: none; }
   .workspace { margin-left: 0; padding: 0 16px 30px; }
   .mobile-menu { display: inline-flex; }
+  .iconbtn { width: 44px; height: 44px; }
+  .nav { min-height: 44px; }
   .topbar { flex-wrap: wrap; padding-top: 8px; }
   .topbar .pnote { flex-basis: 100%; }
   .cards { grid-template-columns: 1fr; }

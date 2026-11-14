@@ -23,10 +23,22 @@ function setTheme(theme) {
   toggle.replaceChildren(icon('sun'), theme === 'light' ? 'Dark theme' : 'Light theme');
 }
 
+const PHONE = matchMedia('(max-width: 760px)');
+
+/** On a phone the closed drawer is off screen, so it must not be reachable by Tab or a screen reader. */
+function syncDrawer() {
+  const open = document.body.classList.contains('drawer-open');
+  document.getElementById('sidebar').inert = PHONE.matches && !open;
+}
+
 function setDrawer(open) {
+  const was = document.body.classList.contains('drawer-open');
   document.body.classList.toggle('drawer-open', open);
   $('scrim').hidden = !open;
   $('menu').setAttribute('aria-expanded', String(open));
+  syncDrawer();
+  if (open) document.querySelector('#nav a.active, #nav a')?.focus();
+  else if (was) $('menu').focus();
 }
 
 function active(path, here) {
@@ -49,6 +61,8 @@ export function bind() {
   document.getElementById('nav').replaceChildren(
     ...NAV.map(({ path, label, icon: name }) => h('a', { class: 'nav', href: path, 'data-link': true, 'data-path': path }, icon(name), label)),
   );
+  PHONE.addEventListener('change', syncDrawer);
+  syncDrawer();
   setTheme(remembered() === 'light' ? 'light' : 'dark');
   $('theme-toggle').addEventListener('click', () => setTheme(document.body.classList.contains('light') ? 'dark' : 'light'));
   $('menu').addEventListener('click', () => setDrawer(!document.body.classList.contains('drawer-open')));

@@ -93,3 +93,9 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 .col { min-width: 0; }
 .board .it .t { font-size: 18px; overflow-wrap: anywhere; }
 .people input[type=date] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; font: inherit; max-width: 100%; }
+
+@media (max-width: 760px) {
+  .sheet { padding: var(--s4) var(--s4) 22px; max-height: 80vh; }
+  .it .t { font-size: 20px; overflow-wrap: anywhere; }
+  .table { display: block; overflow-x: auto; }
+}
