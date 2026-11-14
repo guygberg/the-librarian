@@ -18,7 +18,7 @@ export function bind(form) {
   });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    window.librarianNavigate(filters.href({ ...filters.current(), q: input.value.trim() || null, tab: filters.current().tab === 'relations' ? 'relations' : null }));
+    window.librarianNavigate(filters.href({ ...filters.current(), q: input.value.trim() || null, tab: filters.tabParam(filters.current().tab) }));
   });
 }
 

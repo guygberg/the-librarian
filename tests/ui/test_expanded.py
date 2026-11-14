@@ -34,16 +34,27 @@ def test_expanding_shows_lifecycle_basis_commitment_and_evidence(page, ui):
         "Inferred"
     )
 
-    evidence = panel.locator(":scope > [data-part=evidence]")
-    shown = evidence.all_text_contents()
-    assert shown
+    expect(panel.locator("[data-part=tab-overview]")).to_have_class("chip on")
+    expect(panel.locator("[data-part=next-move]")).to_contain_text("Settle which source is right")
+    latest = panel.locator(":scope > [data-part=evidence]")
+    expect(latest).to_have_count(1)
+
+    panel.locator("[data-part=tab-sources]").click()
+    assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=sources")
+    evidence = panel.locator("[data-part^=sources-] > [data-part=evidence]")
     stored = ui.sql(
         "SELECT locator, role, quote FROM evidence WHERE record_id = ? ORDER BY id", cutover["id"]
     )
-    for (locator, role, quote), text in zip(stored, shown, strict=True):
-        assert locator in text and role in text and quote in text
+    expect(evidence).to_have_count(len(stored))
+    for locator, role, quote in stored:
+        group = panel.locator(f"[data-part=sources-{role}]")
+        expect(group).to_contain_text(locator)
+        expect(group).to_contain_text(quote)
 
-    expect(panel.locator("[data-part=tab-evidence]")).to_have_class("chip on")
+    panel.locator("[data-part=tab-activity]").click()
+    assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=activity")
+    expect(evidence).to_have_count(0)
+
     panel.locator("[data-part=tab-relations]").click()
     expect(panel.locator("[data-part=relations-graph]")).to_be_visible()
     assert page.url.endswith(f"/items/{cutover['id']}?kind=decisions&tab=relations")

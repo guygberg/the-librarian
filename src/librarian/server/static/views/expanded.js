@@ -14,7 +14,7 @@ const day = (iso) => shortDate(new Date(iso));
 
 /** The quote opens its source in the sheet; `open` is the expanded Record to return to, if any. */
 export function evidenceLine(e, withRole = false, open = null) {
-  const tab = open && filters.current().tab === 'relations' ? 'relations' : null;
+  const tab = open ? filters.tabParam(filters.current().tab) : null;
   return h('div', { class: 'evb', 'data-part': 'evidence' },
     h('small', {}, withRole ? `${e.locator} · ${e.role}` : e.locator),
     h('a', { href: filters.href({ open, tab, source: e.locator, quote: e.quote }), 'data-link': true, 'data-part': 'evidence-quote' }, e.quote),
@@ -88,16 +88,56 @@ function history(r) {
       h('span', {}, e.event.replaceAll('_', ' ')), h('span', {}, day(e.at)))));
 }
 
+const TAB_LABELS = { overview: 'Overview', activity: 'Activity', sources: 'Sources', relations: 'Relations' };
+
 function tabs(r, tab) {
-  const one = (name, label) => h('a', {
-    href: filters.href({ open: r.id, tab: name === 'evidence' ? null : name }),
+  return h('div', { class: 'tabs', 'data-part': 'expanded-tabs' }, filters.DETAIL_TABS.map((name) => h('a', {
+    href: filters.href({ open: r.id, tab: filters.tabParam(name) }),
     class: tab === name ? 'chip on' : 'chip', 'data-link': true, 'data-part': `tab-${name}`,
-  }, label);
-  return h('div', { class: 'tabs', 'data-part': 'expanded-tabs' }, one('evidence', 'Evidence'), one('relations', 'Relations'));
+  }, TAB_LABELS[name])));
 }
 
-/** The expanded item: everything known about one Record, in place under its row. */
+/** What to do next, from the lifecycle and the Record's own relationships; there is no priority score behind it. */
+function nextMove(r) {
+  if (r.contradictions.length) return 'Settle which source is right.';
+  if (r.lifecycle === 'done') return 'Nothing left to do. Reopen it if it came back.';
+  if (r.lifecycle === 'dropped' || r.lifecycle === 'superseded') return 'Nothing to do: it is no longer live.';
+  if (r.lifecycle === 'suspended') return 'Wait until what suspended it clears.';
+  if (r.lifecycle === 'pending') return filters.waitingOn(r) ? `Follow up with ${filters.waitingOn(r)}.` : 'Waiting on someone else.';
+  if (r.kind === 'action_item' && !r.owner && !r.owner_is_me) return 'Give it an owner.';
+  if (r.kind === 'action_item') return 'Do it, then mark it done.';
+  return 'Decide whether this still stands.';
+}
+
+const ROLE_TITLES = [['supports', 'Supporting'], ['completes', 'Completing'], ['contradicts', 'Contradicting']];
+
+function sources(r) {
+  if (!r.evidence.length) return h('p', { class: 'empty', 'data-part': 'empty' }, 'No sources.');
+  return ROLE_TITLES.map(([role, title]) => {
+    const list = r.evidence.filter((e) => e.role === role);
+    return list.length
+      ? h('div', { 'data-part': `sources-${role}` }, h('div', { class: 'grp' }, title), list.map((e) => evidenceLine(e, true, r.id)))
+      : null;
+  });
+}
+
+function overview(r) {
+  const latest = r.evidence.at(-1);
+  return [
+    h('div', { class: 'fact', 'data-part': 'next-move' }, `Next: ${nextMove(r)}`),
+    latest ? evidenceLine(latest, true, r.id) : null,
+    history(r),
+  ];
+}
+
+/** The expanded item: the facts and corrections that always show, then one of its four tabs, in place under its row. */
 export function panel(r, tab, ctx) {
+  const body = {
+    overview: () => overview(r),
+    activity: () => history(r) ?? h('p', { class: 'empty', 'data-part': 'empty' }, 'No activity yet.'),
+    sources: () => sources(r),
+    relations: () => relations.view(ctx.graph, r.id, ctx.graphState, ctx.people),
+  }[tab]();
   return h('div', { class: 'open', 'data-part': 'item-expanded' },
     fact('lifecycle', lifecycle(r)),
     actions(r, ctx),
@@ -107,8 +147,5 @@ export function panel(r, tab, ctx) {
     flags(r),
     disagreement(r),
     tabs(r, tab),
-    tab === 'relations'
-      ? relations.view(ctx.graph, r.id, ctx.graphState, ctx.people)
-      : r.evidence.map((e) => evidenceLine(e, true, r.id)),
-    history(r));
+    body);
 }

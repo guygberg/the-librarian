@@ -129,6 +129,7 @@ def test_edge_kind_filter_hides_other_kinds(page, ui):
     # Turning every other kind back on drops the parameter.
     for kind in sorted(kinds - {keep}):
         kind_chip(page, kind).click()
+        expect(kind_chip(page, kind)).to_have_class("chip on")
     assert "kinds=" not in page.url or all(k in page.url for k in kinds)
 
 

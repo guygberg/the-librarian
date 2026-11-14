@@ -1,6 +1,9 @@
 import { h } from './dom.js';
 
 export const TABS = [['items', 'Items'], ['decisions', 'Decisions'], ['blockers', 'Blockers'], ['questions', 'Questions'], ['done', 'Done']];
+export const DETAIL_TABS = ['overview', 'activity', 'sources', 'relations'];
+/** A tab as it appears in the URL: the first one is the default and is left out. */
+export const tabParam = (tab) => (tab === 'overview' ? null : tab);
 const RECORD_KIND = { decisions: 'decision', blockers: 'blocker', questions: 'open_question' };
 
 /** Every filter lives in the URL, so a reload or a shared link returns to the same view. An expanded item is `/items/<id>`. */
@@ -10,7 +13,7 @@ export function current() {
   return {
     view: q.get('view') === 'board' ? 'board' : 'list', lifecycle: q.get('lifecycle'), basis: q.get('basis'), warn: q.get('warn'), since: q.get('since'),
     project: q.get('project'), kind: TABS.some(([k]) => k === kind) ? kind : 'items', owner: q.get('owner'), waiting: q.get('waiting'),
-    open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: q.get('tab') === 'relations' ? 'relations' : 'evidence',
+    open: location.pathname.match(/^\/items\/(\d+)$/)?.[1] ?? null, tab: DETAIL_TABS.includes(q.get('tab')) ? q.get('tab') : 'overview',
     source: q.get('source'), quote: q.get('quote'), q: q.get('q'), center: q.get('center'), hops: q.get('hops'), kinds: q.get('kinds'),
   };
 }

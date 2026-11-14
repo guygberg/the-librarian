@@ -87,7 +87,7 @@ def test_kind_tabs_switch_in_place_and_done_lists_evidence(page, ui):
     )
     assert page.url == ui.url + "/items?kind=done"
     tabs.get_by_text("Items").click()
-    assert "Ship the report" not in titles(page)
+    expect(page.locator("[data-part=item] .t", has_text="Ship the report")).to_have_count(0)
 
 
 def test_person_filters_narrow_owner_and_waiting_on_and_there_is_no_person_route(page, ui):

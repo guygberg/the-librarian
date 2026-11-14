@@ -116,6 +116,7 @@ def test_switching_quote_under_the_same_locator_re_renders_only_the_sheet(page, 
     )
     page.locator("[data-part=close-sheet]").click()
     page.reload()
+    page.locator("[data-part=tab-sources]").click()
     page.locator("[data-part=item-expanded] [data-part=evidence-quote]").first.click()
     gloss = page.locator(f"{SHEET} [data-part=evidence-line] [data-part=gloss]")
     expect(gloss).to_be_visible()

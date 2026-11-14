@@ -97,7 +97,7 @@ export async function render(host) {
   const people = found.source === 'drive' ? (await api.get('/api/open-items?scope=all')).people : null;
   const raw = h('pre', { class: 'raw', 'data-part': 'raw-passage', hidden: true },
     found.items.map((i) => i.raw).filter(Boolean).join('\n'));
-  const close = filters.href({ open, tab: tab === 'relations' ? tab : null });
+  const close = filters.href({ open, tab: filters.tabParam(tab) });
   const gloss = found.glosses.find((g) => g.quote === quote) ?? found.glosses[0];
   host.replaceChildren(h('div', { class: 'sheet', 'data-part': 'source-sheet' },
     h('div', { class: 'wrap' },
