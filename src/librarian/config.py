@@ -18,6 +18,7 @@ DEFAULTS: dict[str, Any] = {
     "source_overdue_days": 7,
     "extract_max_calls": 200,
     # Suggestions below the first floor are not stored; below the second, stored but hidden.
+    "suggest_max_calls": 200,
     "suggest_min_confidence": 40,
     "suggest_auto_hide_below": 40,
     "claude_bin": "claude",

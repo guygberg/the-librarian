@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 from librarian import config, paths
-from librarian.extract.claude_runner import ClaudeExtractor
+from librarian.extract.claude_runner import ClaudeExtractor, ClaudeSuggester
 from librarian.fakes.calllog import CallLog
-from librarian.fakes.extractor import FakeExtractor
+from librarian.fakes.extractor import FakeExtractor, FakeSuggester
 from librarian.fakes.slack import FakeSlack
 from librarian.fakes.transcriber import FakeTranscriber
 from librarian.ports import Engines
@@ -23,6 +23,16 @@ def fixtures_dir() -> Path:
 
 def call_log(workspace: str) -> CallLog:
     return CallLog(paths.workspace_dir(workspace))
+
+
+def get_suggester(workspace: str = paths.DEFAULT_WORKSPACE):
+    """The Suggestions engine: the same real/fake choice as `get_engines`, kept out of Import's."""
+    mode = os.environ.get("LIBRARIAN_ENGINES") or config.load().get("engines", "real")
+    if mode == "real":
+        return ClaudeSuggester(config.load())
+    if mode != "fake":
+        raise ValueError(f"LIBRARIAN_ENGINES must be 'fake' or 'real', got {mode!r}")
+    return FakeSuggester(fixtures_dir(), call_log(workspace))
 
 
 def get_engines(workspace: str = paths.DEFAULT_WORKSPACE) -> Engines:
