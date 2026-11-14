@@ -6,10 +6,20 @@ import * as sheet from './views/sheet.js';
 import { importPanel } from './views/import-panel.js';
 import { review } from './views/review.js';
 import * as search from './search.js';
+import * as shell from './shell.js';
 
+shell.bind();
 search.bind(document.getElementById('search'));
 
-const routes = { '/': stream, '/items/:id': stream, '/import': importPanel, '/review': review };
+const routes = {
+  '/': stream,
+  '/items': stream,
+  '/items/:id': stream,
+  '/people': shell.emptyPage('People', 'No people to show yet.'),
+  '/projects': shell.emptyPage('Projects', 'No projects to show yet.'),
+  '/import': importPanel,
+  '/review': review,
+};
 const notFound = async () => h('p', { class: 'empty' }, 'Nothing here.');
 
 let visit = 0;
@@ -26,6 +36,7 @@ function where() {
 
 async function render(view) {
   const mine = ++visit;
+  shell.markActive();
   const now = where();
   const sheetOnly = shown?.page === now.page && shown.sheetKey !== now.sheetKey;
   const [node] = await Promise.all([

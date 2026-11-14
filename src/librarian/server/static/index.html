@@ -5,11 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="librarian-token" content="__TOKEN__">
   <title>Librarian</title>
+  <link rel="stylesheet" href="/static/shell.css">
   <link rel="stylesheet" href="/static/app.css">
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
-  <div id="app"><div class="wrap"><p id="freshness" class="pnote" data-part="freshness"></p><form id="search" data-part="search" role="search"><input type="search" name="q" placeholder="Search  ( / )" aria-label="Search" autocomplete="off"></form><div id="results"></div><main id="view"></main></div></div>
+  <div id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Main">
+      <a class="brand" href="/" data-link><span class="brand-mark" aria-hidden="true"></span>Librarian</a>
+      <nav id="nav" data-part="nav"></nav>
+      <div class="sidebar-bottom"><button type="button" class="textbtn" data-part="theme-toggle"></button></div>
+    </aside>
+    <div class="scrim" data-part="scrim" hidden></div>
+    <div class="workspace">
+      <header class="topbar" data-part="topbar">
+        <button type="button" class="iconbtn mobile-menu" data-part="menu" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false"></button>
+        <form id="search" class="search" data-part="search" role="search"><input type="search" name="q" placeholder="Search  ( / )" aria-label="Search" autocomplete="off"></form>
+        <p id="freshness" class="pnote" data-part="freshness"></p>
+      </header>
+      <div id="results"></div>
+      <main id="view"></main>
+    </div>
+  </div>
   <div id="sheet"></div>
+  <dialog id="dialog" data-part="dialog"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
