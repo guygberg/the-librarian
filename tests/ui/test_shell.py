@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from playwright.sync_api import expect
@@ -16,7 +17,9 @@ def test_reference_is_preserved_in_the_repository():
 def test_nav_lists_the_five_pages_and_each_route_loads(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     page.goto(ui.url)
-    expect(page.locator(NAV)).to_have_text(["Today", "Items", "People", "Tags", "Review"])
+    expect(page.locator(NAV)).to_have_text(
+        ["Today", "Items", "People", "Tags", re.compile(r"Review\d*")]  # Review carries its count
+    )
     for label in ["People", "Tags", "Review", "Items"]:
         path = "/" + label.lower()
         page.locator(NAV, has_text=label).click()

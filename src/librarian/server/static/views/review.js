@@ -4,6 +4,7 @@ import { h } from '../dom.js';
 import * as filters from '../filters.js';
 import { evidenceLine } from './expanded.js';
 import { aliasControls } from './alias.js';
+import { suggestionCard } from './suggestion-card.js';
 
 const PEOPLE = 'unconfirmed_person';
 const INFERRED = 'inferred_tag';
@@ -70,12 +71,45 @@ function reviewRow(row, people) {
     failed);
 }
 
-/** Every Suggested link and inferred tag awaiting a decision, with both sides and the Evidence. */
+const BANDS = ['high', 'medium', 'low'];
+const SORTS = [['confidence', 'Confidence'], ['newest', 'Newest']];
+
+/** Band and sort live in the URL like every other filter; an unknown value is the default. */
+function chosen() {
+  const q = new URLSearchParams(location.search);
+  const band = q.get('band');
+  const sort = q.get('sort');
+  return { band: BANDS.includes(band) ? band : null, sort: SORTS.some(([k]) => k === sort) ? sort : 'confidence' };
+}
+
+function query(state) {
+  const q = new URLSearchParams();
+  if (state.band) q.set('band', state.band);
+  if (state.sort !== 'confidence') q.set('sort', state.sort);
+  return q.size ? `?${q}` : '';
+}
+
+const chip = (text, href, on, part) => h('a', { href, class: on ? 'chip on' : 'chip', 'aria-current': on ? 'true' : null, 'data-link': true, 'data-part': part }, text);
+
+function controls(state) {
+  return h('div', { class: 'sg-controls', 'data-part': 'suggestion-controls' },
+    h('div', { class: 'pf', role: 'group', 'aria-label': 'Confidence', 'data-part': 'band-filter' },
+      chip('All', `/review${query({ ...state, band: null })}`, !state.band, 'band-chip'),
+      BANDS.map((b) => chip(b[0].toUpperCase() + b.slice(1), `/review${query({ ...state, band: b })}`, state.band === b, 'band-chip'))),
+    h('div', { class: 'pf', role: 'group', 'aria-label': 'Sort', 'data-part': 'sort-filter' },
+      SORTS.map(([k, text]) => chip(text, `/review${query({ ...state, sort: k })}`, state.sort === k, 'sort-chip'))));
+}
+
+/** Every Suggestion and doubt awaiting a decision: Suggestions as graded cards, the rest with both sides and Evidence. */
 export async function review() {
   const settled = justActed();
-  const [{ count, rows }, { people }] = await Promise.all([api.get('/api/review'), api.get('/api/open-items?scope=all')]);
+  const state = chosen();
+  const [{ count, rows }, { people }] = await Promise.all([api.get(`/api/review${query(state)}`), api.get('/api/open-items?scope=all')]);
   return h('div', { 'data-part': 'review' },
+    h('h1', {}, 'Suggestions'),
+    h('p', { class: 'pnote' }, 'Nothing is created until you accept it.'),
+    controls(state),
     h('div', { class: 'grp', 'data-part': 'review-count' }, `${count} to review`),
     h('div', { class: settled ? 'settle' : null },
-      rows.length ? rows.map((row) => reviewRow(row, people)) : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing to review.')));
+      rows.length ? rows.map((row) => (row.type === 'suggestion' ? suggestionCard(row) : reviewRow(row, people))) : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing to review.')));
 }

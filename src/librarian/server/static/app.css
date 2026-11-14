@@ -94,7 +94,25 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 .board .it .t { font-size: 18px; overflow-wrap: anywhere; }
 .people input[type=date] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; font: inherit; max-width: 100%; }
 
+/* Suggestions: graded cards. Colour is never the only signal; the grade is also written out. */
+.sg { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: var(--s4); margin: 0 0 var(--s3); }
+.sg-label { font: 12px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--acc); }
+.sg .t { font-size: 22px; margin: var(--s1) 0 var(--s2); overflow-wrap: anywhere; }
+.sg .t small { color: var(--mut); font-family: inherit; font-weight: 400; font-size: 15px; }
+.sg-grade { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); margin-bottom: var(--s2); }
+.sg-grade small { color: var(--mut); }
+.sg-bar { width: 96px; height: 6px; border-radius: 99px; background: var(--panel2); overflow: hidden; }
+.sg-bar i { display: block; height: 100%; background: var(--acc); }
+.sg.medium .sg-bar i { background: var(--warn); }
+.sg.low .sg-bar i { background: var(--mut); }
+.sg.low .sg-grade small { font-style: italic; }
+.sg-controls { display: flex; flex-wrap: wrap; gap: var(--s3); margin: 0 0 var(--s3); }
+.chip.primary { background: var(--acc); color: var(--on-acc); border-color: var(--acc); font-weight: 600; }
+.navcount { margin-left: auto; min-width: 22px; padding: 0 7px; border: 1px solid var(--acc); border-radius: 99px; font-size: 14px; text-align: center; }
+
 @media (max-width: 760px) {
+  .sg .t { font-size: 20px; }
+  .sg .acts .chip { min-height: 44px; }
   .sheet { padding: var(--s4) var(--s4) 22px; max-height: 80vh; }
   .it .t { font-size: 20px; overflow-wrap: anywhere; }
   .table { display: block; overflow-x: auto; }

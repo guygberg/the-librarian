@@ -5,6 +5,7 @@ import { clock, dateLine, isToday, shortDate } from '../format.js';
 import { lastImport } from '../freshness.js';
 import { href } from '../filters.js';
 import { changedStrip } from './stream.js';
+import { suggestionLine } from './suggestion-card.js';
 
 const PAGE = 5;
 const NEEDS = 'needs_attention';
@@ -132,7 +133,7 @@ export async function today() {
     nextBestMove(needs),
     pagedPanel('needs', 'Needs you', needs, itemRow, calm, settled),
     pagedPanel('waiting', 'Waiting', waiting, itemRow, 'Nothing is waiting on someone else.', settled),
-    pagedPanel('review', 'Review', review.rows, reviewRow, 'Nothing to review.', false),
+    pagedPanel('review', 'Review', review.rows, (row) => (row.type === 'suggestion' ? suggestionLine(row) : reviewRow(row)), 'Nothing to review.', false),
     pagedPanel('completed', 'Recently completed', completed, doneRow, 'Nothing has been finished yet.', settled),
     activity(changes));
 }

@@ -1,3 +1,4 @@
+import * as api from './api.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 
@@ -54,6 +55,17 @@ export function markActive() {
     if (on) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   }
   setDrawer(false);
+  showReviewCount();
+}
+
+/** The Review entry carries the same count as Today and the Review page: one answer, `/api/review`. */
+async function showReviewCount() {
+  try {
+    const { count } = await api.get('/api/review');
+    const link = document.querySelector('#nav a[data-path="/review"]');
+    link.querySelector('[data-part=nav-review-count]')?.remove();
+    if (count) link.append(h('span', { class: 'navcount', 'data-part': 'nav-review-count' }, String(count)));
+  } catch { /* the badge is a convenience; the page reports its own failure */ }
 }
 
 export function bind() {

@@ -87,7 +87,7 @@ def test_basis_markers_and_warnings(page, ui):
     )
 
     page.goto(ui.url + "/items")
-    headline =page.locator("[data-part=headline]")
+    headline = page.locator("[data-part=headline]")
     expect(headline).to_be_visible()
     expect(headline).to_have_text(re.compile(r"^3 things need you, "))
     expect(headline.locator("em")).to_have_text("need you")
@@ -162,7 +162,7 @@ def test_empty_state_is_calm_and_names_the_last_import(page, ui):
 
     page.clock.set_fixed_time(imported)
     page.goto(ui.url + "/items")
-    empty =page.locator("[data-part=empty]")
+    empty = page.locator("[data-part=empty]")
     expect(empty).to_have_text(f"Nothing needs you today. Last import {imported:%H:%M}.")
     body = page.locator("body").inner_text().lower()
     assert not re.search(r"confetti|badge|streak|points|congrat", body)
