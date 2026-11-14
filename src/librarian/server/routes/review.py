@@ -4,12 +4,15 @@ Each action answers with the changed Record's new current view.
 """
 
 from librarian.link import review_actions as actions
-from librarian.server.routes import Route, field, mutating
+from librarian.server.routes import Refused, Route, field, mutating
 
 
 def get_review(req):
     with req.ro() as conn:
-        return 200, actions.rows(conn, req.workspace)
+        try:
+            return 200, actions.rows(conn, req.workspace, req.query)
+        except Refused as refused:
+            return refused.status, {"error": refused.message}
 
 
 def _accept(conn, workspace, req):

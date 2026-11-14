@@ -9,18 +9,28 @@ from typing import Any
 
 from librarian import events, records
 from librarian.clock import utc_now_iso
-from librarian.link import people, review
+from librarian.link import people, review, suggestion_rows
 from librarian.link.errors import Invalid
 from librarian.link.names import key
 
 
-def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
-    """Every open entry with both sides: the Record (with Evidence) and who or what the name
-    might be."""
+def rows(conn: sqlite3.Connection, workspace: str, query: str = "") -> dict[str, Any]:
+    """Every open entry with both sides (the Record with Evidence, and who or what the name
+    might be), then visible pending Suggestions. Entries carry no confidence, so they come first
+    in id order and any confidence filter leaves them out rather than invent a grade."""
+    f = suggestion_rows.parse_query(query)
+    graded = f["min_confidence"] is not None or f["band"] is not None
+    out = [] if graded else _entry_rows(conn, workspace)
+    out += suggestion_rows.pending(conn, workspace, f["min_confidence"], f["band"], f["sort"])
+    return {"count": len(out), "rows": out}
+
+
+def _entry_rows(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     out = []
     for entry in review.open_entries(conn, workspace):
         record = records.get(conn, workspace, entry["record_id"])
         row = {
+            "type": "entry",
             "id": entry["id"],
             "kind": entry["kind"],
             "mark": review.MARKS[entry["kind"]],
@@ -37,7 +47,7 @@ def rows(conn: sqlite3.Connection, workspace: str) -> dict[str, Any]:
         elif entry["kind"] == review.UNCONFIRMED_PERSON:
             row["candidates"] = _candidates(conn, workspace, entry["raw_name"])
         out.append(row)
-    return {"count": len(out), "rows": out}
+    return out
 
 
 def _candidates(conn: sqlite3.Connection, workspace: str, name: str) -> list[dict[str, Any]]:
