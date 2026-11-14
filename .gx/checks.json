@@ -1,4 +1,8 @@
 {
+  "lint": {
+    "changed": "[ -x .venv/bin/ruff ] || make install; .venv/bin/ruff check src tests tools",
+    "full": "[ -x .venv/bin/ruff ] || make install; .venv/bin/ruff check src tests tools"
+  },
   "test": {
     "changed": "[ -x .venv/bin/pytest ] || make install; .venv/bin/pytest -q tests/server tests/ui",
     "full": "[ -x .venv/bin/pytest ] || make install; .venv/bin/pytest -q"

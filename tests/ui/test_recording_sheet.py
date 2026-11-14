@@ -85,7 +85,8 @@ def test_gloss_is_the_one_of_the_clicked_quote_when_two_quotes_share_a_segment(p
     )
     page.locator("[data-part=close-sheet]").click()
     page.reload()
-    page.locator("[data-part=item-expanded] [data-part=evidence-quote]", has_text="second quote").click()
+    quote = "[data-part=item-expanded] [data-part=evidence-quote]"
+    page.locator(quote, has_text="second quote").click()
 
     gloss = page.locator(f"{SHEET} [data-part=evidence-line] [data-part=gloss]")
     expect(gloss).to_contain_text("Second gloss")

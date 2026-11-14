@@ -2,7 +2,6 @@ import json
 
 from playwright.sync_api import expect
 from test_expanded import expand
-
 from test_recording_sheet import open_thursday
 
 from fixtures.scenarios import onboarding_hebrew as hebrew
@@ -123,10 +122,12 @@ def test_switching_quote_under_the_same_locator_re_renders_only_the_sheet(page, 
     first = gloss.text_content()
     page.evaluate("document.querySelector('[data-part=item-expanded]').dataset.marker = 'same'")
 
-    page.locator("[data-part=item-expanded] [data-part=evidence-quote]").nth(1).dispatch_event("click")
+    quotes = page.locator("[data-part=item-expanded] [data-part=evidence-quote]")
+    quotes.nth(1).dispatch_event("click")
 
     expect(gloss).not_to_have_text(first)
-    assert page.evaluate("document.querySelector('[data-part=item-expanded]')?.dataset.marker") == "same"
+    marker = page.evaluate("document.querySelector('[data-part=item-expanded]')?.dataset.marker")
+    assert marker == "same"
 
 
 def test_reload_restores_the_sheet_and_closing_keeps_the_stream_position(page, ui):

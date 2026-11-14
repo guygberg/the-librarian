@@ -10,5 +10,5 @@ install:
 	$(BIN)/librarian migrate --existing-only
 
 check:
-	$(BIN)/ruff check src tests
+	$(BIN)/ruff check src tests tools
 	$(BIN)/pytest -q

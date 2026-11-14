@@ -126,7 +126,10 @@ def test_a_failed_get_and_a_failed_post_throw_errors_with_the_same_shape(page, u
         """async () => {
           const api = await import('/static/api.js');
           const shape = (p) => p.then(() => null, (e) => [e.status, e.body]);
-          return [await shape(api.get('/api/no-such-path')), await shape(api.post('/api/no-such-path', {}))];
+          return [
+            await shape(api.get('/api/no-such-path')),
+            await shape(api.post('/api/no-such-path', {})),
+          ];
         }"""
     )
     assert shapes[0] == shapes[1]
