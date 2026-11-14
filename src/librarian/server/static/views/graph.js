@@ -71,8 +71,16 @@ function border([x, y], [tx, ty]) {
   return [x + dx * t, y + dy * t];
 }
 
-const LABEL_H = 18;
 const PARALLEL_GAP = 22;
+
+/** Sideways offset of the index-th of count parallel edges, from the normal of the from→to direction. */
+export function fanOut([x1, y1], [x2, y2], index, count) {
+  const shift = (index - (count - 1) / 2) * PARALLEL_GAP;
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  return [(-(y2 - y1) / len) * shift, ((x2 - x1) / len) * shift];
+}
+
+const LABEL_H = 18;
 const labelBox = ([x, y], content) => {
   const w = content.length * 7 + 8;
   return { l: x - w / 2, r: x + w / 2, t: y - LABEL_H + 3, b: y + 3 };
@@ -93,7 +101,7 @@ const nodeBox = ([x, y]) => ({ l: x - NODE[0] / 2, r: x + NODE[0] / 2, t: y - NO
  * edges converge on the centre, and clear of every node and of the labels already placed. Null when no spot is free:
  * the label is then left off (the edge keeps its kind as a tooltip) rather than drawn behind a node or over another label.
  */
-function clearSpot(a, b, mid, content, placed, others) {
+export function clearSpot(a, b, mid, content, placed, others) {
   const dist = ([x, y]) => Math.hypot(x - mid[0], y - mid[1]);
   const [near, far] = dist(a) <= dist(b) ? [a, b] : [b, a];
   for (const t of [0.65, 0.5, 0.8, 0.35, 0.2]) {
@@ -118,14 +126,17 @@ function canvas(graph, open) {
   const placed = [...spot.values()].map(nodeBox);
   // Edges between the same pair of nodes are fanned out sideways so each keeps its own line and label.
   const pairKey = (e) => [e.from, e.to].sort().join('|');
-  const siblings = Map.groupBy(graph.edges, pairKey);
+  const count = new Map();
+  for (const e of graph.edges) count.set(pairKey(e), (count.get(pairKey(e)) ?? 0) + 1);
+  const seen = new Map();
   const lines = graph.edges.map((e) => {
+    const key = pairKey(e);
+    const index = seen.get(key) ?? 0;
+    seen.set(key, index + 1);
     const [from, to] = [spot.get(e.from), spot.get(e.to)];
-    const group = siblings.get(pairKey(e));
-    const shift = (group.indexOf(e) - (group.length - 1) / 2) * PARALLEL_GAP;
-    const len = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
-    const side = (p) => [p[0] + (-(to[1] - from[1]) / len) * shift, p[1] + ((to[0] - from[0]) / len) * shift];
-    const [f, t] = [side(from), side(to)];
+    // The offset's normal comes from the canonical direction, so A→B and B→A fan to different sides.
+    const d = fanOut(...(e.from < e.to ? [from, to] : [to, from]), index, count.get(key));
+    const [f, t] = [[from[0] + d[0], from[1] + d[1]], [to[0] + d[0], to[1] + d[1]]];
     return [border(f, t), border(t, f)];
   });
   const edges = graph.edges.map((e, i) => {

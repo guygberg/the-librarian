@@ -37,6 +37,7 @@ def graph_page(page, ui, query=""):
     link(ui, "waiting_on", ("record", item), ("person", raz))
     link(ui, "related_to", ("record", item), ("record", sandbox))
     link(ui, "blocks", ("record", sandbox), ("record", webhook))
+    link(ui, "supersedes", ("record", webhook), ("record", sandbox))
     page.goto(f"{ui.url}/items/{item}?kind=decisions&tab=relations{query}")
     expect(page.locator("[data-part=relations-graph]")).to_be_visible()
     return ui, item
@@ -87,66 +88,99 @@ def test_hop_control_adds_nodes_and_fades_outer_hops(page, ui):
 
 def test_edge_labels_do_not_overlap_at_two_hops(page, ui):
     graph_page(page, ui, "&hops=2")
-    boxes = page.locator("[data-part=graph-edge] text").evaluate_all(
-        """els => els.map(el => {
-          const r = el.getBoundingClientRect();
-          return { text: el.textContent, l: r.left, r: r.right, t: r.top, b: r.bottom };
-        })"""
-    )
-    assert len(boxes) > 3
-    for i, a in enumerate(boxes):
-        for b in boxes[i + 1 :]:
-            apart = a["r"] <= b["l"] or b["r"] <= a["l"] or a["b"] <= b["t"] or b["b"] <= a["t"]
-            assert apart, f"labels overlap: {a} {b}"
-    nodes_ = page.locator("[data-part=graph-node] rect").evaluate_all(
-        """els => els.map(el => {
-          const r = el.getBoundingClientRect();
-          return { l: r.left, r: r.right, t: r.top, b: r.bottom };
-        })"""
-    )
-    for a in boxes:
-        for n in nodes_:
-            apart = a["r"] <= n["l"] or n["r"] <= a["l"] or a["b"] <= n["t"] or n["b"] <= a["t"]
-            assert apart, f"label behind a node: {a} {n}"
-
-
-def test_labels_are_not_drawn_over_another_edges_line_and_parallel_edges_are_apart(page, ui):
-    graph_page(page, ui, "&hops=2")
-    edges = page.locator("[data-part=graph-edge]").evaluate_all(
-        """els => {
-          const o = document.querySelector('[data-part=relations-graph]').getBoundingClientRect();
+    # Everything in the SVG's own units, so the checks do not depend on the page zoom.
+    scene = page.evaluate(
+        """() => {
           const svg = document.querySelector('[data-part=relations-graph]');
+          const o = svg.getBoundingClientRect();
           const k = o.width / svg.viewBox.baseVal.width;
-          return els.map((g, i) => {
+          const box = (r) => ({ l: (r.left - o.left) / k, r: (r.right - o.left) / k,
+                                t: (r.top - o.top) / k, b: (r.bottom - o.top) / k });
+          const edges = [...svg.querySelectorAll('[data-part=graph-edge]')].map((g, i) => {
             const ln = g.querySelector('line');
-            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map(a => +ln.getAttribute(a));
+            const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => +ln.getAttribute(a));
             const tx = g.querySelector('text');
-            let box = null;
-            if (tx) { const r = tx.getBoundingClientRect();
-              box = { l: (r.left - o.left) / k, r: (r.right - o.left) / k,
-                      t: (r.top - o.top) / k, b: (r.bottom - o.top) / k }; }
-            return { i, x1, y1, x2, y2, box, title: g.querySelector('title').textContent };
+            const title = g.querySelector('title').textContent;
+            return { i, x1, y1, x2, y2, kind: g.dataset.kind, title,
+                     text: tx && tx.textContent, box: tx && box(tx.getBoundingClientRect()) };
           });
+          const rects = svg.querySelectorAll('[data-part=graph-node] rect');
+          const nodes = [...rects].map((r) => box(r.getBoundingClientRect()));
+          return { edges, nodes };
         }"""
     )
-    assert len(edges) > 3
-    for e in edges:
-        if not e["box"]:
-            assert e["title"]
-            continue
+    edges, nodes_ = scene["edges"], scene["nodes"]
+
+    def apart(a, b):
+        return a["r"] <= b["l"] or b["r"] <= a["l"] or a["b"] <= b["t"] or b["b"] <= a["t"]
+
+    labelled = [e for e in edges if e["box"]]
+    assert len(labelled) > 3
+    for a in labelled:
+        assert a["text"] == a["title"], a
+        for n in nodes_:
+            assert apart(a["box"], n), f"label behind a node: {a} {n}"
         for other in edges:
-            if other["i"] == e["i"]:
+            if other["i"] == a["i"]:
                 continue
+            if other["i"] > a["i"] and other["box"]:
+                assert apart(a["box"], other["box"]), f"labels overlap: {a} {other}"
             for k in range(101):
                 x = other["x1"] + (other["x2"] - other["x1"]) * k / 100
                 y = other["y1"] + (other["y2"] - other["y1"]) * k / 100
-                b = e["box"]
+                b = a["box"]
                 inside = b["l"] < x < b["r"] and b["t"] < y < b["b"]
-                assert not inside, f"label {e} over line {other}"
-    for i, a in enumerate(edges):
-        for b in edges[i + 1 :]:
-            same = (a["x1"], a["y1"], a["x2"], a["y2"]) == (b["x1"], b["y1"], b["x2"], b["y2"])
-            assert not same, f"edges drawn on the same path: {a} {b}"
+                assert not inside, f"label {a} over line {other}"
+
+    # Parallel edges (same pair of nodes, either direction) fan apart and keep one label each.
+    def mid(e):
+        return (e["x1"] + e["x2"]) / 2, (e["y1"] + e["y2"]) / 2
+
+    pairs = [
+        (a, b)
+        for i, a in enumerate(edges)
+        for b in edges[i + 1 :]
+        if abs(mid(a)[0] - mid(b)[0]) < 30 and abs(mid(a)[1] - mid(b)[1]) < 30
+    ]
+    kinds = {frozenset((a["kind"], b["kind"])) for a, b in pairs}
+    wanted = {frozenset(("belongs_to", "blocks")), frozenset(("blocks", "supersedes"))}
+    assert wanted <= kinds, kinds
+    for a, b in pairs:
+        if "supersedes" in {a["kind"], b["kind"]}:
+            assert a["box"] and b["box"], f"reciprocal edge lost its label: {a} {b}"
+        gap = ((mid(a)[0] - mid(b)[0]) ** 2 + (mid(a)[1] - mid(b)[1]) ** 2) ** 0.5
+        assert gap > 5, f"parallel edges drawn on one line: {a} {b}"
+
+
+def test_a_label_with_no_free_spot_is_left_off(page, ui):
+    graph_page(page, ui)
+    placed = page.evaluate(
+        """async () => {
+          const { clearSpot } = await import('/static/views/graph.js');
+          const [a, b] = [[0, 0], [200, 0]];
+          const free = clearSpot(a, b, [100, 0], 'blocks', [], []);
+          const taken = [];
+          for (let x = -100; x <= 300; x += 10) for (let y = -60; y <= 60; y += 6)
+            taken.push({ l: x - 40, r: x + 40, t: y - 15, b: y + 3 });
+          return { free, crowded: clearSpot(a, b, [100, 0], 'blocks', taken, []) };
+        }"""
+    )
+    assert placed["free"] is not None
+    assert placed["crowded"] is None
+
+
+def test_parallel_edges_fan_to_opposite_sides_whichever_way_they_point(page, ui):
+    graph_page(page, ui)
+    offsets = page.evaluate(
+        """async () => {
+          const { fanOut } = await import('/static/views/graph.js');
+          const [a, b] = [[0, 0], [100, 0]];
+          return { first: fanOut(a, b, 0, 2), second: fanOut(a, b, 1, 2),
+                   alone: fanOut(a, b, 0, 1) };
+        }"""
+    )
+    assert offsets["first"][1] == -offsets["second"][1] != 0
+    assert offsets["alone"] == [0, 0]
 
 
 def test_edge_kind_filter_hides_other_kinds(page, ui):
