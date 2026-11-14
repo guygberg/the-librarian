@@ -7,7 +7,7 @@ from typing import Any
 from librarian import config
 from librarian.query import core, envelope
 from librarian.query.open_items import KINDS
-from librarian.query.project import _owner
+from librarian.query.tag import _owner
 
 
 def next_step_owner(view: dict[str, Any]) -> str | None:

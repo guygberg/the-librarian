@@ -6,9 +6,9 @@ import { evidenceLine } from './expanded.js';
 import { aliasControls } from './alias.js';
 
 const PEOPLE = 'unconfirmed_person';
-const INFERRED = 'inferred_project';
-const SUGGESTED = 'suggested_project';
-const MERGE = 'merge_project';
+const INFERRED = 'inferred_tag';
+const SUGGESTED = 'suggested_tag';
+const MERGE = 'merge_tag';
 
 const itemLink = (r) => h('a', { href: filters.href({ open: r.id }), 'data-link': true }, r.title);
 
@@ -16,9 +16,9 @@ const itemLink = (r) => h('a', { href: filters.href({ open: r.id }), 'data-link'
 function accepts(row) {
   const record = row.record.id;
   switch (row.kind) {
-    case INFERRED: return [`/api/projects/${record}/confirm`, {}];
-    case MERGE: return [`/api/projects/${record}/merge`, { into: row.other.id }];
-    case SUGGESTED: return [`/api/records/${record}/project`, { project_id: row.other.id }];
+    case INFERRED: return [`/api/tags/${record}/confirm`, {}];
+    case MERGE: return [`/api/tags/${record}/merge`, { into: row.other.id }];
+    case SUGGESTED: return [`/api/records/${record}/tag`, { tag_id: row.other.id }];
     default: return null;
   }
 }
@@ -51,9 +51,9 @@ function actions(row, people, failed) {
 /** Why the Librarian is asking, in the person's words. A suggestion stays a suggestion until Accept. */
 const REASONS = {
   [PEOPLE]: (row) => `"${row.raw_name}" may be a person already known; nothing is assigned until you accept.`,
-  [INFERRED]: () => 'The Librarian inferred this project from the sources; it is not confirmed.',
-  [SUGGESTED]: () => 'The Librarian suggests moving this item into the project below.',
-  [MERGE]: () => 'These two projects look like one; nothing merges until you accept.',
+  [INFERRED]: () => 'The Librarian inferred this tag from the sources; it is not confirmed.',
+  [SUGGESTED]: () => 'The Librarian suggests moving this item into the tag below.',
+  [MERGE]: () => 'These two tags look like one; nothing merges until you accept.',
   unknown_speaker: () => 'The speaker was not recognised, so the item has no confirmed owner.',
 };
 
@@ -70,7 +70,7 @@ function reviewRow(row, people) {
     failed);
 }
 
-/** Every Suggested link and inferred project awaiting a decision, with both sides and the Evidence. */
+/** Every Suggested link and inferred tag awaiting a decision, with both sides and the Evidence. */
 export async function review() {
   const settled = justActed();
   const [{ count, rows }, { people }] = await Promise.all([api.get('/api/review'), api.get('/api/open-items?scope=all')]);

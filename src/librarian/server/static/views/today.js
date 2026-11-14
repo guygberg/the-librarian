@@ -71,7 +71,7 @@ function pagedPanel(part, title, list, entry, empty, settle) {
 const itemRow = (item) => h('div', { class: 'it', 'data-part': 'today-item' },
   h('div', { class: 't' }, open(item)),
   h('div', { class: 'm' },
-    h('span', {}, item.projects.map((p) => p.title).join(', ')),
+    h('span', {}, item.tags.map((p) => p.title).join(', ')),
     item.stated_deadline ? h('span', {}, `due ${item.stated_deadline}`) : null,
     button('today-done', 'Mark done', () => act(item.id, 'done'))));
 

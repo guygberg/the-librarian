@@ -1,9 +1,9 @@
 """Candidates sent with a unit, so Claude can say same / updated / new and keep Record ids stable.
 
-Always the list of projects; plus the open Records (and those changed within the stale threshold)
-of the candidate projects: those already linked to earlier items of the same conversation, session
+Always the list of tags; plus the open Records (and those changed within the stale threshold)
+of the candidate tags: those already linked to earlier items of the same conversation, session
 or recording, and those whose name or Alias appears in the unit's text. The Records are capped so
-a busy project cannot fill the call.
+a busy tag cannot fill the call.
 """
 
 import sqlite3
@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from librarian.extract.units import Unit
-from librarian.link import projects
+from librarian.link import tags
 from librarian.link.names import key
 
 RECORD_CAP = 60
@@ -22,22 +22,22 @@ def pick(
     conn: sqlite3.Connection, workspace: str, unit: Unit, stale_days: int
 ) -> list[dict[str, Any]]:
     chosen = _same_conversation(conn, workspace, unit) | _named_in(conn, workspace, unit)
-    return add_projects(conn, workspace, _project_list(conn, workspace), sorted(chosen), stale_days)
+    return add_tags(conn, workspace, _tag_list(conn, workspace), sorted(chosen), stale_days)
 
 
-def add_projects(
+def add_tags(
     conn: sqlite3.Connection,
     workspace: str,
     candidates: list[dict[str, Any]],
-    project_ids: list[int],
+    tag_ids: list[int],
     stale_days: int,
 ) -> list[dict[str, Any]]:
-    """`candidates` with the Records of these projects added, within what the cap leaves."""
-    out = [{**c, "records_sent": True} if c["id"] in project_ids else c for c in candidates]
+    """`candidates` with the Records of these tags added, within what the cap leaves."""
+    out = [{**c, "records_sent": True} if c["id"] in tag_ids else c for c in candidates]
     sent = {c["id"] for c in out}
-    room = RECORD_CAP - sum(1 for c in out if c["kind"] != "project")
-    for project_id in project_ids:
-        for record in _records_of(conn, workspace, project_id, stale_days):
+    room = RECORD_CAP - sum(1 for c in out if c["kind"] != "tag")
+    for tag_id in tag_ids:
+        for record in _records_of(conn, workspace, tag_id, stale_days):
             if room > 0 and record["id"] not in sent:
                 out.append(record)
                 sent.add(record["id"])
@@ -45,9 +45,9 @@ def add_projects(
     return out
 
 
-def unsent_projects(records: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> list[int]:
-    """Existing projects the result links Records to, whose own Records were not sent."""
-    unsent = {c["id"] for c in candidates if c["kind"] == "project" and not c.get("records_sent")}
+def unsent_tags(records: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> list[int]:
+    """Existing tags the result links Records to, whose own Records were not sent."""
+    unsent = {c["id"] for c in candidates if c["kind"] == "tag" and not c.get("records_sent")}
     linked = {
         link["to"]["id"]
         for rec in records
@@ -57,11 +57,11 @@ def unsent_projects(records: list[dict[str, Any]], candidates: list[dict[str, An
     return sorted(linked & unsent)
 
 
-def _project_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
+def _tag_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     return [
-        {"id": record_id, "kind": "project", "title": title, "records_sent": False}
+        {"id": record_id, "kind": "tag", "title": title, "records_sent": False}
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project'"
+            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'tag'"
             " AND lifecycle != 'superseded' ORDER BY id",
             (workspace,),
         )
@@ -69,7 +69,7 @@ def _project_list(conn: sqlite3.Connection, workspace: str) -> list[dict[str, An
 
 
 def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> set[int]:
-    """Projects of Records citing another item of the conversation, session or recording of this
+    """Tags of Records citing another item of the conversation, session or recording of this
     unit."""
     prefixes = {loc.partition("/")[0] + "/" for loc in unit.locators}
     found: set[int] = set()
@@ -80,7 +80,7 @@ def _same_conversation(conn: sqlite3.Connection, workspace: str, unit: Unit) -> 
             (workspace, len(prefix), prefix),
         ).fetchall()
         for record_id, kind in rows:
-            if kind == "project":
+            if kind == "tag":
                 found.add(record_id)
             else:
                 found.update(
@@ -98,13 +98,13 @@ def _named_in(conn: sqlite3.Connection, workspace: str, unit: Unit) -> set[int]:
     text = key(unit.text)
     return {
         record_id
-        for record_id, known in projects.names(conn, workspace).items()
+        for record_id, known in tags.names(conn, workspace).items()
         if any(key(name) in text for name in known)
     }
 
 
 def _records_of(
-    conn: sqlite3.Connection, workspace: str, project_id: int, stale_days: int
+    conn: sqlite3.Connection, workspace: str, tag_id: int, stale_days: int
 ) -> list[dict[str, Any]]:
     cutoff = (datetime.now(UTC) - timedelta(days=stale_days)).isoformat()
     marks = ", ".join("?" for _ in _OPEN)
@@ -114,7 +114,7 @@ def _records_of(
             "kind": kind,
             "title": title,
             "lifecycle": lifecycle,
-            "project": project_id,
+            "tag": tag_id,
         }
         for record_id, kind, title, lifecycle in conn.execute(
             "SELECT r.id, r.kind, r.title, r.lifecycle FROM records r"
@@ -123,6 +123,6 @@ def _records_of(
             " AND l.to_id = ?"
             f" WHERE r.workspace = ? AND (r.lifecycle IN ({marks}) OR r.updated_at >= ?)"
             " ORDER BY r.updated_at DESC, r.id",
-            (project_id, workspace, *_OPEN, cutoff),
+            (tag_id, workspace, *_OPEN, cutoff),
         )
     ]

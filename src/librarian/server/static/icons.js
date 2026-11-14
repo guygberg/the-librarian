@@ -3,7 +3,7 @@ const PATHS = {
   home: 'M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9',
   items: 'm3 8 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 18l9 5 9-5',
   people: 'M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3M17 5a4 4 0 0 1 0 8M22 21v-3a4 4 0 0 0-3-3.87M13 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
-  projects: 'M3 3h7v18H3V3ZM14 3h7v18h-7V3',
+  tags: 'M3 3h7v18H3V3ZM14 3h7v18h-7V3',
   review: 'm4 12 5 5L21 5',
   search: 'M21 21l-5.2-5.2M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
   menu: 'M3 5h18M3 12h18M3 19h18',

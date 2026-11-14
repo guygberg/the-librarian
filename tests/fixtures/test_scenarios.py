@@ -5,8 +5,8 @@ import pytest
 
 from fixtures.scenarios import onboarding_hebrew as hebrew
 from fixtures.scenarios import payments_cutover as payments
-from fixtures.scenarios import project_slack_only as slack_only
 from fixtures.scenarios import slack_prompt_injection as injection
+from fixtures.scenarios import tag_slack_only as slack_only
 from support.cli import run_librarian
 from support.recordings import make_env, run_import, search
 
@@ -59,10 +59,7 @@ def test_payments_cutover_has_both_dates_contradicting_with_evidence_and_rejects
         show(home, env, record_id(home, payments.NOV_18)),
         show(home, env, record_id(home, payments.NOV_25)),
     )
-    assert (
-        record_id(home, payments.PROJECT) == payments.PROJECT_ID
-        and nov_18["id"] == payments.NOV_18_ID
-    )
+    assert record_id(home, payments.TAG) == payments.TAG_ID and nov_18["id"] == payments.NOV_18_ID
     assert [c["title"] for c in nov_18["contradictions"]] == [payments.NOV_25]
     assert [c["title"] for c in nov_25["contradictions"]] == [payments.NOV_18]
     assert nov_25["evidence"][0]["quote"] == "Nov 25 to be safe"
@@ -77,7 +74,7 @@ def test_payments_cutover_has_both_dates_contradicting_with_evidence_and_rejects
     [blocker] = rows(home, "SELECT id FROM records WHERE kind = 'blocker'")
     assert [(link["type"], link["to"]) for link in show(home, env, blocker[0])["links"]] == [
         ("owner", "Raz Peretz"),
-        ("blocks", payments.PROJECT),
+        ("blocks", payments.TAG),
     ]
 
     runs = run_librarian(["runs"], home, env=env).stdout
@@ -110,13 +107,11 @@ def test_onboarding_hebrew_has_the_item_the_uncertain_word_and_the_stale_ownerle
     assert legal["stale"] is True and not legal.get("owner")
 
 
-def test_project_with_no_recording_has_slack_evidence_only(world, home):
-    env = world("project_slack_only", slack_only.NOW)
-    project = show(home, env, record_id(home, slack_only.PROJECT))
+def test_tag_with_no_recording_has_slack_evidence_only(world, home):
+    env = world("tag_slack_only", slack_only.NOW)
+    tag = show(home, env, record_id(home, slack_only.TAG))
     action = show(home, env, record_id(home, slack_only.ACTION))
-    assert [project["title"]] == [slack_only.PROJECT] and action["projects"][0][
-        "title"
-    ] == slack_only.PROJECT
+    assert [tag["title"]] == [slack_only.TAG] and action["tags"][0]["title"] == slack_only.TAG
     assert rows(home, "SELECT locator FROM evidence WHERE NOT locator LIKE 'slack:%'") == []
     assert rows(home, "SELECT 1 FROM source_items WHERE source = 'drive'") == []
 

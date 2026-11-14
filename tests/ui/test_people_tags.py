@@ -2,7 +2,7 @@ from playwright.sync_api import expect
 from test_review import ATLAS, suggest
 
 from fixtures.scenarios import payments_cutover as payments
-from fixtures.scenarios import projects_stable_ids as stable
+from fixtures.scenarios import tags_stable_ids as stable
 from support.recordings import run_import
 from support.ui_stream import person, record
 
@@ -36,38 +36,34 @@ def test_person_cards_count_the_open_items_and_open_into_items(page, ui):
     expect(page).to_have_url(ui.url + "/people?person=Raz%20Peretz")
 
 
-def test_project_cards_match_the_items_and_link_both_ways(page, ui):
+def test_tag_cards_match_the_items_and_link_both_ways(page, ui):
     ui = ui("payments-cutover", payments.NOW)
-    page.goto(ui.url + "/projects")
-    card = page.locator("[data-part=project]", has_text=payments.PROJECT)
+    page.goto(ui.url + "/tags")
+    card = page.locator("[data-part=tag]", has_text=payments.TAG)
     items = page.evaluate(API, "/api/open-items?scope=all")["records"]
-    mine = [
-        r
-        for r in items
-        if r["group"] and any(p["title"] == payments.PROJECT for p in r["projects"])
-    ]
-    expect(card.locator("[data-part=project-open]")).to_have_text(f"{len(mine)} open")
-    expect(card.locator("[data-part=project-basis]")).to_be_visible()
+    mine = [r for r in items if r["group"] and any(p["title"] == payments.TAG for p in r["tags"])]
+    expect(card.locator("[data-part=tag-open]")).to_have_text(f"{len(mine)} open")
+    expect(card.locator("[data-part=tag-basis]")).to_be_visible()
 
-    card.locator("[data-part=project-items]").click()
+    card.locator("[data-part=tag-items]").click()
     expect(page.locator("[data-part=status-header]")).to_be_visible()
-    page.locator("[data-part=row-project]").first.click()
-    expect(page.locator("[data-part=project]")).to_have_count(1)
-    expect(page.locator("[data-part=all-projects]")).to_be_visible()
+    page.locator("[data-part=row-tag]").first.click()
+    expect(page.locator("[data-part=tag]")).to_have_count(1)
+    expect(page.locator("[data-part=all-tags]")).to_be_visible()
 
 
-def test_a_project_confirmed_on_the_projects_page_stays_confirmed_after_import(page, ui):
-    ui = ui("projects-stable-ids", stable.NOW)
-    page.goto(ui.url + "/projects")
-    card = page.locator("[data-part=project]").filter(
+def test_a_tag_confirmed_on_the_tags_page_stays_confirmed_after_import(page, ui):
+    ui = ui("tags-stable-ids", stable.NOW)
+    page.goto(ui.url + "/tags")
+    card = page.locator("[data-part=tag]").filter(
         has=page.get_by_role("link", name=ATLAS, exact=True)
     )
-    basis = card.locator("[data-part=project-basis]")
+    basis = card.locator("[data-part=tag-basis]")
     expect(basis).to_have_text("Inferred")
-    card.locator("[data-part=project-correct] > summary").click()
+    card.locator("[data-part=tag-correct] > summary").click()
     with page.expect_response("**/confirm"):
-        card.locator("[data-part=project-confirm]").click()
-    expect(page).to_have_url(ui.url + "/projects")
+        card.locator("[data-part=tag-confirm]").click()
+    expect(page).to_have_url(ui.url + "/tags")
     expect(basis).to_have_text("Confirmed")
     code, out = run_import(ui.home, ui.env)
     assert code == 0, out

@@ -105,7 +105,7 @@ BAD_RECORDS = [
         None,
     ),
     (
-        "reasoning on a project",
+        "reasoning on a tag",
         with_record(0, reasoning="because"),
         "records[0]",
         "bad_shape",
@@ -175,7 +175,7 @@ def test_bad_parent_is_dropped():
         {
             "ref": "p2",
             "match": {"decision": "new"},
-            "kind": "project",
+            "kind": "tag",
             "title": "Sub",
             "lifecycle": "open",
             "basis": "inferred",

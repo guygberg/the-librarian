@@ -6,7 +6,7 @@ import pytest
 
 from fixtures import formats as f
 from fixtures.build import build
-from fixtures.scenarios import projects_stable_ids as s
+from fixtures.scenarios import tags_stable_ids as s
 from librarian import db, engines, store
 from librarian.extract import stage as extract
 from librarian.fakes.calllog import CallLog
@@ -18,7 +18,7 @@ from support.cli import finish_tty, popen_librarian_tty, run_librarian
 @pytest.fixture
 def world(tmp_path, home):
     fixtures = tmp_path / "fixtures"
-    build(fixtures, "projects_stable_ids")
+    build(fixtures, "tags_stable_ids")
     home.mkdir(parents=True)
     (home / "config.toml").write_text(
         f'account_type = "team"\nusage_rules_confirmed = true\ndrive_dir = "{fixtures}"\n'
@@ -100,11 +100,11 @@ def action(title, quote, links, **extra):
     }
 
 
-def project(title, quote):
+def tag(title, quote):
     return {
         "ref": "p",
         "match": {"decision": "new"},
-        "kind": "project",
+        "kind": "tag",
         "title": title,
         "lifecycle": "open",
         "basis": "stated",
@@ -112,22 +112,22 @@ def project(title, quote):
     }
 
 
-def test_extraction_created_projects_are_inferred_and_wait_for_review(world):
+def test_extraction_created_tags_are_inferred_and_wait_for_review(world):
     run_import(world)
     home = world[0]
 
-    assert query(home, "SELECT id, basis FROM records WHERE kind = 'project' ORDER BY id") == [
+    assert query(home, "SELECT id, basis FROM records WHERE kind = 'tag' ORDER BY id") == [
         (1, "inferred"),
         (3, "inferred"),
     ]
     assert query(
         home,
-        "SELECT record_id FROM review_entries WHERE kind = 'inferred_project' ORDER BY record_id",
+        "SELECT record_id FROM review_entries WHERE kind = 'inferred_tag' ORDER BY record_id",
     ) == [(1,), (3,)]
     assert {
-        "kind": "inferred_project",
-        "mark": "inferred project",
-        "link": "project",
+        "kind": "inferred_tag",
+        "mark": "inferred tag",
+        "link": "tag",
         "raw_name": "Atlas Migration",
     } in show(home, 1)["suggested"]
 
@@ -153,14 +153,12 @@ def test_reextraction_after_an_edit_keeps_the_record_ids(world):
     ]
     assert sorted(titles.values()).count("Atlas Migration") == 1 and len(titles) == 6
     assert show(home, 2)["stated_deadline"] == "2023-11-17"
-    assert show(home, 2)["projects"] == [{"id": 1, "title": "Atlas Migration"}]
+    assert show(home, 2)["tags"] == [{"id": 1, "title": "Atlas Migration"}]
     sent = extractor_calls(home, s.KEYS[1])[1]["candidates"]
-    assert {1, 2} <= set(
-        sent
-    )  # the project is named in the text, so its Records went with the call
+    assert {1, 2} <= set(sent)  # the tag is named in the text, so its Records went with the call
 
 
-def test_recording_about_an_existing_project_reuses_it_without_a_new_inferred_one(world):
+def test_recording_about_an_existing_tag_reuses_it_without_a_new_inferred_one(world):
     run_import(world)
     home = world[0]
     add_recording(
@@ -168,7 +166,7 @@ def test_recording_about_an_existing_project_reuses_it_without_a_new_inferred_on
         "Sync - 2026-10-12 10.00 GMT+03.00 - Recording",
         "Atlas  migration review, Sam checks the budget",
         [
-            project("atlas  MIGRATION", "Atlas  migration review"),
+            tag("atlas  MIGRATION", "Atlas  migration review"),
             action(
                 "Check the budget",
                 "Sam checks the budget",
@@ -180,27 +178,27 @@ def test_recording_about_an_existing_project_reuses_it_without_a_new_inferred_on
     run_import(world)
 
     assert query(
-        home, "SELECT COUNT(*) FROM records WHERE kind = 'project' AND title LIKE 'atlas%migration'"
+        home, "SELECT COUNT(*) FROM records WHERE kind = 'tag' AND title LIKE 'atlas%migration'"
     ) == [(1,)]
     (budget,) = query(home, "SELECT id FROM records WHERE title = 'Check the budget'")
-    assert show(home, budget[0])["projects"] == [{"id": 1, "title": "Atlas Migration"}]
-    assert query(home, "SELECT COUNT(*) FROM review_entries WHERE kind = 'inferred_project'") == [
+    assert show(home, budget[0])["tags"] == [{"id": 1, "title": "Atlas Migration"}]
+    assert query(home, "SELECT COUNT(*) FROM review_entries WHERE kind = 'inferred_tag'") == [
         (3,)
     ]  # Atlas Migration, Atlas Migrations, Helios
 
 
-def test_project_alias_links_like_the_name(world):
+def test_tag_alias_links_like_the_name(world):
     run_import(world)
     home = world[0]
     sqlite3.connect(next(home.rglob("*.db"))).execute(
-        "INSERT INTO project_aliases VALUES ('work', 1, 'Moving Atlas')"
+        "INSERT INTO tag_aliases VALUES ('work', 1, 'Moving Atlas')"
     ).connection.commit()
     add_recording(
         world,
         "Sync - 2026-10-13 10.00 GMT+03.00 - Recording",
         "Moving Atlas: Sam books the room",
         [
-            project("moving atlas", "Moving Atlas"),
+            tag("moving atlas", "Moving Atlas"),
             action(
                 "Book the room", "Sam books the room", [{"type": "belongs_to", "to": {"ref": "p"}}]
             ),
@@ -210,23 +208,23 @@ def test_project_alias_links_like_the_name(world):
     run_import(world)
 
     (room,) = query(home, "SELECT id FROM records WHERE title = 'Book the room'")
-    assert show(home, room[0])["projects"] == [{"id": 1, "title": "Atlas Migration"}]
+    assert show(home, room[0])["tags"] == [{"id": 1, "title": "Atlas Migration"}]
 
 
 def test_near_name_is_only_suggested_and_nothing_is_merged(world):
     run_import(world)
     home = world[0]
 
-    assert query(home, "SELECT COUNT(*) FROM records WHERE kind = 'project'") == [(2,)]
-    assert show(home, 4)["projects"] == [{"id": 3, "title": "Atlas Migrations"}]
+    assert query(home, "SELECT COUNT(*) FROM records WHERE kind = 'tag'") == [(2,)]
+    assert show(home, 4)["tags"] == [{"id": 3, "title": "Atlas Migrations"}]
     assert {
-        "kind": "suggested_project",
-        "mark": "suggested project",
+        "kind": "suggested_tag",
+        "mark": "suggested tag",
         "link": "belongs_to",
         "raw_name": "Atlas Migration",
     } in show(home, 4)["suggested"]
     assert query(
-        home, "SELECT record_id, other_record_id FROM review_entries WHERE kind = 'merge_project'"
+        home, "SELECT record_id, other_record_id FROM review_entries WHERE kind = 'merge_tag'"
     ) == [(3, 1)]
     assert query(home, "SELECT COUNT(*) FROM links WHERE type = 'belongs_to' AND to_id = 1") == [
         (1,)
@@ -237,23 +235,23 @@ def test_ambiguous_name_stays_unresolved(world):
     run_import(world)
     home = world[0]
     conn = sqlite3.connect(next(home.rglob("*.db")))
-    conn.executemany("INSERT INTO project_aliases VALUES ('work', ?, 'Helios')", [(1,), (3,)])
+    conn.executemany("INSERT INTO tag_aliases VALUES ('work', ?, 'Helios')", [(1,), (3,)])
     conn.commit()
 
     run_import(world)
 
     (helios,) = query(home, "SELECT id FROM records WHERE title = 'Helios'")
     kinds = query(home, "SELECT kind FROM review_entries WHERE record_id = ?", helios[0])
-    assert kinds == [("inferred_project",)]
+    assert kinds == [("inferred_tag",)]
     (venue,) = query(home, "SELECT id FROM records WHERE title = 'Book the venue'")
-    assert show(home, venue[0])["projects"] == [{"id": helios[0], "title": "Helios"}]
+    assert show(home, venue[0])["tags"] == [{"id": helios[0], "title": "Helios"}]
     assert query(
         home,
-        "SELECT COUNT(*) FROM review_entries WHERE kind IN ('merge_project', 'suggested_project')",
+        "SELECT COUNT(*) FROM review_entries WHERE kind IN ('merge_tag', 'suggested_tag')",
     ) == [(2,)]  # the near pair only
 
 
-def test_a_recording_that_never_names_its_project_is_rerun_once_with_that_projects_records(world):
+def test_a_recording_that_never_names_its_tag_is_rerun_once_with_that_tags_records(world):
     run_import(world)
     home = world[0]
     link = [{"type": "belongs_to", "to": {"id": 1}}]
@@ -272,7 +270,7 @@ def test_a_recording_that_never_names_its_project_is_rerun_once_with_that_projec
 
     calls = extractor_calls(home, key)
     assert len(calls) == 2
-    assert 2 not in calls[0]["candidates"] and 1 in calls[0]["candidates"]  # the project list only
+    assert 2 not in calls[0]["candidates"] and 1 in calls[0]["candidates"]  # the tag list only
     assert {1, 2} <= set(calls[1]["candidates"])
     assert query(
         home, "SELECT COUNT(*) FROM records WHERE title IN ('Draft the plan', 'Send the numbers')"
@@ -289,7 +287,7 @@ def test_the_rerun_counts_against_the_call_cap(tmp_path, home, monkeypatch):
     conn = db.connect_rw("work")
     conn.execute(
         "INSERT INTO records (id, workspace, kind, title, lifecycle, basis, created_at, updated_at)"
-        " VALUES (1, 'work', 'project', 'Atlas', 'open', 'stated', 'x', 'x')"
+        " VALUES (1, 'work', 'tag', 'Atlas', 'open', 'stated', 'x', 'x')"
     )
     store.upsert(
         conn,

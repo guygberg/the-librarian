@@ -15,7 +15,7 @@ from librarian.query import core
 
 KEYS = ("warnings", "resolved", "records", "evidence", "freshness")
 DAY = 86_400
-WORKSPACE_BASELINE = {"project": None, "baseline": "whole workspace"}
+WORKSPACE_BASELINE = {"tag": None, "baseline": "whole workspace"}
 
 
 def _overdue_days(cfg: dict[str, Any], source: str) -> int:
@@ -118,7 +118,7 @@ def build(
     """`records` are current views; their Evidence moves to the top-level `evidence` list.
 
     The list is keyed by record_id. Pass `evidence` for answers whose evidence is not a
-    Record's (search passages). `resolved` names the project or baseline the answer was
+    Record's (search passages). `resolved` names the tag or baseline the answer was
     computed over.
     """
     fresh = freshness(conn, workspace, cfg, at or core.now())

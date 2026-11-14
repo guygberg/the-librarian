@@ -18,7 +18,7 @@ Counts and verdicts only. Never paste source text, names or quotes.
 - claude_sessions (at least 1):
 - hebrew_recordings (at least 1):
 - mixed_hebrew_english_recordings (at least 1):
-- projects_with_two_sources (at least 1):
+- tags_with_two_sources (at least 1):
 
 ## Open items pass
 - real_open_items_total:
@@ -28,7 +28,7 @@ Counts and verdicts only. Never paste source text, names or quotes.
 - confirmed_and_inferred_labels_right (yes/no):
 - stale_items_marked_stale (yes/no):
 
-## Project status pass
+## Tag status pass
 - claims_right:
 - claims_wrong (must be 0):
 - claims_unsupported:

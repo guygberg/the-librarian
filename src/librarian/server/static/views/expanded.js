@@ -77,7 +77,7 @@ function actions(r, ctx) {
   return h('div', { class: 'acts', 'data-part': 'actions' },
     done ? button('act-reopen', 'Reopen', () => act(r.id, 'reopen')) : button('act-done', 'Mark done', () => act(r.id, 'done')),
     r.kind === 'action_item' ? choose('act-owner', 'Change owner', ctx.people, null, (person_id) => act(r.id, 'owner', { person_id })) : null,
-    choose('act-project', 'Move to project', ctx.projects, r.projects[0]?.id, (project_id) => act(r.id, 'project', { project_id })));
+    choose('act-tag', 'Move to tag', ctx.tags, r.tags[0]?.id, (tag_id) => act(r.id, 'tag', { tag_id })));
 }
 
 function history(r) {

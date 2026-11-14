@@ -61,7 +61,7 @@ def api(tmp_path, home, monkeypatch):
 
 
 def seed(api):
-    """A second project, an action item and a person: the payments scenario's own action
+    """A second tag, an action item and a person: the payments scenario's own action
     items are all rejected."""
     conn = sqlite3.connect(next(api.home.rglob("*.db")))
     with conn:
@@ -71,7 +71,7 @@ def seed(api):
                 " VALUES ('work', ?, ?, 'x', 'x')",
                 (kind, title),
             ).lastrowid
-            for kind, title in (("project", "Billing cleanup"), ("action_item", "Call the bank"))
+            for kind, title in (("tag", "Billing cleanup"), ("action_item", "Call the bank"))
         ]
         person = conn.execute(
             "INSERT INTO persons (workspace, name, created_at) VALUES ('work', 'Dana Cohen', 'x')"
@@ -136,14 +136,14 @@ def test_both_wrong_drops_both_with_the_reason(api):
         )
 
 
-def test_project_move_survives_import(api):
-    project, _, _ = seed(api)
+def test_tag_move_survives_import(api):
+    tag, _, _ = seed(api)
 
-    status, view = api.post(payments.NOV_18_ID, "project", {"project_id": project})
-    assert (status, view["projects"]) == (200, [{"id": project, "title": "Billing cleanup"}])
+    status, view = api.post(payments.NOV_18_ID, "tag", {"tag_id": tag})
+    assert (status, view["tags"]) == (200, [{"id": tag, "title": "Billing cleanup"}])
 
     api.reimport()
-    assert api.show(payments.NOV_18_ID)["projects"] == [{"id": project, "title": "Billing cleanup"}]
+    assert api.show(payments.NOV_18_ID)["tags"] == [{"id": tag, "title": "Billing cleanup"}]
 
 
 def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(api):
@@ -155,9 +155,9 @@ def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(ap
 @pytest.mark.parametrize(
     ("record", "action", "body", "status"),
     [
-        ("project", "done", {}, 409),
+        ("tag", "done", {}, 409),
         ("decision", "owner", {"person_id": 1}, 409),
-        ("decision", "project", {"project_id": 99}, 404),
+        ("decision", "tag", {"tag_id": 99}, 404),
         ("decision", "resolve", {"other": 1, "outcome": "holds"}, 409),
         ("decision", "resolve", {"other": 2, "outcome": "maybe"}, 400),
         ("missing", "reopen", {}, 404),
@@ -165,11 +165,7 @@ def test_guards_refuse_without_token_or_with_foreign_origin_and_write_nothing(ap
 )
 def test_invalid_actions_are_refused_and_write_nothing(api, record, action, body, status):
     target = (
-        999
-        if record == "missing"
-        else payments.PROJECT_ID
-        if record == "project"
-        else payments.NOV_18_ID
+        999 if record == "missing" else payments.TAG_ID if record == "tag" else payments.NOV_18_ID
     )
     assert api.post(target, action, body)[0] == status
     assert api.events() == []

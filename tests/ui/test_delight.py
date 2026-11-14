@@ -18,12 +18,12 @@ def start(page, ui):
 
 def urls(ui):
     [(rid,)] = ui.sql("SELECT min(id) FROM records WHERE kind = 'action_item'")
-    [(project,)] = ui.sql("SELECT title FROM records WHERE kind = 'project' LIMIT 1")
+    [(tag,)] = ui.sql("SELECT title FROM records WHERE kind = 'tag' LIMIT 1")
     [(locator,)] = ui.sql("SELECT locator FROM evidence LIMIT 1")
     return [
         "/",
         "/items",
-        f"/items?project={quote(project)}",
+        f"/items?tag={quote(tag)}",
         "/items?kind=done",
         f"/items/{rid}",
         f"/items/{rid}?tab=relations",

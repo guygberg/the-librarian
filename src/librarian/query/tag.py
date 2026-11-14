@@ -1,4 +1,4 @@
-"""`librarian project <name>`: resolve one project, then report its facts.
+"""`librarian tag <name>`: resolve one tag, then report its facts.
 
 It resolves only when one match is clearly ahead.
 """
@@ -9,7 +9,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from librarian import config
-from librarian.link import projects
+from librarian.link import tags
 from librarian.link.names import key
 from librarian.query import core, envelope, stale
 
@@ -27,13 +27,13 @@ def _score(wanted: str, name: str) -> float:
     return SequenceMatcher(None, have, wanted).ratio()
 
 
-def _member_ids(conn: sqlite3.Connection, workspace: str, project_id: int) -> list[int]:
+def _member_ids(conn: sqlite3.Connection, workspace: str, tag_id: int) -> list[int]:
     return [
         row[0]
         for row in conn.execute(
             "SELECT from_id FROM links WHERE workspace = ? AND type = 'belongs_to'"
             " AND from_type = 'record' AND to_type = 'record' AND to_id = ? ORDER BY from_id",
-            (workspace, project_id),
+            (workspace, tag_id),
         )
     ]
 
@@ -51,18 +51,18 @@ def _last_activity(conn: sqlite3.Connection, workspace: str, ids: list[int]) -> 
     return max(times).isoformat() if times else None
 
 
-def _candidate(conn: sqlite3.Connection, workspace: str, project_id: int) -> dict[str, Any]:
+def _candidate(conn: sqlite3.Connection, workspace: str, tag_id: int) -> dict[str, Any]:
     title, parent_id = conn.execute(
-        "SELECT title, parent_id FROM records WHERE id = ?", (project_id,)
+        "SELECT title, parent_id FROM records WHERE id = ?", (tag_id,)
     ).fetchone()
     parent = (
         conn.execute("SELECT title FROM records WHERE id = ?", (parent_id,)).fetchone()
         if parent_id
         else None
     )
-    ids = [project_id, *_member_ids(conn, workspace, project_id)]
+    ids = [tag_id, *_member_ids(conn, workspace, tag_id)]
     return {
-        "id": project_id,
+        "id": tag_id,
         "name": title,
         "parent": parent[0] if parent else None,
         "last_activity": _last_activity(conn, workspace, ids),
@@ -77,8 +77,8 @@ def resolve(conn: sqlite3.Connection, workspace: str, name: str) -> tuple[int | 
     """
     wanted = key(name)
     scores = {
-        project_id: max(_score(wanted, n) for n in known)
-        for project_id, known in projects.names(conn, workspace).items()
+        tag_id: max(_score(wanted, n) for n in known)
+        for tag_id, known in tags.names(conn, workspace).items()
     }
     ranked = sorted(
         (pid for pid, s in scores.items() if s >= MIN_SCORE), key=lambda pid: (-scores[pid], pid)
@@ -110,7 +110,7 @@ def _latest(views: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(views, key=lambda v: v.get("last_evidence", ""), default=None)
 
 
-def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, Any]:
+def facts(tag: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, Any]:
     """Status, owners, deadlines, latest decision and main blocker.
 
     Each comes with its Evidence locators or "not found".
@@ -128,7 +128,7 @@ def facts(project: dict[str, Any], members: list[dict[str, Any]]) -> dict[str, A
     decision = _latest([v for v in members if v["kind"] == "decision"])
     blocker = _latest([v for v in unfinished if v["kind"] == "blocker"])
     return {
-        "status": _fact(project, value=project["lifecycle"]),
+        "status": _fact(tag, value=tag["lifecycle"]),
         "owners": [
             {
                 "name": name,
@@ -154,16 +154,14 @@ def unresolved(
     at: datetime,
     **extra: Any,
 ) -> dict[str, Any]:
-    """The answer when `name` names no single project: the candidates, led by a warning.
+    """The answer when `name` names no single tag: the candidates, led by a warning.
 
     `extra` keeps the answer's own keys.
     """
     found = [_candidate(conn, workspace, pid) for pid in ranked]
     warning = {
-        "code": "project_ambiguous" if found else "project_not_found",
-        "message": f"which project is meant by {name!r}?"
-        if found
-        else f"no project matches {name!r}",
+        "code": "tag_ambiguous" if found else "tag_not_found",
+        "message": f"which tag is meant by {name!r}?" if found else f"no tag matches {name!r}",
     }
     answer = envelope.build(
         conn,
@@ -171,7 +169,7 @@ def unresolved(
         cfg,
         [],
         at=at,
-        resolved={"project": None, "baseline": None},
+        resolved={"tag": None, "baseline": None},
         candidates=found,
         **extra,
     )
@@ -180,25 +178,25 @@ def unresolved(
 
 
 def member_views(
-    conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], project_id: int, at: datetime
+    conn: sqlite3.Connection, workspace: str, cfg: dict[str, Any], tag_id: int, at: datetime
 ) -> list[dict[str, Any]]:
-    """The project's own view first, then its members'."""
+    """The tag's own view first, then its members'."""
     return [
         core.current_view(conn, workspace, rid, cfg, at)
-        for rid in [project_id, *_member_ids(conn, workspace, project_id)]
+        for rid in [tag_id, *_member_ids(conn, workspace, tag_id)]
     ]
 
 
-def project(
+def tag(
     conn: sqlite3.Connection, workspace: str, name: str, at: datetime | None = None
 ) -> dict[str, Any]:
     at = at or core.now()
     cfg = config.load()
     winner, ranked = resolve(conn, workspace, name)
     if winner is None:
-        return unresolved(conn, workspace, cfg, name, ranked, at, project=NOT_FOUND)
+        return unresolved(conn, workspace, cfg, name, ranked, at, tag=NOT_FOUND)
     views = member_views(conn, workspace, cfg, winner, at)
-    resolved = {"project": {"id": winner, "name": views[0]["title"]}, "baseline": None}
+    resolved = {"tag": {"id": winner, "name": views[0]["title"]}, "baseline": None}
     return envelope.build(
-        conn, workspace, cfg, views, at=at, resolved=resolved, project=facts(views[0], views[1:])
+        conn, workspace, cfg, views, at=at, resolved=resolved, tag=facts(views[0], views[1:])
     )

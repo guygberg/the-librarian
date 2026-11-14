@@ -90,7 +90,7 @@ def _apply(
     if entry["event"] in (
         "status_change",
         "owner_change",
-        "project_move",
+        "tag_move",
         "accept_suggestion",
         "resolve_disagreement",
         "confirm",
@@ -112,11 +112,11 @@ def _apply(
         view.pop("owner_is_me", None)
         if row[1]:
             view["owner_is_me"] = True
-    if "project_id" in detail:
+    if "tag_id" in detail:
         title = conn.execute(
-            "SELECT title FROM records WHERE id = ?", (detail["project_id"],)
+            "SELECT title FROM records WHERE id = ?", (detail["tag_id"],)
         ).fetchone()[0]
-        view["projects"] = [{"id": detail["project_id"], "title": title}]
+        view["tags"] = [{"id": detail["tag_id"], "title": title}]
     return lifecycle, done_at
 
 

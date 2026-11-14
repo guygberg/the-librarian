@@ -1,6 +1,6 @@
-"""A project that exists only in Slack: no recording, no session mentions it.
+"""A tag that exists only in Slack: no recording, no session mentions it.
 
-Import with LIBRARIAN_NOW=NOW. Canned extraction: DAY_KEY gives the project "Helios" and one
+Import with LIBRARIAN_NOW=NOW. Canned extraction: DAY_KEY gives the tag "Helios" and one
 action that belongs to it.
 """
 
@@ -16,7 +16,7 @@ CONVERSATIONS = [
     {"id": "C001", "name": "helios", "is_channel": True, "is_private": False, "num_members": 5}
 ]
 DAY_KEY = "slack-day-C001-2023-11-12"
-PROJECT, ACTION = "Helios", "Draft the Helios plan"
+TAG, ACTION = "Helios", "Draft the Helios plan"
 TEXT = "Helios kicks off next week, I will draft the plan"
 TS = f.ts(NOW - 2 * DAY)
 
@@ -32,7 +32,7 @@ def build(target):
         "evidence": evidence,
     }
     records = [
-        {**base, "ref": "p", "kind": "project", "title": PROJECT},
+        {**base, "ref": "p", "kind": "tag", "title": TAG},
         {
             **base,
             "ref": "a",

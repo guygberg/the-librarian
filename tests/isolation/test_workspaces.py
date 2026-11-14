@@ -31,7 +31,7 @@ def two_workspaces(tmp_path, home, monkeypatch):
     monkeypatch.setenv("LIBRARIAN_HOME", str(home))
     monkeypatch.setenv("LIBRARIAN_NOW", NOW)
     import_into("work", tmp_path, home, "payments-cutover")
-    import_into("other", tmp_path, home, "project-slack-only")
+    import_into("other", tmp_path, home, "tag-slack-only")
     return home
 
 
@@ -49,7 +49,7 @@ def test_a_second_workspace_shares_no_results(two_workspaces):
     assert evidence(home, "work", "Helios") == []
 
 
-COMMANDS = (["search", "Payments"], ["open-items"], ["project", "payments"], ["show", "1"])
+COMMANDS = (["search", "Payments"], ["open-items"], ["tag", "payments"], ["show", "1"])
 
 
 def touched_paths(monkeypatch, capsys, argv):
@@ -86,4 +86,4 @@ def test_answers_for_another_workspace_never_open_the_work_file(
     seen, out = touched_paths(monkeypatch, capsys, ["--workspace", "other", *command])
     assert work_db not in seen
     assert list(json.loads(out)) == ["error"]
-    assert payments.PROJECT not in out
+    assert payments.TAG not in out

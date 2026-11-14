@@ -98,7 +98,7 @@ def _check_record(rec: Any, candidate_ids: set[int], refs: set[str]) -> tuple[st
         "owner": "action_item",
         "stated_deadline": "action_item",
         "reasoning": "decision",
-        "parent": "project",
+        "parent": "tag",
     }
     for key, needed in only.items():
         if key in rec and kind != needed:

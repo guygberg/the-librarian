@@ -1,4 +1,4 @@
-"""Projects: an exact name or Alias links automatically; a near name is only suggested; nothing
+"""Tags: an exact name or Alias links automatically; a near name is only suggested; nothing
 is merged."""
 
 import sqlite3
@@ -12,24 +12,24 @@ NEAR_RATIO = 0.85  # "Atlas Migration" vs "Atlas Migrations" is near; "Atlas" vs
 
 @dataclass(frozen=True)
 class Match:
-    exact: int | None = None  # the one project with this name or Alias
-    ambiguous: bool = False  # several projects have it: never auto-links
-    near: tuple[int, ...] = ()  # projects with a similar, not equal, name
+    exact: int | None = None  # the one tag with this name or Alias
+    ambiguous: bool = False  # several tags have it: never auto-links
+    near: tuple[int, ...] = ()  # tags with a similar, not equal, name
 
 
 def names(conn: sqlite3.Connection, workspace: str) -> dict[int, list[str]]:
-    """Every project with its title and Aliases; a merged one is gone, its names are the
+    """Every tag with its title and Aliases; a merged one is gone, its names are the
     survivor's Aliases."""
     found: dict[int, list[str]] = {
         record_id: [title]
         for record_id, title in conn.execute(
-            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'project'"
+            "SELECT id, title FROM records WHERE workspace = ? AND kind = 'tag'"
             " AND lifecycle != 'superseded'",
             (workspace,),
         )
     }
     for record_id, alias in conn.execute(
-        "SELECT record_id, alias FROM project_aliases WHERE workspace = ?", (workspace,)
+        "SELECT record_id, alias FROM tag_aliases WHERE workspace = ?", (workspace,)
     ):
         found.setdefault(record_id, []).append(alias)
     return found

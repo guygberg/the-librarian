@@ -33,7 +33,7 @@ def restore_in_pty(home, archive, answers=(), *flags):
 
 
 def answers(home):
-    return [run_librarian([*cmd], home).stdout for cmd in (["open-items"], ["project", "Atlas"])]
+    return [run_librarian([*cmd], home).stdout for cmd in (["open-items"], ["tag", "Atlas"])]
 
 
 def tree(home):
@@ -70,6 +70,33 @@ def test_restore_refuses_non_empty_folder_and_overwrite_needs_typed_confirmation
 
     code, out = restore_in_pty(home, archive, ["work"], "--overwrite")
     assert code == 0, out
+
+
+def test_suggestions_survive_backup_and_restore(imported, tmp_path):
+    home, _ = imported
+    path = home / "workspaces" / "work" / "librarian.db"
+    conn = sqlite3.connect(path)
+    run = conn.execute(
+        "INSERT INTO extraction_runs (workspace, unit_key, model, claude_code_version, prompt_hash,"
+        " schema_hash, envelope, accepted, created_at, purpose)"
+        " VALUES ('work', 'u', 'm', 'v', 'p', 's', '{}', 1, 't', 'suggestions')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO suggestions (workspace, kind, payload, run_id, confidence, band, basis,"
+        " reasoning, dedupe_key, created_at)"
+        " VALUES ('work', 'new_tag', '{}', ?, 55, 'low', 'stated', 'r', 'k', 't')",
+        (run,),
+    )
+    conn.commit()
+    conn.close()
+
+    fresh = tmp_path / "fresh"
+    code, out = restore_in_pty(fresh, backup_of(home, tmp_path / "out"))
+    assert code == 0, out
+    restored = sqlite3.connect(fresh / "workspaces" / "work" / "librarian.db")
+    assert restored.execute("SELECT confidence, band, status FROM suggestions").fetchall() == [
+        (55, "low", "pending")
+    ]
 
 
 def test_restore_of_an_old_schema_archive_migrates_with_a_pre_migration_backup(tmp_path):

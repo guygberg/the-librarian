@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SKILL = ROOT / "skill" / "SKILL.md"
 ANSWER_COMMANDS = [
     "open-items",
-    "project",
+    "tag",
     "changes",
     "waiting",
     "decision",
@@ -23,13 +23,13 @@ ANSWER_COMMANDS = [
 ]
 ANSWER_ARGS = [
     ["open-items"],
-    ["project", "Payments"],
+    ["tag", "Payments"],
     ["changes"],
     ["waiting"],
     ["decision", "webhook v1"],
     ["blocked"],
     ["search", "Payments"],
-    ["show", str(payments.PROJECT_ID)],
+    ["show", str(payments.TAG_ID)],
 ]
 # Every command that writes, with arguments that would otherwise get past argument parsing.
 ADMIN_ARGS = [

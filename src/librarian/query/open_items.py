@@ -79,7 +79,7 @@ def open_items(
 ) -> dict[str, Any]:
     """`everything` (the UI's filters) also lists Records that are not open or not work items.
 
-    Those carry `group` None. It also names every project; headline and progress still
+    Those carry `group` None. It also names every tag; headline and progress still
     count only the open work items.
     """
     at = at or core.now()
@@ -149,7 +149,7 @@ def open_items(
             "week_start": since.isoformat(),
         },
         **(
-            {"projects": _projects(conn, workspace), "people": _people(conn, workspace)}
+            {"tags": _tags(conn, workspace), "people": _people(conn, workspace)}
             if everything
             else {}
         ),
@@ -166,12 +166,12 @@ def _people(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     ]
 
 
-def _projects(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
+def _tags(conn: sqlite3.Connection, workspace: str) -> list[dict[str, Any]]:
     return [
         {"id": row[0], "title": row[1], "basis": row[2], "body": row[3]}
         for row in conn.execute(
             "SELECT id, title, basis, body FROM records"
-            " WHERE workspace = ? AND kind = 'project' ORDER BY id",
+            " WHERE workspace = ? AND kind = 'tag' ORDER BY id",
             (workspace,),
         )
     ]

@@ -1,4 +1,4 @@
-"""Base fixture set: English, Hebrew and mixed content; project "Atlas" appears in all three
+"""Base fixture set: English, Hebrew and mixed content; tag "Atlas" appears in all three
 sources."""
 
 import random

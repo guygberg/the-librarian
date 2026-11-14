@@ -1,4 +1,4 @@
-"""Thin GET routes for the read-only answer commands that take an optional project or a topic."""
+"""Thin GET routes for the read-only answer commands that take an optional tag or a topic."""
 
 from urllib.parse import parse_qs
 
@@ -13,12 +13,12 @@ def _param(req, key):
 
 def get_changes(req):
     with req.ro() as conn:
-        return 200, changes.changes(conn, req.workspace, _param(req, "project"))
+        return 200, changes.changes(conn, req.workspace, _param(req, "tag"))
 
 
 def get_blocked(req):
     with req.ro() as conn:
-        return 200, blocked.blocked(conn, req.workspace, _param(req, "project"))
+        return 200, blocked.blocked(conn, req.workspace, _param(req, "tag"))
 
 
 def get_waiting(req):

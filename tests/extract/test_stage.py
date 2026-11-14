@@ -60,7 +60,7 @@ def thread_result():
             {
                 **base,
                 "ref": "p",
-                "kind": "project",
+                "kind": "tag",
                 "title": "Atlas",
                 "evidence": evidence(
                     f"slack:C001/{THREAD_ROOT}", "Should Atlas use SQLite per workspace?"
@@ -104,14 +104,14 @@ def test_import_stores_records_each_with_located_evidence(home, base):
     code, out = run_import(home, env)
 
     assert code == 0, out
-    project, decision, action = show(home, 1), show(home, 2), show(home, 3)
-    assert (project["kind"], project["title"], project["lifecycle"], project["basis"]) == (
-        "project",
+    tag, decision, action = show(home, 1), show(home, 2), show(home, 3)
+    assert (tag["kind"], tag["title"], tag["lifecycle"], tag["basis"]) == (
+        "tag",
         "Atlas",
         "open",
         "inferred",
-    )  # a project Claude creates waits for the person to confirm it
-    assert decision["projects"] == [{"id": 1, "title": "Atlas"}]
+    )  # a tag Claude creates waits for the person to confirm it
+    assert decision["tags"] == [{"id": 1, "title": "Atlas"}]
     assert decision["reasoning"] == "one file per workspace"
     assert (action["commitment"], action["owner"], action["stated_deadline"]) == (
         "request",
@@ -128,7 +128,7 @@ def test_import_stores_records_each_with_located_evidence(home, base):
             "gloss": "Priya agrees",
         }.items()
     )
-    for record in (project, decision, action):
+    for record in (tag, decision, action):
         assert record["evidence"] and all(
             {"locator", "quote", "role"} <= e.keys() for e in record["evidence"]
         )

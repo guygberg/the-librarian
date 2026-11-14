@@ -1,4 +1,4 @@
-"""`librarian changes [--project P]`: what Import and the person changed since the last meeting."""
+"""`librarian changes [--tag P]`: what Import and the person changed since the last meeting."""
 
 import json
 import sqlite3
@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from librarian import config
-from librarian.query import core, envelope, project
+from librarian.query import core, envelope, tag
 
 FALLBACK_DAYS = 7
 
@@ -51,13 +51,13 @@ def changes(
     at = at or core.now()
     cfg = config.load()
     scope = None
-    resolved: dict[str, Any] = {"project": None, "baseline": None}
+    resolved: dict[str, Any] = {"tag": None, "baseline": None}
     if name:
-        winner, ranked = project.resolve(conn, workspace, name)
+        winner, ranked = tag.resolve(conn, workspace, name)
         if winner is None:
-            return project.unresolved(conn, workspace, cfg, name, ranked, at, changes=[])
-        scope = [winner, *project._member_ids(conn, workspace, winner)]
-        resolved["project"] = {
+            return tag.unresolved(conn, workspace, cfg, name, ranked, at, changes=[])
+        scope = [winner, *tag._member_ids(conn, workspace, winner)]
+        resolved["tag"] = {
             "id": winner,
             "name": conn.execute("SELECT title FROM records WHERE id = ?", (winner,)).fetchone()[0],
         }

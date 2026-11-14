@@ -23,7 +23,7 @@ export function bind(form) {
   });
 }
 
-const FILTER_KEYS = ['project', 'owner', 'waiting', 'lifecycle', 'basis', 'warn', 'since'];
+const FILTER_KEYS = ['tag', 'owner', 'waiting', 'lifecycle', 'basis', 'warn', 'since'];
 
 /** The filters still applied to the stream behind the results, with a link that clears each one. */
 function activeFilters(state) {

@@ -20,35 +20,35 @@ def link(ui, kind, from_id, to_type, to_id):
     )
 
 
-def second_project(ui):
-    """An Onboarding project with one open item, next to the scenario's Payments project."""
-    project = record(ui, "Onboarding revamp", kind="project")
-    link(ui, "belongs_to", record(ui, KICKOFF), "record", project)
+def second_tag(ui):
+    """An Onboarding tag with one open item, next to the scenario's Payments tag."""
+    tag = record(ui, "Onboarding revamp", kind="tag")
+    link(ui, "belongs_to", record(ui, KICKOFF), "record", tag)
 
 
 def titles(page):
     return page.locator("[data-part=item] .t").all_text_contents()
 
 
-def test_project_chip_filters_the_stream_and_shows_the_status_header(page, ui):
+def test_tag_chip_filters_the_stream_and_shows_the_status_header(page, ui):
     ui = ui("payments-cutover", payments.NOW)
-    second_project(ui)
+    second_tag(ui)
     open_stream(page, ui)
 
-    chips = page.locator("[data-part=project-chip]")
-    expect(chips).to_have_text(["All work", payments.PROJECT, "Onboarding revamp"])
+    chips = page.locator("[data-part=tag-chip]")
+    expect(chips).to_have_text(["All work", payments.TAG, "Onboarding revamp"])
     expect(page.locator("[data-part=status-header]")).to_have_count(0)
     expect(row(page, KICKOFF)).to_be_visible()
 
-    chips.get_by_text(payments.PROJECT).click()
+    chips.get_by_text(payments.TAG).click()
     header = page.locator("[data-part=status-header]")
-    expect(header).to_contain_text(payments.PROJECT)
+    expect(header).to_contain_text(payments.TAG)
     expect(header).to_contain_text(payments.BLOCKER)
     expect(header).to_contain_text(payments.NOV_25)
     expect(page.locator("[data-part=changes]")).to_contain_text("changed")
     expect(row(page, KICKOFF)).to_have_count(0)
     expect(row(page, payments.BLOCKER)).to_have_count(1)
-    assert page.url == ui.url + "/items?project=Payments+migration"
+    assert page.url == ui.url + "/items?tag=Payments+migration"
 
     chips.get_by_text("All work").click()
     expect(header).to_have_count(0)
@@ -118,9 +118,9 @@ def test_person_filters_narrow_owner_and_waiting_on_and_there_is_no_person_route
 
 def test_reload_returns_to_the_same_filtered_state(page, ui):
     ui = ui("payments-cutover", payments.NOW)
-    second_project(ui)
+    second_tag(ui)
     page.clock.set_fixed_time(datetime.fromisoformat(NOW))
-    page.goto(ui.url + "/items?project=Payments+migration&kind=decisions")
+    page.goto(ui.url + "/items?tag=Payments+migration&kind=decisions")
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     before = titles(page)
     assert before == [payments.NOV_18, payments.NOV_25, payments.WEBHOOK]
@@ -128,5 +128,5 @@ def test_reload_returns_to_the_same_filtered_state(page, ui):
     page.reload()
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     expect(page.locator("[data-part=kind-tab].on")).to_have_text("Decisions")
-    expect(page.locator("[data-part=project-chip].on")).to_have_text(payments.PROJECT)
+    expect(page.locator("[data-part=tag-chip].on")).to_have_text(payments.TAG)
     assert titles(page) == before

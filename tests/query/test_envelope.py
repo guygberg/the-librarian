@@ -25,7 +25,7 @@ ENVELOPE = {
     "required": ["warnings", "resolved", "records", "evidence", "freshness"],
     "properties": {
         "warnings": {"type": "array", "items": {"type": "object", "required": ["code", "message"]}},
-        "resolved": {"type": "object", "required": ["project", "baseline"]},
+        "resolved": {"type": "object", "required": ["tag", "baseline"]},
         "records": {"type": "array", "items": RECORD},
         "evidence": {"type": "array", "items": EVIDENCE},
         "freshness": {
@@ -69,14 +69,14 @@ def test_every_answer_command_returns_the_envelope(world, home):
     slack_locator = ask(home, env, "search", "webhook")["evidence"][0]["locator"]
     answers = {
         "open-items": ask(home, env, "open-items"),
-        "project": ask(home, env, "project", "payments"),
-        "unknown project": ask(home, env, "project", "zzz"),
+        "tag": ask(home, env, "tag", "payments"),
+        "unknown tag": ask(home, env, "tag", "zzz"),
         "search": ask(home, env, "search", "webhook"),
-        "changes": ask(home, env, "changes", "--project", "payments"),
+        "changes": ask(home, env, "changes", "--tag", "payments"),
         "waiting": ask(home, env, "waiting"),
         "decision": ask(home, env, "decision", "webhook"),
         "blocked": ask(home, env, "blocked"),
-        "show record": ask(home, env, "show", str(payments.PROJECT_ID)),
+        "show record": ask(home, env, "show", str(payments.TAG_ID)),
         "show source item": ask(home, env, "show", slack_locator),
     }
     for name, answer in answers.items():
@@ -84,10 +84,10 @@ def test_every_answer_command_returns_the_envelope(world, home):
         assert list(answer)[0] == "warnings", name
 
 
-def test_project_facts_each_carry_an_evidence_locator(world, home):
+def test_tag_facts_each_carry_an_evidence_locator(world, home):
     env = world()
-    answer = ask(home, env, "project", "payments")
-    assert answer["resolved"]["project"] == {"id": payments.PROJECT_ID, "name": payments.PROJECT}
+    answer = ask(home, env, "tag", "payments")
+    assert answer["resolved"]["tag"] == {"id": payments.TAG_ID, "name": payments.TAG}
     assert answer["records"] and all(
         any(
             e["record_id"] == r["id"] and e["locator"] and e["quote"] and e["role"]
@@ -95,7 +95,7 @@ def test_project_facts_each_carry_an_evidence_locator(world, home):
         )
         for r in answer["records"]
     )
-    facts = answer["project"]
+    facts = answer["tag"]
     assert facts["status"]["value"] == "open" and facts["status"]["evidence"]
     assert (
         facts["latest_decision"]["title"] == payments.NOV_25
@@ -108,7 +108,7 @@ def test_project_facts_each_carry_an_evidence_locator(world, home):
 
 def test_basis_stale_and_contradictions_are_in_the_json(world, home):
     env = world()
-    records = {r["title"]: r for r in ask(home, env, "project", "payments")["records"]}
+    records = {r["title"]: r for r in ask(home, env, "tag", "payments")["records"]}
     for record in records.values():
         assert "basis" in record and "stale" in record and "contradictions" in record
     assert [c["title"] for c in records[payments.NOV_18]["contradictions"]] == [payments.NOV_25]
@@ -117,18 +117,13 @@ def test_basis_stale_and_contradictions_are_in_the_json(world, home):
 
 def test_an_unknown_name_returns_no_candidates_and_a_clear_winner_is_named(world, home):
     env = world()
-    nothing = ask(home, env, "project", "zzz")
-    assert (
-        nothing["resolved"] == {"project": None, "baseline": None} and nothing["candidates"] == []
-    )
-    assert nothing["warnings"][0]["code"] == "project_not_found"
-    assert (
-        ask(home, env, "project", "Payments Migration")["resolved"]["project"]["id"]
-        == payments.PROJECT_ID
-    )
+    nothing = ask(home, env, "tag", "zzz")
+    assert nothing["resolved"] == {"tag": None, "baseline": None} and nothing["candidates"] == []
+    assert nothing["warnings"][0]["code"] == "tag_not_found"
+    assert ask(home, env, "tag", "Payments Migration")["resolved"]["tag"]["id"] == payments.TAG_ID
 
 
-def test_two_close_projects_are_candidates_not_a_guess(world, home):
+def test_two_close_tags_are_candidates_not_a_guess(world, home):
     env = world()
     db = sqlite3.connect(next(home.rglob("*.db")))
     with db:
@@ -136,18 +131,18 @@ def test_two_close_projects_are_candidates_not_a_guess(world, home):
             "INSERT INTO records (workspace, kind, title, created_at, updated_at)"
             " SELECT workspace, kind, 'Payments review', created_at, updated_at"
             " FROM records WHERE id = ?",
-            (payments.PROJECT_ID,),
+            (payments.TAG_ID,),
         )
-    answer = ask(home, env, "project", "payments")
-    assert answer["resolved"] == {"project": None, "baseline": None}
-    assert answer["warnings"][0]["code"] == "project_ambiguous"
-    assert [c["name"] for c in answer["candidates"]] == [payments.PROJECT, "Payments review"]
+    answer = ask(home, env, "tag", "payments")
+    assert answer["resolved"] == {"tag": None, "baseline": None}
+    assert answer["warnings"][0]["code"] == "tag_ambiguous"
+    assert [c["name"] for c in answer["candidates"]] == [payments.TAG, "Payments review"]
     assert {"id", "name", "parent", "last_activity"} <= answer["candidates"][0].keys()
 
 
 def test_a_never_imported_source_leads_the_answer(world, home):
     env = world()
-    for command in (["open-items"], ["project", "payments"], ["search", "webhook"]):
+    for command in (["open-items"], ["tag", "payments"], ["search", "webhook"]):
         warning = ask(home, env, *command)["warnings"][0]
         assert (warning["code"], warning["source"]) == ("source_never_imported", "session")
 

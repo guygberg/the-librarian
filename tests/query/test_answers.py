@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from fixtures.scenarios import payments_cutover as payments
-from fixtures.scenarios import project_slack_only as slack_only
+from fixtures.scenarios import tag_slack_only as slack_only
 from support.cli import run_librarian
 from support.recordings import make_env, run_import
 from support.serve import spawn
@@ -45,25 +45,25 @@ def sql(home, query, *params):
 
 
 def test_changes_states_the_meeting_and_its_date(world, home):
-    answer = ask(home, world(), "changes", "--project", "payments")
-    assert answer["resolved"]["project"]["name"] == payments.PROJECT
+    answer = ask(home, world(), "changes", "--tag", "payments")
+    assert answer["resolved"]["tag"]["name"] == payments.TAG
     assert answer["resolved"]["baseline"] == "since the last meeting, Payments sync, on 2023-11-13"
-    assert {r["title"] for r in answer["records"]} >= {payments.PROJECT, payments.NOV_25}
+    assert {r["title"] for r in answer["records"]} >= {payments.TAG, payments.NOV_25}
     assert answer["person_events"] == []
 
 
 def test_changes_with_no_recording_falls_back_to_seven_days_and_says_so(world, home):
-    env = world("project-slack-only", slack_only.NOW)
-    answer = ask(home, env, "changes", "--project", "helios")
+    env = world("tag-slack-only", slack_only.NOW)
+    answer = ask(home, env, "changes", "--tag", "helios")
     assert answer["resolved"]["baseline"] == "no meeting found; the last 7 days, since 2023-11-07"
-    assert {r["title"] for r in answer["records"]} == {slack_only.PROJECT, slack_only.ACTION}
-    later = ask(home, {**env, "LIBRARIAN_NOW": FAR_FUTURE}, "changes", "--project", "helios")
+    assert {r["title"] for r in answer["records"]} == {slack_only.TAG, slack_only.ACTION}
+    later = ask(home, {**env, "LIBRARIAN_NOW": FAR_FUTURE}, "changes", "--tag", "helios")
     assert later["records"] == [] and later["resolved"]["baseline"].startswith("no meeting found")
 
 
-def test_changes_without_a_project_uses_the_latest_recording_overall(world, home):
+def test_changes_without_a_tag_uses_the_latest_recording_overall(world, home):
     answer = ask(home, world(), "changes")
-    assert answer["resolved"]["project"] is None and "2023-11-13" in answer["resolved"]["baseline"]
+    assert answer["resolved"]["tag"] is None and "2023-11-13" in answer["resolved"]["baseline"]
 
 
 def test_changes_shows_the_persons_own_actions_posted_over_http(world, home):
@@ -78,7 +78,7 @@ def test_changes_shows_the_persons_own_actions_posted_over_http(world, home):
         proc.terminate()
         proc.wait(timeout=10)
         proc.stdout.close()
-    answer = ask(home, env, "changes", "--project", "payments")
+    answer = ask(home, env, "changes", "--tag", "payments")
     [event] = answer["person_events"]
     assert (event["record_id"], event["event"], event["change"]) == (
         blocker,
@@ -87,9 +87,9 @@ def test_changes_shows_the_persons_own_actions_posted_over_http(world, home):
     )
 
 
-def test_changes_with_an_unclear_project_returns_candidates(world, home):
-    answer = ask(home, world(), "changes", "--project", "zzz")
-    assert answer["warnings"][0]["code"] == "project_not_found" and answer["records"] == []
+def test_changes_with_an_unclear_tag_returns_candidates(world, home):
+    answer = ask(home, world(), "changes", "--tag", "zzz")
+    assert answer["warnings"][0]["code"] == "tag_not_found" and answer["records"] == []
 
 
 def test_waiting_names_who_owns_the_next_step(world, home):
@@ -135,8 +135,8 @@ def test_blocked_lists_blockers_and_what_they_block(world, home):
             "record_id": 4,
             "title": payments.BLOCKER,
             "owner": "Raz Peretz",
-            "blocks": [{"id": payments.PROJECT_ID, "title": payments.PROJECT}],
+            "blocks": [{"id": payments.TAG_ID, "title": payments.TAG}],
         }
     ]
     assert ask(home, env, "blocked")["blocked"] == expected
-    assert ask(home, env, "blocked", "--project", "payments")["blocked"] == expected
+    assert ask(home, env, "blocked", "--tag", "payments")["blocked"] == expected

@@ -22,7 +22,7 @@ def test_slash_focuses_search_on_every_view(page, ui):
     open_stream(page, ui)
     press_slash_focuses(page)
 
-    page.goto(f"{ui.url}/items?project={quote(payments.PROJECT)}")
+    page.goto(f"{ui.url}/items?tag={quote(payments.TAG)}")
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     press_slash_focuses(page)
 
@@ -89,17 +89,17 @@ def test_the_url_restores_the_search(page, ui):
 
 def test_results_keep_the_active_filters_visible_and_clearable(page, ui):
     ui = ui("payments-cutover", payments.NOW)
-    page.goto(f"{ui.url}/items?project={quote(payments.PROJECT)}")
+    page.goto(f"{ui.url}/items?tag={quote(payments.TAG)}")
     page.locator(BOX).fill("cutover")
     page.keyboard.press("Enter")
 
     kept = page.locator("[data-part=search-filter]")
     expect(kept).to_have_count(1)
-    expect(kept).to_contain_text(payments.PROJECT)
+    expect(kept).to_contain_text(payments.TAG)
     kept.click()
     expect(page.locator("[data-part=search-filter]")).to_have_count(0)
     expect(page.locator(BOX)).to_have_value("cutover")
-    assert "project=" not in page.url
+    assert "tag=" not in page.url
 
 
 def test_slash_focuses_search_on_the_import_panel_and_no_matches_says_so(page, ui):

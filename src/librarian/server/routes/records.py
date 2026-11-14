@@ -5,11 +5,11 @@ No source is touched.
 """
 
 from librarian import events
-from librarian.link import project_actions
+from librarian.link import tag_actions
 from librarian.server.routes import Refused, Route, field, mutating
 
 WRONG = "marked wrong by me"
-_NOT_FOR_PROJECTS = "not available for a project"
+_NOT_FOR_TAGS = "not available for a tag"
 
 
 def _kind(conn, workspace, record_id):
@@ -23,8 +23,8 @@ def _need_item(conn, workspace, record_id) -> None:
     kind = _kind(conn, workspace, int(record_id))
     if kind is None:
         raise Refused(404, f"no Record {record_id}")
-    if kind == "project":
-        raise Refused(409, _NOT_FOR_PROJECTS)
+    if kind == "tag":
+        raise Refused(409, _NOT_FOR_TAGS)
 
 
 def _lifecycle(lifecycle):
@@ -45,8 +45,8 @@ def _owner(conn, workspace, record_id, body):
     events.append(conn, workspace, record_id, "owner_change", {"person_id": person_id})
 
 
-def _project(conn, workspace, record_id, body):
-    project_actions.move(conn, workspace, record_id, field(body, "project_id", int))
+def _tag(conn, workspace, record_id, body):
+    tag_actions.move(conn, workspace, record_id, field(body, "tag_id", int))
 
 
 def _resolve(conn, workspace, record_id, body):
@@ -92,7 +92,7 @@ ACTIONS = {
     "done": _lifecycle("done"),
     "reopen": _lifecycle("open"),
     "owner": _owner,
-    "project": _project,
+    "tag": _tag,
     "resolve": _resolve,
 }
 

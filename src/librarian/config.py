@@ -17,6 +17,9 @@ DEFAULTS: dict[str, Any] = {
     "import_sources": ["slack", "drive", "session"],
     "source_overdue_days": 7,
     "extract_max_calls": 200,
+    # Suggestions below the first floor are not stored; below the second, stored but hidden.
+    "suggest_min_confidence": 40,
+    "suggest_auto_hide_below": 40,
     "claude_bin": "claude",
     # Full id, never an alias; `claude_code_version` may pin the install too.
     "claude_model": "claude-sonnet-5-5",

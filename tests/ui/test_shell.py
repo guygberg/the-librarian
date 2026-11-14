@@ -16,8 +16,8 @@ def test_reference_is_preserved_in_the_repository():
 def test_nav_lists_the_five_pages_and_each_route_loads(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     page.goto(ui.url)
-    expect(page.locator(NAV)).to_have_text(["Today", "Items", "People", "Projects", "Review"])
-    for label in ["People", "Projects", "Review", "Items"]:
+    expect(page.locator(NAV)).to_have_text(["Today", "Items", "People", "Tags", "Review"])
+    for label in ["People", "Tags", "Review", "Items"]:
         path = "/" + label.lower()
         page.locator(NAV, has_text=label).click()
         expect(page).to_have_url(ui.url + path)

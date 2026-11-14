@@ -6,7 +6,7 @@ The HTTP actions (`server/routes/records.py`) append through here.
 - `lifecycle` (+ optional `waiting_on`, `suspended_by`, `reason`): status_change,
   resolve_disagreement
 - `person_id`: owner_change, move_alias, split, accept_suggestion (an owner suggestion),
-  set_speaker; `project_id`: project_move
+  set_speaker; `tag_id`: tag_move
 - `with` (the other Record): resolve_disagreement; it hides that Record from "Sources disagree"
 Every other event is history only until the action that needs it lands.
 """
@@ -20,7 +20,7 @@ from librarian.clock import utc_now_iso
 TYPES = (
     "status_change",
     "owner_change",
-    "project_move",
+    "tag_move",
     "accept_suggestion",
     "reject_suggestion",
     "merge",

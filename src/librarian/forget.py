@@ -85,7 +85,7 @@ def _delete_items(
         for table, column in (
             ("review_entries", "record_id"),
             ("review_entries", "other_record_id"),
-            ("project_aliases", "record_id"),
+            ("tag_aliases", "record_id"),
             ("unit_records", "record_id"),
         ):
             conn.execute(f"DELETE FROM {table} WHERE {column} IN ({marks})", orphans)

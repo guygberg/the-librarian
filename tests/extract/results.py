@@ -18,7 +18,7 @@ def good() -> dict:
             {
                 "ref": "p1",
                 "match": {"decision": "same", "id": 7},
-                "kind": "project",
+                "kind": "tag",
                 "title": "Rollout",
                 "lifecycle": "open",
                 "basis": "stated",

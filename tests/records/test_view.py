@@ -170,7 +170,7 @@ def test_stale_item_stays_stale_after_importing_the_librarian_echo_session(world
         ("open_question", 30, False),
         ("open_question", 31, True),
         ("decision", 3650, False),
-        ("project", 3650, False),
+        ("tag", 3650, False),
     ],
 )
 def test_stale_thresholds_boundary(kind, age_days, stale_expected):

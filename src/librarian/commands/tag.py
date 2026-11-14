@@ -1,16 +1,16 @@
 import json
 
 from librarian import db
-from librarian.query import project
+from librarian.query import tag
 
 help = (
-    "One project's status, owners, deadlines, latest decision and main blocker "
+    "One tag's status, owners, deadlines, latest decision and main blocker "
     "with Evidence, as JSON (read-only)"
 )
 
 
 def add_arguments(parser):
-    parser.add_argument("name", help="project name or Alias; an unclear name returns candidates")
+    parser.add_argument("name", help="tag name or Alias; an unclear name returns candidates")
 
 
 def run(args, ctx):
@@ -21,6 +21,6 @@ def run(args, ctx):
         print(json.dumps({"error": {"code": "schema_outdated", "message": message}}))
         return 1
     with conn:
-        answer = project.project(conn, ctx.workspace, args.name)
+        answer = tag.tag(conn, ctx.workspace, args.name)
     print(json.dumps(answer, indent=2, ensure_ascii=False))
     return 0

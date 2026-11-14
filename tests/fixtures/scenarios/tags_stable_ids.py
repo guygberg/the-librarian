@@ -1,11 +1,11 @@
-"""Projects across Imports: one Slack channel, one message per day, replayed with an edit
+"""Tags across Imports: one Slack channel, one message per day, replayed with an edit
 and a new message.
 
 Import with LIBRARIAN_NOW=NOW. Canned extraction (the Nth call for a unit gets the Nth entry):
-- DAY1: project "Atlas Migration" and an action; the second call (after the edit) says
+- DAY1: tag "Atlas Migration" and an action; the second call (after the edit) says
   same / updated.
-- DAY2: project "Atlas Migrations" (a near name) and an action that belongs to it.
-- DAY3 (only from the second Import): project "Helios" and an action that belongs to it.
+- DAY2: tag "Atlas Migrations" (a near name) and an action that belongs to it.
+- DAY3 (only from the second Import): tag "Helios" and an action that belongs to it.
 Record ids follow the newest-first extraction order: Atlas Migration 1, its action 2,
 Atlas Migrations 3, its action 4.
 """
@@ -34,11 +34,11 @@ TEXT2 = "Atlas Migrations rollout: Lee writes the notes"
 TEXT3 = "Helios launch: Sam books the venue"
 
 
-def _project(title: str, locator: str, quote: str, **match) -> dict:
+def _tag(title: str, locator: str, quote: str, **match) -> dict:
     return {
         "ref": "p",
         "match": match or {"decision": "new"},
-        "kind": "project",
+        "kind": "tag",
         "title": title,
         "lifecycle": "open",
         "basis": "stated",
@@ -86,13 +86,11 @@ def build(target):
         KEYS[1],
         [
             [
-                _project("Atlas Migration", loc[1], "Atlas Migration kickoff"),
+                _tag("Atlas Migration", loc[1], "Atlas Migration kickoff"),
                 _action("Draft the plan", loc[1], "Dana drafts the plan"),
             ],
             [
-                _project(
-                    "Atlas Migration", loc[1], "Atlas Migration kickoff", decision="same", id=1
-                ),
+                _tag("Atlas Migration", loc[1], "Atlas Migration kickoff", decision="same", id=1),
                 _action(
                     "Draft the plan",
                     loc[1],
@@ -108,7 +106,7 @@ def build(target):
         KEYS[2],
         [
             [
-                _project("Atlas Migrations", loc[2], "Atlas Migrations rollout"),
+                _tag("Atlas Migrations", loc[2], "Atlas Migrations rollout"),
                 _action("Write the notes", loc[2], "Lee writes the notes"),
             ]
         ],
@@ -118,7 +116,7 @@ def build(target):
         KEYS[3],
         [
             [
-                _project("Helios", loc[3], "Helios launch"),
+                _tag("Helios", loc[3], "Helios launch"),
                 _action("Book the venue", loc[3], "Sam books the venue"),
             ]
         ],

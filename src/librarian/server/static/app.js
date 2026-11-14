@@ -6,7 +6,7 @@ import { today } from './views/today.js';
 import * as sheet from './views/sheet.js';
 import { importPanel } from './views/import-panel.js';
 import { people } from './views/people.js';
-import { projects } from './views/projects.js';
+import { tags } from './views/tags.js';
 import { review } from './views/review.js';
 import * as search from './search.js';
 import * as shell from './shell.js';
@@ -19,7 +19,7 @@ const routes = {
   '/items': stream,
   '/items/:id': stream,
   '/people': people,
-  '/projects': projects,
+  '/tags': tags,
   '/import': importPanel,
   '/review': review,
 };

@@ -1,10 +1,10 @@
-"""The Payments migration project across Slack and a recording (UI scenario `payments-cutover`).
+"""The Payments migration tag across Slack and a recording (UI scenario `payments-cutover`).
 
-Import with LIBRARIAN_NOW=NOW. Canned extraction: SLACK_KEY (the project, the Nov 18
+Import with LIBRARIAN_NOW=NOW. Canned extraction: SLACK_KEY (the tag, the Nov 18
 decision, "Keep webhook v1", a blocker owned by Raz, and two items with no Evidence at all)
 and RECORDING_KEY (the Nov 25 decision at 00:41:10, which contradicts the Nov 18 one). The
 recording's Record cites a candidate by Record id, so it relies on the Slack unit being
-stored first: the project is Record PROJECT_ID, the Nov 18 decision NOV_18_ID.
+stored first: the tag is Record TAG_ID, the Nov 18 decision NOV_18_ID.
 """
 
 import json
@@ -28,10 +28,10 @@ RECORDING = "Payments sync - 2023-11-13 10.00 GMT+02.00 - Recording"
 CUTOVER_SPEECH = "Payments migration cutover: Nov 25 to be safe"
 CUTOVER_START = 2470.0  # 00:41:10
 
-PROJECT, NOV_18, NOV_25 = "Payments migration", "Cutover on Nov 18", "Cutover on Nov 25 to be safe"
+TAG, NOV_18, NOV_25 = "Payments migration", "Cutover on Nov 18", "Cutover on Nov 25 to be safe"
 WEBHOOK, BLOCKER = "Keep webhook v1", "Bank sandbox credentials missing"
 UNCITED = ["Run a rollback drill in Q1", "Schedule the post-cutover review"]
-PROJECT_ID, NOV_18_ID = 1, 2
+TAG_ID, NOV_18_ID = 1, 2
 
 _SLACK_AT = NOW - 3 * DAY
 MESSAGES = [
@@ -81,7 +81,7 @@ def build(target):
     belongs = [{"type": "belongs_to", "to": {"ref": "p"}}]
     slack = [f"slack:C001/{ts}" for _, _, ts in MESSAGES]
     day = [
-        _record("p", "project", PROJECT, slack[0], "the cutover is Nov 18"),
+        _record("p", "tag", TAG, slack[0], "the cutover is Nov 18"),
         _record("d1", "decision", NOV_18, slack[0], "the cutover is Nov 18", links=belongs),
         _record("d2", "decision", WEBHOOK, slack[1], "We keep webhook v1", links=belongs),
         _record(
@@ -107,7 +107,7 @@ def build(target):
             f"drive:{file_id}/2",
             "Nov 25 to be safe",
             links=[
-                {"type": "belongs_to", "to": {"id": PROJECT_ID}},
+                {"type": "belongs_to", "to": {"id": TAG_ID}},
                 {"type": "contradicts", "to": {"id": NOV_18_ID}},
             ],
         )

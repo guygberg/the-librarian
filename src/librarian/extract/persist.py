@@ -5,7 +5,7 @@ from typing import Any
 
 from librarian import locator
 from librarian.clock import utc_now_iso
-from librarian.link import people, project_actions, projects, review, speaker
+from librarian.link import people, review, speaker, tag_actions, tags
 
 
 def persist(
@@ -17,13 +17,11 @@ def persist(
 ) -> None:
     conn.execute("BEGIN")
     try:
-        near: dict[
-            str, tuple[int, ...]
-        ] = {}  # ref of a new project -> existing projects with a near name
+        near: dict[str, tuple[int, ...]] = {}  # ref of a new tag -> existing tags with a near name
         ids = {rec["ref"]: _store_record(conn, workspace, rec, near) for rec in records}
         for rec in records:
             _link_and_cite(conn, workspace, ids, rec)
-            _suggest_projects(conn, workspace, ids[rec["ref"]], rec, near)
+            _suggest_tags(conn, workspace, ids[rec["ref"]], rec, near)
         conn.execute(
             "DELETE FROM unit_records WHERE workspace = ? AND unit_key = ?", (workspace, unit_key)
         )
@@ -45,45 +43,41 @@ def persist(
 def _store_record(
     conn: sqlite3.Connection, workspace: str, rec: dict[str, Any], near: dict[str, tuple[int, ...]]
 ) -> int:
-    """The Record's id: the one Claude matched (same, updated), the one project with this exact
+    """The Record's id: the one Claude matched (same, updated), the one tag with this exact
     name, or a new one."""
     decision = rec["match"]["decision"]
     if decision != "new":
         if decision == "updated":
             _update_record(conn, workspace, rec["match"]["id"], rec)
         return rec["match"]["id"]
-    if rec["kind"] != "project":
+    if rec["kind"] != "tag":
         return _insert_record(conn, workspace, rec)
-    found = projects.match(conn, workspace, rec["title"])
+    found = tags.match(conn, workspace, rec["title"])
     if found.exact is not None:
         return found.exact
-    # Never merged here: a second project is stored, inferred, and any near name is only suggested.
+    # Never merged here: a second tag is stored, inferred, and any near name is only suggested.
     record_id = _insert_record(conn, workspace, {**rec, "basis": "inferred"})
-    review.add(conn, workspace, review.INFERRED_PROJECT, record_id, "project", rec["title"])
+    review.add(conn, workspace, review.INFERRED_TAG, record_id, "tag", rec["title"])
     if found.near:
         near[rec["ref"]] = found.near
         for other in found.near:
-            review.add(
-                conn, workspace, review.MERGE_PROJECT, record_id, "project", rec["title"], other
-            )
+            review.add(conn, workspace, review.MERGE_TAG, record_id, "tag", rec["title"], other)
     return record_id
 
 
-def _suggest_projects(
+def _suggest_tags(
     conn: sqlite3.Connection,
     workspace: str,
     record_id: int,
     rec: dict[str, Any],
     near: dict[str, tuple[int, ...]],
 ) -> None:
-    """A Record of a new project with a near name might belong to the existing one: suggested,
+    """A Record of a new tag with a near name might belong to the existing one: suggested,
     not linked."""
     for link in rec.get("links", []):
         for other in near.get(link["to"].get("ref"), ()) if link["type"] == "belongs_to" else ():
             title = conn.execute("SELECT title FROM records WHERE id = ?", (other,)).fetchone()[0]
-            review.add(
-                conn, workspace, review.SUGGESTED_PROJECT, record_id, "belongs_to", title, other
-            )
+            review.add(conn, workspace, review.SUGGESTED_TAG, record_id, "belongs_to", title, other)
 
 
 def _update_record(
@@ -91,7 +85,7 @@ def _update_record(
 ) -> None:
     person_id, review_kind = _owner(conn, workspace, rec)
     conn.execute(
-        "UPDATE records SET title = CASE WHEN kind = 'project' THEN title ELSE ? END, body = ?,"
+        "UPDATE records SET title = CASE WHEN kind = 'tag' THEN title ELSE ? END, body = ?,"
         " lifecycle = ?, basis = CASE WHEN basis = 'confirmed' THEN basis ELSE ? END,"
         " commitment = ?, owner_person_id = COALESCE(?, owner_person_id), stated_deadline = ?,"
         " reasoning = ?,"
@@ -178,7 +172,7 @@ def _link_and_cite(
         end = link["to"]
         if "ref" in end or "id" in end:
             to_type, to_id = "record", _record_end(ids, end)
-            if link["type"] == "belongs_to" and project_actions.moved(conn, workspace, record_id):
+            if link["type"] == "belongs_to" and tag_actions.moved(conn, workspace, record_id):
                 continue  # a person moved it: extraction does not move it back
         else:
             to_type = "person"

@@ -65,7 +65,7 @@ def test_acceptance_journey(page, ui, size):
     page.get_by_text("Board", exact=True).click()
     expect(page.locator("[data-part=board]")).to_be_visible()
     shot(page, size, "items-board")
-    page.goto(f"{base}/items?project={quote(payments.PROJECT)}&kind=decisions")
+    page.goto(f"{base}/items?tag={quote(payments.TAG)}&kind=decisions")
     expect(page.locator("[data-part=status-header]")).to_be_visible()
     page.goto(f"{base}/items?owner=Raz+Peretz&lifecycle=open")
     expect(page.locator("[data-part=item] .t")).to_have_text(["Raz decision"])
@@ -93,13 +93,13 @@ def test_acceptance_journey(page, ui, size):
     page.locator("[data-part=today-reopen]").click()
     expect(page.locator("[data-part=completed-item]")).to_have_count(0)
 
-    # People and Projects.
+    # People and Tags.
     page.goto(base + "/people")
     expect(page.locator("[data-part=person]", has_text="Raz Peretz")).to_be_visible()
     shot(page, size, "people")
-    page.goto(base + "/projects")
-    expect(page.locator("[data-part=project]", has_text=payments.PROJECT)).to_be_visible()
-    shot(page, size, "projects")
+    page.goto(base + "/tags")
+    expect(page.locator("[data-part=tag]", has_text=payments.TAG)).to_be_visible()
+    shot(page, size, "tags")
 
     # Review: accept one suggestion, reject another.
     page.goto(base + "/review")
@@ -115,7 +115,7 @@ def test_acceptance_journey(page, ui, size):
     page.locator("[data-part=dry-run-button]").click()
     expect(page.locator("[data-part=import-progress]")).to_be_visible()
     shot(page, size, "import")
-    deep = f"{base}/items?project={quote(payments.PROJECT)}&view=board"
+    deep = f"{base}/items?tag={quote(payments.TAG)}&view=board"
     page.goto(deep)
     page.reload()
     assert page.url == deep

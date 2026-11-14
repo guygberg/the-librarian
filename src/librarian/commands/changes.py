@@ -5,8 +5,8 @@ help = "What changed since the last meeting (or the last 7 days), as JSON (read-
 
 
 def add_arguments(parser):
-    parser.add_argument("--project", help="project name or Alias; default is the whole workspace")
+    parser.add_argument("--tag", help="tag name or Alias; default is the whole workspace")
 
 
 def run(args, ctx):
-    return print_answer(ctx, lambda conn: changes.changes(conn, ctx.workspace, args.project))
+    return print_answer(ctx, lambda conn: changes.changes(conn, ctx.workspace, args.tag))

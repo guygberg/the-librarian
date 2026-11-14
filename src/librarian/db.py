@@ -83,11 +83,15 @@ def connect_rw(workspace: str, directory: Path = MIGRATIONS_DIR) -> sqlite3.Conn
     # Autocommit means one commit per statement; FULL would fsync each. NORMAL in WAL cannot
     # corrupt the file, and a re-run of the import redoes anything a power cut dropped.
     conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    # Off while migrating so a migration may rebuild a referenced table; checked before each commit.
+    conn.execute("PRAGMA foreign_keys=OFF")
     for version, sql_path in pending:
-        conn.executescript(
-            f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};\nCOMMIT;"
-        )
+        conn.executescript(f"BEGIN;\n{sql_path.read_text()}\nPRAGMA user_version={version};")
+        if conn.execute("PRAGMA foreign_key_check").fetchall():
+            conn.execute("ROLLBACK")
+            raise sqlite3.IntegrityError(f"migration {sql_path.name} left dangling references")
+        conn.execute("COMMIT")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 

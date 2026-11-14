@@ -7,15 +7,15 @@ from librarian.clock import utc_now_iso
 
 UNCONFIRMED_PERSON = "unconfirmed_person"
 UNKNOWN_SPEAKER = "unknown_speaker"
-INFERRED_PROJECT = "inferred_project"
-SUGGESTED_PROJECT = "suggested_project"
-MERGE_PROJECT = "merge_project"
+INFERRED_TAG = "inferred_tag"
+SUGGESTED_TAG = "suggested_tag"
+MERGE_TAG = "merge_tag"
 MARKS = {
     UNCONFIRMED_PERSON: "unconfirmed person",
     UNKNOWN_SPEAKER: "unknown speaker",
-    INFERRED_PROJECT: "inferred project",
-    SUGGESTED_PROJECT: "suggested project",
-    MERGE_PROJECT: "possible duplicate project",
+    INFERRED_TAG: "inferred tag",
+    SUGGESTED_TAG: "suggested tag",
+    MERGE_TAG: "possible duplicate tag",
 }
 
 

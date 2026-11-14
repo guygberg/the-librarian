@@ -30,8 +30,8 @@ def world(tmp_path, home):
             ).lastrowid
 
         decision = record("decision", "דחינו את ההשקה")
-        project = record("project", "Billing cleanup")
-        conn.execute("INSERT INTO project_aliases VALUES ('work', ?, 'ניקוי חשבוניות')", (project,))
+        tag = record("tag", "Billing cleanup")
+        conn.execute("INSERT INTO tag_aliases VALUES ('work', ?, 'ניקוי חשבוניות')", (tag,))
         conn.execute(
             "INSERT INTO evidence"
             " (workspace, record_id, revision_id, locator, quote, role, retrieved_at)"
@@ -46,7 +46,7 @@ def world(tmp_path, home):
             (person,),
         )
         meeting = record("action_item", "סיכום הפגישה")
-    return home, {"decision": decision, "project": project, "person": person, "meeting": meeting}
+    return home, {"decision": decision, "tag": tag, "person": person, "meeting": meeting}
 
 
 def cli(home, query):
@@ -74,9 +74,9 @@ def test_record_evidence_quotes_are_searchable_and_listed_before_passages(world)
     )
 
 
-def test_projects_by_alias_and_people_by_alias_or_name(world):
+def test_tags_by_alias_and_people_by_alias_or_name(world):
     home, ids = world
-    assert [r["id"] for r in cli(home, "חשבוניות")["records"]] == [ids["project"]]
+    assert [r["id"] for r in cli(home, "חשבוניות")["records"]] == [ids["tag"]]
     for query in ("לנועה", "zamir"):
         [person] = cli(home, query)["people"]
         assert person["person_id"] == ids["person"] and person["aliases"] == ["נועה"]

@@ -94,7 +94,7 @@ def test_base_has_recording_shapes(fixtures_dir):
             assert {"text", "p"} <= seg["tokens"][0].keys()
 
 
-def test_base_has_two_sources_about_one_project(fixtures_dir):
+def test_base_has_two_sources_about_one_tag(fixtures_dir):
     hits = [
         p
         for p in fixtures_dir.rglob("*")
@@ -112,20 +112,20 @@ def test_hebrew_is_real_with_niqqud(fixtures_dir):
 
 
 SPEC_FIXTURE_SET = [
-    "cross-source project",
+    "cross-source tag",
     "date disagreement",
     "uncertain Hebrew passage",
     "unnamed first-person speech",
     "deleted Slack message",
     "edited Slack message",
-    "ambiguous project name",
+    "ambiguous tag name",
     "stale item",
     "ownerless item",
     "failing extractor",
     "partial file",
     "Slack history older than 30 days",
     "replayed conversation list",
-    "project with no recording",
+    "tag with no recording",
     "prompt-injection message",
 ]
 

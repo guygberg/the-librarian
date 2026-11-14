@@ -7,7 +7,7 @@ from support.cli import run_librarian
 FIELDS = {
     "Sample set": 5,
     "Open items pass": 6,
-    "Project status pass": 6,
+    "Tag status pass": 6,
     "Transcription pass": 4,
     "Import-twice check": 2,
 }

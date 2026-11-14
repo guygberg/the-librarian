@@ -21,20 +21,20 @@ def start(ui):
 
 def urls(ui):
     [(rid,)] = ui.sql("SELECT id FROM records WHERE title = ?", LONG)
-    [(project,)] = ui.sql("SELECT title FROM records WHERE kind = 'project' LIMIT 1")
+    [(tag,)] = ui.sql("SELECT title FROM records WHERE kind = 'tag' LIMIT 1")
     [(locator,)] = ui.sql("SELECT locator FROM evidence LIMIT 1")
     return [
         "/",
         "/items",
         "/items?view=board",
-        f"/items?project={quote(project)}",
+        f"/items?tag={quote(tag)}",
         f"/items/{rid}",
         f"/items/{rid}?tab=activity",
         f"/items/{rid}?tab=sources",
         f"/items/{rid}?tab=relations",
         f"/items?source={quote(locator, safe='')}",
         "/people",
-        "/projects",
+        "/tags",
         "/review",
         "/import",
     ]

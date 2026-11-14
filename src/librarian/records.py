@@ -1,4 +1,4 @@
-"""Read side of Records: one Record with its owner, project links and Evidence."""
+"""Read side of Records: one Record with its owner, tag links and Evidence."""
 
 import sqlite3
 from typing import Any
@@ -53,7 +53,7 @@ def get(conn: sqlite3.Connection, workspace: str, record_id: int) -> dict[str, A
             (workspace, record_id),
         )
     ]
-    record["projects"] = [
+    record["tags"] = [
         {"id": link["to_id"], "title": link["to"]} for link in links if link["type"] == "belongs_to"
     ]
     if parent_id:

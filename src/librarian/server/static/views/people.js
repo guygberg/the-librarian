@@ -17,7 +17,7 @@ export function standing(records, name) {
   };
 }
 
-const openItem = (item) => h('a', { href: href({ open: item.id, owner: null, waiting: null, project: null }), 'data-link': true }, item.title);
+const openItem = (item) => h('a', { href: href({ open: item.id, owner: null, waiting: null, tag: null }), 'data-link': true }, item.title);
 
 const count = (part, label, n) => h('span', { 'data-part': part }, h('b', {}, String(n)), ` ${label}`);
 
@@ -42,8 +42,8 @@ function detail(person, records) {
   return h('div', { class: 'panel', 'data-part': 'person-detail' },
     h('div', { class: 't' }, person.name),
     h('div', { class: 'acts' },
-      link('person-items', 'Items they own', href({ owner: person.name, waiting: null, project: null })),
-      link('person-waiting-items', 'Items waiting on them', href({ waiting: person.name, owner: null, project: null })),
+      link('person-items', 'Items they own', href({ owner: person.name, waiting: null, tag: null })),
+      link('person-waiting-items', 'Items waiting on them', href({ waiting: person.name, owner: null, tag: null })),
       link('person-all', 'All people', '/people')),
     section('person-owned-list', 'Owned', s.owned, (i) => h('div', { class: 'it', 'data-part': 'person-item' }, h('div', { class: 't' }, openItem(i)))),
     section('person-waiting-list', 'Waiting on them', s.waiting, (i) => h('div', { class: 'it', 'data-part': 'person-item' }, h('div', { class: 't' }, openItem(i)))),

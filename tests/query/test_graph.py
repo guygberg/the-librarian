@@ -47,18 +47,18 @@ def hops_of(body):
 
 
 def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(api):
-    project = f"record:{payments.PROJECT_ID}"
+    tag = f"record:{payments.TAG_ID}"
 
-    status, one = api.get(f"center={project}&hops=1")
+    status, one = api.get(f"center={tag}&hops=1")
     assert status == 200
-    assert hops_of(one)[project] == 0
+    assert hops_of(one)[tag] == 0
     assert {n["hop"] for n in one["nodes"]} == {0, 1}
     assert f"record:{payments.NOV_18_ID}" in hops_of(one)
     kinds = {e["kind"] for e in one["edges"]}
     assert {"belongs_to", "blocks", "evidence"} >= kinds >= {"belongs_to"}
     assert all(e["evidence"] for e in one["edges"] if e["from"] == f"record:{payments.NOV_18_ID}")
 
-    _, two = api.get(f"center={project}&hops=2")
+    _, two = api.get(f"center={tag}&hops=2")
     owners = [n for n in two["nodes"] if n["type"] == "person"]
     assert (
         [n["hop"] for n in owners] == [2]
@@ -77,12 +77,12 @@ def test_hops_add_layers_with_distances_and_the_kind_filter_drops_other_kinds(ap
     _, no_evidence = api.get(f"center=record:{payments.NOV_18_ID}&hops=1&kinds=belongs_to")
     assert not [n for n in no_evidence["nodes"] if n["type"] == "source_item"]
 
-    _, three = api.get(f"center={project}&hops=3")
+    _, three = api.get(f"center={tag}&hops=3")
     assert max(n["hop"] for n in three["nodes"]) <= 3
 
-    _, only_owner = api.get(f"center={project}&hops=3&kinds=owner")
+    _, only_owner = api.get(f"center={tag}&hops=3&kinds=owner")
     assert {e["kind"] for e in only_owner["edges"]} <= {"owner"}
-    assert hops_of(only_owner) == {project: 0}
+    assert hops_of(only_owner) == {tag: 0}
 
 
 def test_centre_on_a_person_returns_owned_records_and_superseded_records_keep_edges(api):
@@ -94,7 +94,7 @@ def test_centre_on_a_person_returns_owned_records_and_superseded_records_keep_ed
     assert status == 200
     ids = hops_of(body)
     assert ids[f"record:{blocker}"] == 1
-    assert ids[f"record:{payments.PROJECT_ID}"] == 2
+    assert ids[f"record:{payments.TAG_ID}"] == 2
     superseded = next(n for n in body["nodes"] if n["id"] == f"record:{blocker}")
     assert superseded["lifecycle"] == "superseded"
     assert [

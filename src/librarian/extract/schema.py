@@ -1,13 +1,14 @@
 """The extraction result contract: one JSON schema, exported for `claude -p --json-schema`.
 
 The enum lists here are the single home for the validator too. They mirror the CHECK constraints in
-`migrations/0001_core.sql`.
+`migrations/0001_core.sql`. Extraction never emits a `tag` Record; only an accepted Suggestion
+creates one.
 """
 
 import hashlib
 import json
 
-KINDS = ["project", "action_item", "decision", "blocker", "open_question"]
+KINDS = ["tag", "action_item", "decision", "blocker", "open_question"]
 LIFECYCLES = ["open", "pending", "suspended", "done", "dropped", "superseded"]
 BASES = ["stated", "inferred", "confirmed"]
 COMMITMENTS = ["intention", "request", "commitment"]

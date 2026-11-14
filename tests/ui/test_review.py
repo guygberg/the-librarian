@@ -1,7 +1,7 @@
 from playwright.sync_api import expect
 
 from fixtures.scenarios import payments_cutover as payments
-from fixtures.scenarios import projects_stable_ids as stable
+from fixtures.scenarios import tags_stable_ids as stable
 from support.recordings import run_import
 from support.ui_stream import STAMP, open_stream, person, record, row
 
@@ -111,47 +111,45 @@ def test_the_person_node_menu_in_relations_moves_and_splits_an_alias(page, ui):
     assert new not in (dani, dana)
 
 
-def test_project_confirm_rename_and_merge_from_the_status_header(page, ui):
-    ui = start(page, ui, "projects-stable-ids", stable.NOW)
+def test_tag_confirm_rename_and_merge_from_the_status_header(page, ui):
+    ui = start(page, ui, "tags-stable-ids", stable.NOW)
     [(open_now,)] = ui.sql(OPEN)
     page.goto(f"{ui.url}/review")
     expect(page.locator(ROW)).to_have_count(open_now)
-    expect(page.locator(ROW, has_text="inferred project")).to_have_count(2)
+    expect(page.locator(ROW, has_text="inferred tag")).to_have_count(2)
 
-    page.goto(f"{ui.url}/items?project={ATLAS.replace(' ', '%20')}")
-    tools = page.locator("[data-part=project-tools]")
-    drawn = tools.locator("[data-part=project-name]").element_handle()
+    page.goto(f"{ui.url}/items?tag={ATLAS.replace(' ', '%20')}")
+    tools = page.locator("[data-part=tag-tools]")
+    drawn = tools.locator("[data-part=tag-name]").element_handle()
     with page.expect_response("**/confirm"):
-        tools.locator("[data-part=project-confirm]").click()
+        tools.locator("[data-part=tag-confirm]").click()
     # The page draws again after the response, replacing the header: a fill before that is lost.
     page.wait_for_function("el => !el.isConnected", arg=drawn)
     assert ui.sql("SELECT basis FROM records WHERE title = ?", ATLAS) == [("confirmed",)]
 
-    tools.locator("[data-part=project-name]").fill("Atlas Cloud")
+    tools.locator("[data-part=tag-name]").fill("Atlas Cloud")
     with page.expect_response("**/rename"):
-        tools.locator("[data-part=project-rename]").click()
+        tools.locator("[data-part=tag-rename]").click()
     expect(page.locator("[data-part=status-header] .t").first).to_have_text("Atlas Cloud")
 
     with page.expect_response("**/merge"):
-        page.locator("[data-part=project-merge]").select_option(label=ATLASES)
+        page.locator("[data-part=tag-merge]").select_option(label=ATLASES)
     expect(page.locator("[data-part=status-header] .t").first).to_have_text(ATLASES)
     code, out = run_import(ui.home, ui.env)
     assert code == 0, out
     assert ui.sql("SELECT lifecycle FROM records WHERE title = 'Atlas Cloud'") == [("superseded",)]
 
 
-def test_split_moves_the_ticked_items_to_a_new_project(page, ui):
-    ui = start(page, ui, "projects-stable-ids", stable.NOW)
-    page.goto(f"{ui.url}/items?project={ATLASES}")
-    tools = page.locator("[data-part=project-tools]")
-    tools.locator("[data-part=project-split] summary").click()
+def test_split_moves_the_ticked_items_to_a_new_tag(page, ui):
+    ui = start(page, ui, "tags-stable-ids", stable.NOW)
+    page.goto(f"{ui.url}/items?tag={ATLASES}")
+    tools = page.locator("[data-part=tag-tools]")
+    tools.locator("[data-part=tag-split] summary").click()
     tools.locator("[data-part=split-name]").fill("Rollout")
     tools.locator("[data-part=split-item] input").first.check()
     with page.expect_response("**/split"):
         tools.locator("[data-part=split-go]").click()
-    assert ui.sql("SELECT count(*) FROM records WHERE title = 'Rollout' AND kind = 'project'") == [
-        (1,)
-    ]
+    assert ui.sql("SELECT count(*) FROM records WHERE title = 'Rollout' AND kind = 'tag'") == [(1,)]
 
 
 def test_an_expired_token_shows_an_error_and_changes_nothing(page, ui):

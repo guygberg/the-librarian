@@ -17,7 +17,7 @@ One raw unit from a source, such as a Slack message, a Claude session passage or
 _Avoid_: Document, raw record
 
 **Record**:
-A thing the Librarian extracted from source items, such as a project, action item, decision, blocker or open question. Records can be rebuilt; the person's changes to them are kept apart.
+A thing the Librarian extracted from source items, such as a tag, action item, decision, blocker or open question. Records can be rebuilt; the person's changes to them are kept apart.
 _Avoid_: Entry, note
 
 **Link**:
@@ -36,13 +36,29 @@ _Avoid_: Nickname, handle
 A link the importer is unsure about. It waits in the review list and never counts as confirmed until the person accepts it.
 _Avoid_: Pending match, guess
 
+**Tag**:
+A Record of kind tag: a concept, project, process or topic that other Records and Persons can relate to. It replaces what used to be called a Project; there is one concept, not two. Extraction infers Tags and a Suggestion can propose them.
+_Avoid_: Project, label, category
+
+**Suggestion**:
+A stored proposal from Suggestion analysis: a new Tag, a new Item or a Link, with Confidence, one line of reasoning and at least one Evidence quote. It changes nothing until the person accepts it in the review list; dismissing it rejects it.
+_Avoid_: Recommendation, guess
+
+**Suggestion analysis**:
+A separately runnable pass over source units that stores Suggestions. Independent of the five import stages: extraction finishing neither triggers nor satisfies it. A unit counts as analysed only when its analysis succeeded, even with no Suggestions.
+_Avoid_: Enrichment, second extraction
+
+**Confidence**:
+How sure the model is that a Suggestion is right, a whole number from 0 to 100 with a band (high, medium or low). It grades a proposal, not a Record's state, and is never the same thing as Basis.
+_Avoid_: Score, certainty
+
 **Evidence**:
 The link from a record to a source item that supports, completes or contradicts it, with a locator and a short verbatim quote. Every record has at least one.
 _Avoid_: Citation, proof
 
 **Basis**:
-How firmly a record's state is known: stated (a source says it), inferred (Claude concluded it) or confirmed (the person confirmed it in the Librarian).
-_Avoid_: Confidence, certainty
+How firmly a record's state is known: stated (a source says it), inferred (Claude concluded it) or confirmed (the person confirmed it in the Librarian). Not the same as a Suggestion's Confidence, which is a 0–100 grade.
+_Avoid_: Certainty
 
 **Person event**:
 An entry in the append-only log of the person's own changes: a status change, correction, merge, dismissal, speaker setting, or accepted or rejected suggestion. Re-import never touches it.
@@ -61,7 +77,7 @@ The stream group of open items that want the person: their own open action items
 _Avoid_: Inbox, todo
 
 **Review list**:
-The place where every suggested link and every inferred project waits for the person to accept, reject or rename it.
+The place where every suggested link and every inferred tag waits for the person to accept, reject or rename it.
 _Avoid_: Queue, inbox
 
 **Import**:

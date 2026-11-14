@@ -20,10 +20,10 @@ def _record_ids(
     """Records are matched here, not in the full-text index.
 
     They change through many writers and a work memory bank holds few. Text is the title,
-    body, reasoning, Evidence quotes and a project's aliases; title matches rank first.
+    body, reasoning, Evidence quotes and a tag's aliases; title matches rank first.
     """
     extra: dict[int, list[str]] = {}
-    for table, column in (("evidence", "quote"), ("project_aliases", "alias")):
+    for table, column in (("evidence", "quote"), ("tag_aliases", "alias")):
         for record_id, text in conn.execute(
             f"SELECT record_id, {column} FROM {table} WHERE workspace = ?", (workspace,)
         ):

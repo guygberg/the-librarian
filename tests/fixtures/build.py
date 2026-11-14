@@ -17,20 +17,20 @@ SCENARIOS_DIR = HERE / "scenarios"
 # The spec's fixture set and extras, each with the scenario that provides it
 # (tests/fixtures/test_build.py checks it).
 MANIFEST = {
-    "cross-source project": "base",
+    "cross-source tag": "base",
     "date disagreement": "payments_cutover",
     "uncertain Hebrew passage": "onboarding_hebrew",
     "unnamed first-person speech": "people_aliases",
     "deleted Slack message": "slack_deleted_message",
     "edited Slack message": "slack_edited_message",
-    "ambiguous project name": "projects_stable_ids",
+    "ambiguous tag name": "tags_stable_ids",
     "stale item": "stale_and_ownerless",
     "ownerless item": "onboarding_hebrew",
     "failing extractor": "extractor_failure",
     "partial file": "recording_partial",
     "Slack history older than 30 days": "slack_history_older",
     "replayed conversation list": "slack_conversation_list",
-    "project with no recording": "project_slack_only",
+    "tag with no recording": "tag_slack_only",
     "prompt-injection message": "slack_prompt_injection",
 }
 

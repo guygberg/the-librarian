@@ -54,15 +54,15 @@ def stage(workspace: str, extractor: Extractor, max_calls: int | None = None) ->
                     sent,
                     unit.locators,
                 )
-                unsent = candidates.unsent_projects(result.records, sent)
+                unsent = candidates.unsent_tags(result.records, sent)
                 if unsent:
-                    # Claude linked to a project whose Records it was not shown: ask once
+                    # Claude linked to a tag whose Records it was not shown: ask once
                     # more, as one more call.
                     if max_calls is not None and made >= limit:
                         deferred.add(unit.key)
                         continue
                     made += 1
-                    sent = candidates.add_projects(conn, workspace, sent, unsent, stale_days)
+                    sent = candidates.add_tags(conn, workspace, sent, unsent, stale_days)
                     result = runs.extract_and_record(
                         conn,
                         workspace,
@@ -112,7 +112,7 @@ def _sources(
 ) -> Iterator[tuple[units.Unit, Extractor, list[dict]]]:
     """Each unit with what to call for it and the candidates sent. A concurrent engine yields in
     completion order, so a unit is stored as soon as it is done and an interrupted run keeps
-    everything finished; its candidates are picked up front, and the exact-name project match at
+    everything finished; its candidates are picked up front, and the exact-name tag match at
     storing time keeps them from duplicating."""
     stream = getattr(extractor, "extract_stream", None)
     if stream is None:

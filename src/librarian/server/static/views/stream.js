@@ -6,7 +6,7 @@ import { dateLine, shortDate } from '../format.js';
 import { justActed } from '../actions.js';
 import { evidenceLine, panel } from './expanded.js';
 import * as relations from './graph.js';
-import { projectTools } from './project-tools.js';
+import { tagTools } from './tag-tools.js';
 
 /** What the last action changed (see actions.js), so the matching parts settle on this one render. */
 let acted = null;
@@ -53,7 +53,7 @@ function row(item, evidence, open) {
     h('div', { class: 't' }, h('a', { href: filters.href({ open: expanded ? null : item.id }), 'data-link': true }, item.title)),
     item.body ? h('p', { class: 'sum', 'data-part': 'summary' }, item.body) : null,
     h('div', { class: 'm' },
-      h('span', {}, item.projects.flatMap((p, i) => [i ? ', ' : '', h('a', { href: `/projects?project=${encodeURIComponent(p.title)}`, 'data-link': true, 'data-part': 'row-project' }, p.title)])),
+      h('span', {}, item.tags.flatMap((p, i) => [i ? ', ' : '', h('a', { href: `/tags?tag=${encodeURIComponent(p.title)}`, 'data-link': true, 'data-part': 'row-tag' }, p.title)])),
       h('span', { 'data-part': 'row-kind' }, item.kind.replace('_', ' ')),
       h('span', { 'data-part': 'row-lifecycle' }, item.lifecycle),
       h('span', {}, ownerName(item) && !item.owner_is_me
@@ -67,19 +67,19 @@ function row(item, evidence, open) {
 
 const fact = (label, f) => (f && f !== 'not found' ? h('div', { class: 'm' }, h('span', {}, label), h('span', {}, f.title ?? f.value)) : null);
 
-/** What a selected project stands at, and what changed since the last meeting. */
-async function statusHeader(name, projects, items) {
-  const [{ project, resolved }, changes] = await Promise.all([
-    api.get(`/api/project?name=${encodeURIComponent(name)}`),
-    api.get(`/api/changes?project=${encodeURIComponent(name)}`),
+/** What a selected tag stands at, and what changed since the last meeting. */
+async function statusHeader(name, tags, items) {
+  const [{ tag, resolved }, changes] = await Promise.all([
+    api.get(`/api/tag?name=${encodeURIComponent(name)}`),
+    api.get(`/api/changes?tag=${encodeURIComponent(name)}`),
   ]);
-  if (!resolved.project) return null;
+  if (!resolved.tag) return null;
   return h('div', { class: 'sh', 'data-part': 'status-header' },
-    h('div', { class: 't' }, resolved.project.name),
-    projectTools(resolved.project, projects, items),
-    fact('Status', project.status),
-    fact('Blocker', project.main_blocker),
-    fact('Latest decision', project.latest_decision),
+    h('div', { class: 't' }, resolved.tag.name),
+    tagTools(resolved.tag, tags, items),
+    fact('Status', tag.status),
+    fact('Blocker', tag.main_blocker),
+    fact('Latest decision', tag.latest_decision),
     h('div', { class: 'm', 'data-part': 'changes' },
       h('span', {}, `${changes.changes.length} changed`), h('span', {}, changes.resolved.baseline)));
 }
@@ -156,13 +156,13 @@ export async function stream() {
   const [answer, status, visit] = await Promise.all([
     api.get('/api/open-items?scope=all'), api.get('/api/status'), api.get('/api/visit')]);
   const shown = answer.records.filter((r) => filters.matches(r, state));
-  const header = state.project ? await statusHeader(state.project, answer.projects, shown) : null;
+  const header = state.tag ? await statusHeader(state.tag, answer.tags, shown) : null;
   const evidence = state.kind === 'done' ? answer.evidence : [];
   const hasOwner = answer.records.filter((r) => ownerName(r));
   const graphState = state.open && state.tab === 'relations' ? relations.params(state.open) : null;
   const open = state.open
     ? {
-      record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab, people: answer.people, projects: answer.projects,
+      record: (await api.get(`/api/record?id=${state.open}`)).record, tab: state.tab, people: answer.people, tags: answer.tags,
       graphState, graph: graphState && await api.get(relations.query(graphState)),
     }
     : null;
@@ -174,7 +174,7 @@ export async function stream() {
     changedStrip(visit),
     headline(answer.headline.text),
     progress(answer.progress),
-    filters.chips(answer.projects, state),
+    filters.chips(answer.tags, state),
     header,
     filters.views(state),
     filters.tabs(state),
