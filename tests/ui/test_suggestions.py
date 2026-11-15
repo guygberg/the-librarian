@@ -100,10 +100,17 @@ def test_screens_at_desktop_and_phone_widths(page, ui, tmp_path):
     """Captures the product for comparison with docs/review/canonical; LIBRARIAN_SHOTS keeps it."""
     out = Path(os.environ.get("LIBRARIAN_SHOTS", tmp_path))
     ui, _ = start(page, ui)
-    for name, width, height in (("desktop", 1280, 1074), ("phone", 390, 844)):
+    for name, width, height, columns in (("desktop", 1280, 1074, 2), ("phone", 390, 844, 1)):
         page.set_viewport_size({"width": width, "height": height})
         page.goto(ui.url + "/review")
         expect(page.locator(CARD)).to_have_count(3)
+        expect(page.locator("h1")).to_have_text("Suggestions")
+        expect(page.locator(".sg-head")).to_contain_text("Small steps. A clearer workspace.")
+        tracks = page.locator(".sgrid").evaluate("e => getComputedStyle(e).gridTemplateColumns")
+        assert len(tracks.split()) == columns
+        first = page.locator(CARD).first
+        accept = first.locator("[data-part=suggestion-accept]").bounding_box()
+        assert accept["height"] >= 40 and accept["x"] > first.bounding_box()["x"]
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         page.screenshot(path=out / f"{name}-suggestions.png", full_page=name == "desktop")
 

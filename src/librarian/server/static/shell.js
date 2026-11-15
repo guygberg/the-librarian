@@ -7,7 +7,7 @@ export const NAV = [
   { path: '/items', label: 'Items', icon: 'items' },
   { path: '/people', label: 'People', icon: 'people' },
   { path: '/tags', label: 'Tags', icon: 'tags' },
-  { path: '/review', label: 'Review', icon: 'review' },
+  { path: '/review', label: 'Suggestions', icon: 'sparkle' },
 ];
 
 const THEME_KEY = 'librarian-theme';

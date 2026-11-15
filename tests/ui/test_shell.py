@@ -18,10 +18,11 @@ def test_nav_lists_the_five_pages_and_each_route_loads(page, ui):
     ui = ui("payments-cutover", payments.NOW)
     page.goto(ui.url)
     expect(page.locator(NAV)).to_have_text(
-        ["Today", "Items", "People", "Tags", re.compile(r"Review\d*")]  # Review carries its count
+        ["Today", "Items", "People", "Tags", re.compile(r"Suggestions\d*")]  # carries its count
     )
-    for label in ["People", "Tags", "Review", "Items"]:
-        path = "/" + label.lower()
+    pages = [("People", "/people"), ("Tags", "/tags"), ("Suggestions", "/review")]
+    pages.append(("Items", "/items"))
+    for label, path in pages:
         page.locator(NAV, has_text=label).click()
         expect(page).to_have_url(ui.url + path)
         expect(page.locator(NAV, has_text=label)).to_have_attribute("aria-current", "page")

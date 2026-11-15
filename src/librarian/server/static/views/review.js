@@ -60,7 +60,7 @@ const REASONS = {
 
 function reviewRow(row, people) {
   const failed = h('p', { class: 'w', 'data-part': 'review-error' });
-  return h('div', { class: 'it', 'data-part': 'review-row', 'data-kind': row.kind },
+  return h('div', { class: 'sg legacy', 'data-part': 'review-row', 'data-kind': row.kind },
     h('div', { class: 'm' }, h('span', { class: 'w', 'data-part': 'review-mark' }, row.mark), row.raw_name ? h('span', {}, `"${row.raw_name}"`) : null,
       h('span', { 'data-part': 'review-basis' }, `Basis: ${row.record.basis ?? 'unknown'}`)),
     h('p', { class: 'pnote', 'data-part': 'review-reason' }, (REASONS[row.kind] ?? (() => 'Needs your decision.'))(row)),
@@ -100,16 +100,29 @@ function controls(state) {
       SORTS.map(([k, text]) => chip(text, `/review${query({ ...state, sort: k })}`, state.sort === k, 'sort-chip'))));
 }
 
+const SVG = 'http://www.w3.org/2000/svg';
+
+/** The lime hexagon beside the page title, as in the canonical composition. */
+function hero() {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('class', 'sg-hero');
+  svg.setAttribute('viewBox', '0 0 80 80');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(SVG, 'path');
+  path.setAttribute('d', 'M40 4 72 22v36L40 76 8 58V22L40 4ZM40 4v72M8 22l64 36M72 22 8 58M8 22h64M8 58h64');
+  svg.append(path);
+  return svg;
+}
+
 /** Every Suggestion and doubt awaiting a decision: Suggestions as graded cards, the rest with both sides and Evidence. */
 export async function review() {
   const settled = justActed();
   const state = chosen();
   const [{ count, rows }, { people }] = await Promise.all([api.get(`/api/review${query(state)}`), api.get('/api/open-items?scope=all')]);
   return h('div', { 'data-part': 'review' },
-    h('h1', {}, 'Suggestions'),
-    h('p', { class: 'pnote' }, 'Nothing is created until you accept it.'),
+    h('header', { class: 'sg-head' }, hero(), h('div', {}, h('h1', {}, 'Suggestions'), h('p', {}, 'Small steps. A clearer workspace.'))),
     controls(state),
     h('div', { class: 'grp', 'data-part': 'review-count' }, `${count} to review`),
-    h('div', { class: settled ? 'settle' : null },
-      rows.length ? rows.map((row) => (row.type === 'suggestion' ? suggestionCard(row) : reviewRow(row, people))) : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing to review.')));
+    h('div', { class: settled ? 'sgrid settle' : 'sgrid' },
+      rows.length ? [...rows.filter((r) => r.type === 'suggestion').map(suggestionCard), ...rows.filter((r) => r.type !== 'suggestion').map((r) => reviewRow(r, people))] : h('p', { class: 'empty', 'data-part': 'empty' }, 'Nothing to review.')));
 }

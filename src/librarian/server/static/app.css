@@ -95,11 +95,26 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 .people input[type=date] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; font: inherit; max-width: 100%; }
 
 /* Suggestions: graded cards. Colour is never the only signal; the grade is also written out. */
-.sg { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: var(--s4); margin: 0 0 var(--s3); }
-.sg-label { font: 12px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--acc); }
-.sg .t { font-size: 22px; margin: var(--s1) 0 var(--s2); overflow-wrap: anywhere; }
-.sg .t small { color: var(--mut); font-family: inherit; font-weight: 400; font-size: 15px; }
-.sg-grade { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); margin-bottom: var(--s2); }
+.sg-head { display: flex; align-items: center; gap: var(--s5); margin: 0 0 var(--s4); }
+.sg-head h1 { margin: 0 0 var(--s1); }
+.sg-head > div { border-left: 1px solid var(--line); padding-left: var(--s5); color: var(--mut); }
+.sg-hero { width: 84px; height: 84px; flex-shrink: 0; fill: var(--acc-soft); stroke: var(--acc); stroke-width: 1.5; }
+.sgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); align-items: stretch; }
+.sg {
+  display: flex; flex-direction: column; gap: var(--s2); min-width: 0; padding: var(--s4) var(--s5); background: var(--panel); border: 1px solid var(--line);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+}
+.sg-label { display: flex; align-items: center; gap: var(--s2); font: 700 13px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--acc); }
+.sg-label .icon, .chip.primary .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.sg-title, .sg .t { font-size: 24px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.sg-title small, .sg .t small { color: var(--mut); font-family: inherit; font-weight: 400; font-size: 15px; }
+.sg-sub { color: var(--mut); overflow-wrap: anywhere; }
+.sg-evidence .evb { margin: 0; padding: var(--s1) var(--s3); font-size: 13px; }
+.sg-evidence .evb a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sg .acts { margin: auto 0 0; padding-top: var(--s3); justify-content: flex-end; }
+.sg .acts .chip { min-height: 44px; padding: 8px 20px; border-radius: 8px; font-size: 16px; color: var(--ink); display: inline-flex; align-items: center; gap: var(--s2); }
+.sg .acts .chip.primary { color: var(--on-acc); }
+.sg-grade { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); font-size: 13px; }
 .sg-grade small { color: var(--mut); }
 .sg-bar { width: 96px; height: 6px; border-radius: 99px; background: var(--panel2); overflow: hidden; }
 .sg-bar i { display: block; height: 100%; background: var(--acc); }
@@ -111,8 +126,12 @@ button.chip { background: none; font-family: inherit; cursor: pointer; }
 .navcount { margin-left: auto; min-width: 22px; padding: 0 7px; border: 1px solid var(--acc); border-radius: 99px; font-size: 14px; text-align: center; }
 
 @media (max-width: 760px) {
-  .sg .t { font-size: 20px; }
-  .sg .acts .chip { min-height: 44px; }
+  .sgrid { grid-template-columns: minmax(0, 1fr); }
+  .sg-title, .sg .t { font-size: 20px; }
+  .sg-head { gap: var(--s4); min-width: 0; }
+  .sg-head h1 { font-size: 30px; margin-top: 0; }
+  .sg-head > div { padding-left: var(--s4); }
+  .sg-hero { width: 52px; height: 52px; }
   .sheet { padding: var(--s4) var(--s4) 22px; max-height: 80vh; }
   .it .t { font-size: 20px; overflow-wrap: anywhere; }
   .table { display: block; overflow-x: auto; }
